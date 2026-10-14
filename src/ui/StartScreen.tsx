@@ -216,7 +216,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         <p>
           Gra działa w całości w przeglądarce. Zapis kariery trzymamy tylko w pamięci Twojej przeglądarki (localStorage) i nie wysyłamy go nigdzie.
         </p>
-        <p>Wersja 0.2.0 (alfa).</p>
+        <p>Wersja {__APP_VERSION__.replace('-alpha', ' (alfa)')}.</p>
       </footer>
     </main>
   )
