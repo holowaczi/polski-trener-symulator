@@ -32,6 +32,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         <div className="logo">⚽</div>
         <h1>Polski Trener Symulator</h1>
         <p className="muted">Od B-klasy do Ekstraklasy. Albo do zwolnienia w trzeciej kolejce.</p>
+        <p className="muted small">Prawdziwe kluby sezonu 2026/27 od III ligi wzwyż. Województwo decyduje o grupie III ligi i lokalnych ligach.</p>
       </header>
 
       {saved && (

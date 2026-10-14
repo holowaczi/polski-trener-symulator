@@ -2,14 +2,19 @@ import type { License, Position, TraitId } from './types'
 
 export const LEVELS = [
   { name: 'B-klasa', size: 12, base: 24, budget: 2_500, salary: 6_000, license: 'brak' as License },
-  { name: 'A-klasa', size: 12, base: 31, budget: 6_000, salary: 12_000, license: 'UEFA C' as License },
-  { name: 'Klasa okręgowa', size: 14, base: 38, budget: 15_000, salary: 24_000, license: 'UEFA C' as License },
+  { name: 'A-klasa', size: 14, base: 31, budget: 6_000, salary: 12_000, license: 'UEFA C' as License },
+  { name: 'Klasa okręgowa', size: 16, base: 38, budget: 15_000, salary: 24_000, license: 'UEFA C' as License },
   { name: 'IV liga', size: 16, base: 45, budget: 40_000, salary: 48_000, license: 'UEFA B' as License },
-  { name: 'III liga', size: 16, base: 51, budget: 100_000, salary: 90_000, license: 'UEFA B' as License },
-  { name: 'II liga', size: 16, base: 57, budget: 250_000, salary: 180_000, license: 'UEFA A' as License },
-  { name: 'I liga', size: 16, base: 63, budget: 600_000, salary: 400_000, license: 'UEFA A' as License },
-  { name: 'Ekstraklasa', size: 16, base: 69, budget: 1_500_000, salary: 1_200_000, license: 'UEFA Pro' as License },
+  { name: 'III liga', size: 18, base: 51, budget: 100_000, salary: 90_000, license: 'UEFA B' as License },
+  { name: 'II liga', size: 18, base: 57, budget: 250_000, salary: 180_000, license: 'UEFA A' as License },
+  { name: 'I liga', size: 18, base: 63, budget: 600_000, salary: 400_000, license: 'UEFA A' as License },
+  { name: 'Ekstraklasa', size: 18, base: 69, budget: 1_500_000, salary: 1_200_000, license: 'UEFA Pro' as License },
 ]
+
+/** ile drużyn zamienia się miejscami między poziomem L a L+1 (uproszczenie: baraże liczone jako awans) */
+export const SWAPS = [2, 2, 2, 2, 2, 3, 3]
+/** rezerwy nie mogą grać wyżej niż II liga */
+export const RESERVE_MAX_LEVEL = 5
 
 export const LICENSES: License[] = ['brak', 'UEFA C', 'UEFA B', 'UEFA A', 'UEFA Pro']
 
@@ -85,6 +90,7 @@ export const TRAITS: Record<TraitId, { name: string; desc: string }> = {
   pracus: { name: 'Pracuś', desc: 'Zostaje po treningu. Rośnie stabilnie.' },
   krol_strzalow: { name: 'Król strzałów', desc: 'Strzela z każdej pozycji. Czasem trafia.' },
   kibic_z_mlyna: { name: 'Kibic z młyna', desc: 'Kibice go kochają, co by nie zrobił.' },
+  narwany: { name: 'Narwany', desc: 'Gra ostro. Kartki zbiera jak znaczki.' },
 }
 
 export const POSITION_NAMES: Record<Position, string> = {

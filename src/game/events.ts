@@ -1,5 +1,6 @@
 import type { Rng } from './rng'
 import type { GameState, Player, TraitId } from './types'
+import { addModifier, adjustCoach, adjustTrust, nudgeForm, setMorale } from './util'
 
 export interface EventCtx {
   s: GameState
@@ -13,52 +14,349 @@ export interface GameEvent {
   minLevel?: number
   maxLevel?: number
   once?: boolean
-  /** zdarzenie dotyczy zawodnika: dowolnego albo z daną cechą */
-  player?: 'any' | TraitId
+  /** zdarzenie dotyczy zawodnika: dowolnego, z cechą albo spełniającego warunek */
+  player?: 'any' | TraitId | ((p: Player, s: GameState) => boolean)
   condition?: (s: GameState) => boolean
-  /** {p} pełne imię zawodnika, {ps} skrót, {klub}, {miasto}, {trener} */
+  /** {p} imię i nazwisko, {ps} skrót, {ocena} średnia ocen, {mecze} mecze bez gry, {klub}, {miasto}, {trener} */
   text: string
   options: { label: string; apply: (c: EventCtx) => string }[]
 }
 
-const cl = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, Math.round(v)))
-
-function trust(s: GameState, board = 0, squad = 0, fans = 0): void {
-  s.trust.board = cl(s.trust.board + board)
-  s.trust.squad = cl(s.trust.squad + squad)
-  s.trust.fans = cl(s.trust.fans + fans)
-}
-
-function teamMorale(s: GameState, d: number): void {
-  for (const p of s.squad) p.morale = cl(p.morale + d)
-}
-
-function teamForm(s: GameState, d: number): void {
-  for (const p of s.squad) p.form = cl(p.form + d, -3, 3)
-}
-
-function rep(s: GameState, d: number): void {
-  s.coach.reputation = cl(s.coach.reputation + d)
-}
-
-function scandal(s: GameState, text: string): void {
-  s.scandals.push(text)
-}
-
+// skróty, żeby opcje zdarzeń były czytelne
+const trust = (s: GameState, board = 0, squad = 0, fans = 0) => adjustTrust(s, { board, squad, fans })
+const coach = (s: GameState, stress = 0, reputation = 0, savings = 0) => adjustCoach(s, { stress, reputation, savings })
+const mod = addModifier
+const teamMorale = (s: GameState, d: number) => s.squad.forEach((p) => setMorale(p, d))
+const scandal = (s: GameState, text: string) => s.scandals.push(text)
 const k = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)} tys. zł` : `${v} zł`)
 /** kwota zależna od poziomu ligi */
 const money = (s: GameState, base: number) => Math.round(base * Math.pow(2.2, s.teams[s.clubId!].level))
+const last3 = (s: GameState) => s.streak.slice(-3).join('')
+const median = (s: GameState) => [...s.squad].sort((a, b) => b.skill - a.skill)[Math.min(13, s.squad.length - 1)]?.skill ?? 0
 
 export const EVENTS: GameEvent[] = [
+  // ---------- zdarzenia wynikające z meczów ----------
+  {
+    id: 'lawka_skarga',
+    weight: 2.5,
+    player: (p, s) => p.benchStreak >= 3 && p.injuredFor === 0 && p.skill >= median(s) && !p.traits.includes('syn_prezesa'),
+    text: '{p} nie zagrał od {mecze} meczów. Puka do gabinetu: „Trenerze, ja tu przyszedłem grać, nie grzać ławę”.',
+    options: [
+      {
+        label: 'Obiecaj mu miejsce w składzie',
+        apply: ({ s, p }) => {
+          setMorale(p!, 20)
+          s.flags[`obietnica:${p!.id}`] = s.round
+          return '{ps} wychodzi zadowolony. Zapamięta tę obietnicę, Ty też lepiej zapamiętaj.'
+        },
+      },
+      {
+        label: '„Musisz wygrać rywalizację na treningu”',
+        apply: ({ s, p }) => {
+          setMorale(p!, -8)
+          p!.progress += 0.3
+          trust(s, 1, 2, 0)
+          return '{ps} zaciska zęby i zostaje po treningach. Szatnia widzi, że miejsce trzeba wywalczyć.'
+        },
+      },
+      {
+        label: 'Wystaw go na listę transferową',
+        apply: ({ s, p }) => {
+          setMorale(p!, -25)
+          trust(s, 0, -3, 0)
+          return '{ps} dowiaduje się o tym z Facebooka. Atmosfera w szatni gęstnieje.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'czerwona_kara',
+    weight: 3,
+    player: (p) => p.suspendedFor > 0,
+    text: '{p} wyleciał z boiska i pauzuje. Zarząd pyta, czy klub wyciągnie konsekwencje.',
+    options: [
+      {
+        label: 'Kara finansowa',
+        apply: ({ s, p }) => {
+          setMorale(p!, -12)
+          trust(s, 3, -2, 0)
+          return '{ps} płaci karę. Zarząd zadowolony, w szatni szepczą, że trener nie broni swoich.'
+        },
+      },
+      {
+        label: 'Obroń go publicznie',
+        apply: ({ s, p }) => {
+          setMorale(p!, 12)
+          trust(s, -4, 5, 2)
+          coach(s, 0, -1)
+          return 'Na konferencji mówisz, że sędzia „widział inny mecz”. Szatnia za Tobą murem, związek patrzy krzywo.'
+        },
+      },
+      {
+        label: 'Dodatkowe treningi zamiast kary',
+        apply: ({ p }) => {
+          p!.progress += 0.4
+          setMorale(p!, -4)
+          return '{ps} odrabia karę na siłowni. Przynajmniej coś z tego będzie.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'kryzys_formy',
+    weight: 2.5,
+    player: (p) => p.form <= -2 && p.apps >= 3,
+    text: '{p} ma kryzys. Średnia ocen {ocena}, ostatnie mecze to katastrofa. Co robisz?',
+    options: [
+      {
+        label: 'Rozmowa w cztery oczy',
+        apply: ({ p, rng }) => {
+          setMorale(p!, 10)
+          if (rng.chance(0.55)) {
+            nudgeForm(p!, 2)
+            return 'Okazało się, że {ps} miał kłopoty w domu. Po rozmowie widać światełko w tunelu.'
+          }
+          return '{ps} pokiwał głową, ale nadal myślami jest gdzie indziej.'
+        },
+      },
+      {
+        label: 'Psycholog sportowy z budżetu klubu',
+        apply: ({ s, p }) => {
+          const c = money(s, 300)
+          s.budget -= c
+          nudgeForm(p!, 2)
+          setMorale(p!, 6)
+          return `Psycholog (${k(c)}) pracuje z {ps}. Zawodnik mówi, że „odzyskał flow”.`
+        },
+      },
+      {
+        label: 'Posadź go na ławce',
+        apply: ({ p }) => {
+          setMorale(p!, -12)
+          return '{ps} siada na ławce. Albo się odbuduje, albo obrazi.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'gwiazda_formy',
+    weight: 2,
+    player: (p) => p.form >= 2 && p.apps >= 4,
+    text: '{p} gra jak natchniony, średnia {ocena}. Media się nim zachwycają, a agent już dzwoni.',
+    options: [
+      {
+        label: 'Daj mu podwyżkę o 20%',
+        apply: ({ s, p }) => {
+          p!.wage = Math.round((p!.wage * 1.2) / 100) * 100
+          setMorale(p!, 15)
+          trust(s, 0, -2, 0)
+          return '{ps} podpisuje aneks. Reszta szatni liczy, ile sama zarabia.'
+        },
+      },
+      {
+        label: 'Pochwal go publicznie',
+        apply: ({ s, p, rng }) => {
+          setMorale(p!, 10)
+          trust(s, 0, 0, 2)
+          if (rng.chance(0.35)) {
+            nudgeForm(p!, -2)
+            return '{ps} przeczytał o sobie wszystkie artykuły. Sodówka uderzyła do głowy.'
+          }
+          return '{ps} dziękuje drużynie. Wzorowa postawa.'
+        },
+      },
+      {
+        label: 'Nic nie mów, niech pracuje',
+        apply: ({ p }) => {
+          setMorale(p!, -3)
+          p!.progress += 0.2
+          return '{ps} trenuje dalej. Pracuje, choć liczył na jakieś słowo.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'seria_porazek',
+    weight: 4,
+    condition: (s) => last3(s) === 'LLL',
+    text: 'Trzy porażki z rzędu. Prezes zwołuje zebranie zarządu, a kibice piszą listy otwarte.',
+    options: [
+      {
+        label: 'Zapowiedz zmiany w składzie',
+        apply: ({ s }) => {
+          trust(s, 6, -3, 2)
+          coach(s, 4)
+          mod(s, 'Wstrząs po serii porażek', 1.5, 2)
+          return 'Zarząd daje Ci jeszcze chwilę. Zawodnicy wiedzą, że nikt nie jest pewny miejsca.'
+        },
+      },
+      {
+        label: 'Wyjazd integracyjny nad jezioro',
+        apply: ({ s }) => {
+          const c = money(s, 600)
+          s.budget -= c
+          trust(s, -2, 8, 0)
+          coach(s, -10)
+          mod(s, 'Odbudowana atmosfera', 1, 3)
+          return `Ognisko, kajaki i rozmowy do rana (${k(c)}). Drużyna znów jest drużyną.`
+        },
+      },
+      {
+        label: 'Zrzuć winę na sędziów',
+        apply: ({ s }) => {
+          trust(s, -3, 2, 4)
+          coach(s, -3, -1)
+          scandal(s, 'Wojna z sędziami po serii porażek')
+          return 'Kibice kupili tę wersję. Kolegium sędziów zapamiętało nazwisko trenera.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'seria_zwyciestw',
+    weight: 3,
+    condition: (s) => last3(s) === 'WWW',
+    text: 'Trzy wygrane z rzędu! W mieście mówi się już o „projekcie {trener}”. Jak to wykorzystać?',
+    options: [
+      {
+        label: 'Premia dla drużyny',
+        apply: ({ s }) => {
+          const c = money(s, 500)
+          s.budget -= c
+          trust(s, 0, 6, 0)
+          teamMorale(s, 8)
+          return `Premia wypłacona (${k(c)}). Zawodnicy chcą więcej, w dobrym tego słowa znaczeniu.`
+        },
+      },
+      {
+        label: 'Trzymaj ich w ryzach',
+        apply: ({ s }) => {
+          mod(s, 'Koncentracja', 1, 2)
+          trust(s, 2, -1, 0)
+          return 'Zero świętowania, pełna koncentracja. Ktoś mówi pod nosem „sztywniak”, ale grają dalej.'
+        },
+      },
+      {
+        label: 'Niech świętują',
+        apply: ({ s }) => {
+          trust(s, 0, 6, 3)
+          mod(s, 'Sodówka', -2, 2)
+          coach(s, -8)
+          return 'Impreza w klubie do białego rana. Wszyscy szczęśliwi, nikt nie pamięta treningu.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'stres_trenera',
+    weight: 4,
+    condition: (s) => s.coach.stress >= 70,
+    text: 'Lekarz rodzinny mierzy Ci ciśnienie: 180 na 110. „Panie trenerze, tak dalej nie można”.',
+    options: [
+      {
+        label: 'Weź tydzień urlopu',
+        apply: ({ s }) => {
+          coach(s, -35)
+          trust(s, -5, 0, 0)
+          mod(s, 'Asystent prowadzi treningi', -1, 2)
+          return 'Tydzień na Mazurach. Asystent prowadzi treningi, zawodnicy trochę się rozluźniają.'
+        },
+      },
+      {
+        label: 'Joga i melisa',
+        apply: ({ s }) => {
+          coach(s, -15, 0, -500)
+          return 'Poranna joga w szatni. Bramkarz też się przyłączył i podobno lepiej skacze.'
+        },
+      },
+      {
+        label: 'Zignoruj, sezon trwa',
+        apply: ({ s, rng }) => {
+          coach(s, 5)
+          if (rng.chance(0.35)) {
+            mod(s, 'Trener w szpitalu', -2, 3)
+            coach(s, -20, -2)
+            return 'Ląduję w szpitalu na obserwacji. Drużyna gra trzy mecze bez Ciebie na ławce.'
+          }
+          return 'Jakoś dajesz radę. Kawa numer siedem tego dnia.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'powrot_kontuzja',
+    weight: 2,
+    player: (p) => p.injuredFor >= 1 && p.injuredFor <= 3 && p.skill >= 0,
+    text: '{p} twierdzi, że już jest zdrowy i chce grać w najbliższym meczu. Fizjoterapeuta ma wątpliwości.',
+    options: [
+      {
+        label: 'Niech gra',
+        apply: ({ p, rng }) => {
+          const rest = p!.injuredFor
+          p!.injuredFor = 0
+          if (rng.chance(0.4)) {
+            p!.injuredFor = rest + 3
+            return `{ps} na pierwszym treningu odnowił uraz. Teraz pauza: ${p!.injuredFor} meczów.`
+          }
+          setMorale(p!, 10)
+          return '{ps} wraca wcześniej. Na razie wszystko trzyma.'
+        },
+      },
+      {
+        label: 'Słuchamy fizjoterapeuty',
+        apply: ({ p }) => {
+          setMorale(p!, -4)
+          return '{ps} wraca zgodnie z planem. Marudzi, ale zdrowie najważniejsze.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'mlody_szansa',
+    weight: 1.5,
+    player: (p) => p.age <= 20 && p.benchStreak >= 3,
+    text: 'Ojciec 18-letniego {p} czeka pod szatnią. „Chłopak trenuje jak szalony, a pan go nie widzi”.',
+    options: [
+      {
+        label: 'Obiecaj mu minuty',
+        apply: ({ s, p }) => {
+          setMorale(p!, 15)
+          p!.progress += 0.3
+          s.flags[`obietnica:${p!.id}`] = s.round
+          return 'Ojciec wychodzi zadowolony. Chłopak też. Teraz trzeba to spełnić.'
+        },
+      },
+      {
+        label: 'Wypożycz go do niższej ligi',
+        apply: ({ p }) => {
+          p!.injuredFor = 0
+          p!.progress += 0.8
+          setMorale(p!, -5)
+          return '{ps} będzie trenował z niższym klubem przez kilka tygodni. Wróci silniejszy.'
+        },
+      },
+      {
+        label: 'Trener tu decyduje',
+        apply: ({ s, p }) => {
+          setMorale(p!, -12)
+          trust(s, 1, -1, -1)
+          return 'Ojciec wypisał komentarz na Facebooku klubu. Długi.'
+        },
+      },
+    ],
+  },
+
+  // ---------- życie klubu ----------
   {
     id: 'wesele',
     player: 'any',
     text: '{p} przyszedł na trening prosto z wesela kuzyna. Jest w garniturze i mówi, że „da radę”.',
     options: [
       {
-        label: 'Odeślij go do domu i ukarz finansowo',
+        label: 'Odeślij go do domu i ukarz',
         apply: ({ s, p }) => {
-          p!.morale = cl(p!.morale - 15)
+          setMorale(p!, -15)
+          nudgeForm(p!, -1)
           trust(s, 2, -2, 0)
           return '{ps} obrażony, ale szatnia zrozumiała przekaz.'
         },
@@ -68,24 +366,26 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, p, rng }) => {
           if (rng.chance(0.5)) {
             p!.injuredFor = 2
-            return '{ps} naciągnął mięsień przy rozgrzewce w lakierkach. Dwa tygodnie przerwy.'
+            return '{ps} naciągnął mięsień przy rozgrzewce w lakierkach. Dwa mecze przerwy.'
           }
           trust(s, 0, 3, 0)
+          nudgeForm(p!, 1)
           return '{ps} strzelił na treningu trzy gole. Szatnia uważa, że wesela powinny być obowiązkowe.'
         },
       },
       {
-        label: 'Zrób z tego wydarzenie: cała drużyna idzie na poprawiny',
+        label: 'Cała drużyna idzie na poprawiny',
         apply: ({ s, rng }) => {
           teamMorale(s, 10)
-          teamForm(s, -1)
+          mod(s, 'Kac po poprawinach', -2, 1)
+          coach(s, -8)
           if (rng.chance(0.3)) {
             scandal(s, 'Cała drużyna na poprawinach w środku sezonu')
             trust(s, -10, 8, 4)
             return 'Zdjęcia z poprawin trafiły do lokalnej gazety. Prezes nie jest zachwycony.'
           }
           trust(s, 0, 8, 2)
-          return 'Wspaniała zabawa. Integracja na najwyższym poziomie, kondycja na najniższym.'
+          return 'Integracja na najwyższym poziomie, kondycja na najniższym. Najbliższy mecz będzie ciężki.'
         },
       },
     ],
@@ -100,6 +400,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           s.budget += money(s, 3000)
           teamMorale(s, -5)
+          mod(s, 'Syn wójta w składzie', -1, 1)
           return rng.chance(0.2)
             ? 'Syn wójta strzelił samobója i uciekł z boiska. Ale gmina dorzuciła na nowe bramki.'
             : 'Syn wójta zagrał 30 minut, dotknął piłki dwa razy. Gmina dorzuca do budżetu.'
@@ -109,6 +410,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Grzecznie odmów',
         apply: ({ s }) => {
           trust(s, -6, 4, 0)
+          coach(s, 3)
           return 'Wójt wyszedł bez słowa. Następnego dnia na boisku wyłączono wodę.'
         },
       },
@@ -123,8 +425,9 @@ export const EVENTS: GameEvent[] = [
         label: 'Zgódź się na kiełbasę',
         apply: ({ s }) => {
           s.budget += money(s, 2500)
+          s.wageLimit = Math.round(s.wageLimit * 1.05)
           trust(s, 5, -3, -2)
-          return 'Nowe koszulki zrobiły furorę w internecie. Zawodnicy trochę mniej.'
+          return 'Nowe koszulki zrobiły furorę w internecie. Klub ma więcej pieniędzy na pensje, zawodnicy mniej godności.'
         },
       },
       {
@@ -135,14 +438,16 @@ export const EVENTS: GameEvent[] = [
             return 'Kompromis: kiełbaska na rękawie. Masarnia zostaje.'
           }
           trust(s, -5, 0, 0)
-          return 'Masarnia obraziła się i przeszła do rywala zza miedzy.'
+          s.wageLimit = Math.round(s.wageLimit * 0.95)
+          return 'Masarnia obraziła się i przeszła do rywala zza miedzy. Limit pensji spada.'
         },
       },
       {
         label: 'Klub ma honor, odmów',
         apply: ({ s }) => {
           trust(s, -8, 2, 5)
-          return 'Kibice dumni. Księgowa płacze.'
+          s.wageLimit = Math.round(s.wageLimit * 0.93)
+          return 'Kibice dumni. Księgowa płacze i tnie limit pensji.'
         },
       },
     ],
@@ -156,7 +461,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Wyślij go do lekarza',
         apply: ({ p }) => {
           p!.injuredFor = 1
-          return '{ps} pauzuje tydzień. Lekarz zabronił też grillowania, co boli bardziej.'
+          return '{ps} pauzuje jeden mecz. Lekarz zabronił też grillowania, co boli bardziej.'
         },
       },
       {
@@ -164,10 +469,10 @@ export const EVENTS: GameEvent[] = [
         apply: ({ p, rng }) => {
           if (p!.pos === 'BR') {
             p!.injuredFor = 3
-            return 'Okazało się, że {ps} to bramkarz. Ręce jednak potrzebne. Trzy tygodnie przerwy.'
+            return 'Okazało się, że {ps} to bramkarz. Ręce jednak potrzebne. Trzy mecze przerwy.'
           }
-          if (rng.chance(0.3)) p!.form = cl(p!.form - 2, -3, 3)
-          return '{ps} gra dalej z bandażem. Wygląda groźnie, rywale się boją.'
+          if (rng.chance(0.4)) nudgeForm(p!, -2)
+          return '{ps} gra dalej z bandażem. Wygląda groźnie, ale coś mu nie idzie.'
         },
       },
     ],
@@ -180,21 +485,23 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Kara finansowa i ławka',
         apply: ({ s, p }) => {
-          p!.morale = cl(p!.morale - 20)
+          setMorale(p!, -20)
           trust(s, 3, -1, 0)
           return '{ps} odsiaduje karę na ławce. Remiza straciła stałego klienta.'
         },
       },
       {
         label: 'Udawaj, że nie widziałeś',
-        apply: ({ s, rng }) => {
+        apply: ({ s, p, rng }) => {
+          nudgeForm(p!, -1)
           if (rng.chance(0.4)) {
             scandal(s, 'Imprezowa afera w remizie „Kosmos”')
             trust(s, -8, 0, -4)
+            coach(s, 6)
             return 'Lokalne media podchwyciły temat. Prezes pyta, czy trener w ogóle czyta Facebooka.'
           }
           trust(s, 0, 2, 0)
-          return 'Sprawa ucichła. {ps} w podzięce biega za dwóch.'
+          return 'Sprawa ucichła. {ps} w podzięce biega za dwóch, choć trochę wolniej.'
         },
       },
       {
@@ -203,7 +510,8 @@ export const EVENTS: GameEvent[] = [
           if (rng.chance(0.5)) {
             p!.traits = p!.traits.filter((t) => t !== 'imprezowicz')
             p!.traits.push('pracus')
-            rep(s, 2)
+            coach(s, 0, 2)
+            nudgeForm(p!, 2)
             return '{ps} przeszedł przemianę. Biega maratony i pije kefir.'
           }
           trust(s, -4, -2, 3)
@@ -221,7 +529,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Zorganizuj czyn społeczny',
         apply: ({ s }) => {
           trust(s, 2, 3, 6)
-          teamForm(s, -1)
+          mod(s, 'Zmęczenie po łopatach', -1, 1)
           return 'Zawodnicy i kibice wyrównali boisko łopatami. Duch drużyny rośnie, kręgosłupy nie.'
         },
       },
@@ -237,7 +545,8 @@ export const EVENTS: GameEvent[] = [
         label: 'Graj jak jest, to nasz atut',
         apply: ({ s }) => {
           s.tactic.style = 'laga'
-          return 'Na takim boisku zostaje tylko laga. Taktyka zmieniona automatycznie.'
+          mod(s, 'Własne kartoflisko', 1.5, 2)
+          return 'Na takim boisku zostaje tylko laga. Rywale gubią się na wybojach.'
         },
       },
     ],
@@ -251,14 +560,16 @@ export const EVENTS: GameEvent[] = [
         label: 'Wysłuchaj zawodników',
         apply: ({ s }) => {
           trust(s, 0, 8, 0)
-          return 'Długa rozmowa. Ustalono, że wszyscy chcą grać w ataku. Szatnia zadowolona.'
+          s.tactic.mentality = 'atak'
+          return 'Długa rozmowa. Ustalono, że wszyscy chcą grać w ataku, więc nastawienie zmienione na atak.'
         },
       },
       {
         label: 'Tu decyduję ja',
         apply: ({ s, p }) => {
           trust(s, 2, -8, 0)
-          p!.morale = cl(p!.morale - 10)
+          setMorale(p!, -10)
+          coach(s, 3)
           return '{ps} wyszedł, trzaskając drzwiami. W szatni szepty.'
         },
       },
@@ -267,27 +578,27 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'agent',
     minLevel: 2,
-    player: 'any',
-    condition: (s) => s.squad.some((p) => p.skill > 40),
+    player: (p) => p.skill > 40 && p.apps >= 2,
     text: 'Agent {p} dzwoni: jego klient „ma oferty z Cypru” i chce podwyżki.',
     options: [
       {
-        label: 'Daj podwyżkę z budżetu transferowego',
+        label: 'Daj podwyżkę 25%',
         apply: ({ s, p }) => {
-          const c = money(s, 800)
-          s.budget -= c
-          p!.morale = cl(p!.morale + 20)
-          return `Podwyżka przyznana (${k(c)}). {ps} zadowolony, reszta szatni liczy.`
+          p!.wage = Math.round((p!.wage * 1.25) / 100) * 100
+          setMorale(p!, 20)
+          trust(s, 0, -1, 0)
+          return '{ps} dostaje podwyżkę. Reszta szatni liczy.'
         },
       },
       {
         label: 'Sprawdź blef',
         apply: ({ p, rng }) => {
           if (rng.chance(0.65)) {
-            p!.morale = cl(p!.morale - 5)
+            setMorale(p!, -5)
             return 'Oferta z Cypru okazała się ofertą wakacji all inclusive. {ps} zostaje.'
           }
-          p!.morale = cl(p!.morale - 25)
+          setMorale(p!, -25)
+          nudgeForm(p!, -1)
           return '{ps} jest śmiertelnie obrażony. Gra, ale bez serca.'
         },
       },
@@ -302,7 +613,7 @@ export const EVENTS: GameEvent[] = [
         label: '„Boję się tylko Boga i mojej żony”',
         apply: ({ s }) => {
           trust(s, 0, 2, 6)
-          rep(s, 1)
+          coach(s, -3, 1)
           return 'Cytat dnia. Kibice drukują koszulki.'
         },
       },
@@ -310,6 +621,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Wyjdź z konferencji',
         apply: ({ s }) => {
           trust(s, -4, 0, -3)
+          coach(s, 4, -1)
           scandal(s, 'Wyjście z konferencji prasowej w trakcie pytania')
           return 'Nagranie ma 200 tysięcy wyświetleń. Nazwisko trenera w trendach.'
         },
@@ -325,15 +637,16 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'oboz',
-    text: 'Prezes proponuje obóz przygotowawczy. Do wyboru: Zakopane albo „ośrodek u szwagra pod Grójcem”.',
+    text: 'Prezes proponuje krótki obóz przygotowawczy. Do wyboru: Zakopane albo „ośrodek u szwagra pod Grójcem”.',
     options: [
       {
         label: 'Zakopane',
         apply: ({ s }) => {
           const c = money(s, 1200)
           s.budget -= c
-          teamForm(s, 1)
-          return `Obóz udany. Kosztował ${k(c)}, a zawodnicy wrócili z oscypkami i formą.`
+          mod(s, 'Forma z Zakopanego', 1.5, 3)
+          coach(s, -5)
+          return `Obóz udany (${k(c)}). Zawodnicy wrócili z oscypkami i formą.`
         },
       },
       {
@@ -341,9 +654,11 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           if (rng.chance(0.5)) {
             teamMorale(s, 6)
+            mod(s, 'Obóz w sadzie', 0.5, 2)
             return 'Ośrodek okazał się sadem jabłkowym. Treningi w rytmie zbiorów. Wszyscy zadowoleni.'
           }
-          teamForm(s, -1)
+          mod(s, 'Obóz w stawie z rakami', -1, 2)
+          teamMorale(s, -4)
           return 'Szwagier zapomniał, że obiecał też basen. Basenem był staw z rakami.'
         },
       },
@@ -351,22 +666,23 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'bramkarz_kebab',
-    player: 'any',
-    condition: (s) => s.squad.some((p) => p.pos === 'BR'),
-    text: 'Bramkarz zamówił kebab na ławkę rezerwowych w trakcie meczu. Kamera to nagrała.',
+    player: (p) => p.pos === 'BR',
+    text: '{p} zamówił kebab na ławkę rezerwowych w trakcie meczu. Kamera to nagrała.',
     options: [
       {
         label: 'Ukarz go publicznie',
-        apply: ({ s }) => {
+        apply: ({ s, p }) => {
           trust(s, 3, -3, 0)
+          setMorale(p!, -10)
           return 'Kara przyjęta. Kebab skonfiskowany przez kierownika drużyny, który go zjadł.'
         },
       },
       {
         label: 'Podpisz umowę sponsorską z kebabem',
-        apply: ({ s }) => {
+        apply: ({ s, p }) => {
           s.budget += money(s, 1000)
           trust(s, 0, 4, 4)
+          setMorale(p!, 10)
           return 'Kebab „U Ahmeda” nowym sponsorem. Darmowe porcje po zwycięstwach.'
         },
       },
@@ -380,7 +696,8 @@ export const EVENTS: GameEvent[] = [
         label: '„Wygramy i pojedziemy im po bandzie”',
         apply: ({ s }) => {
           trust(s, 0, 4, 8)
-          teamMorale(s, 5)
+          mod(s, 'Derbowa gorączka', 1.5, 1)
+          coach(s, 4)
           return 'Szatnia nakręcona. Rywale wywiesili wycinek z gazety w swojej szatni.'
         },
       },
@@ -396,27 +713,31 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'talent_okazja',
     player: 'talent',
-    text: '{p} ma propozycję testów w klubie z Bundesligi. Zgadzasz się puścić go na tydzień?',
+    text: '{p} ma propozycję testów w klubie z Bundesligi. Puszczasz go na tydzień?',
     options: [
       {
         label: 'Puść go, niech się rozwija',
         apply: ({ s, p, rng }) => {
-          p!.injuredFor = 1
+          p!.injuredFor = Math.max(p!.injuredFor, 1)
           if (rng.chance(0.3)) {
             const fee = Math.round(p!.value * 2.5)
             s.budget += fee
             s.squad = s.squad.filter((x) => x.id !== p!.id)
-            rep(s, 5)
-            return `{ps} przeszedł testy! Klub zarabia ${k(fee)}. Ty zarabiasz reputację wychowawcy.`
+            s.lineup.xi = s.lineup.xi.filter((id) => id !== p!.id)
+            s.lineup.bench = s.lineup.bench.filter((id) => id !== p!.id)
+            coach(s, 0, 5)
+            return `{ps} przeszedł testy! Klub zarabia ${k(fee)}, Ty reputację wychowawcy.`
           }
-          p!.skill += 2
+          p!.progress += 1.5
+          setMorale(p!, 10)
           return '{ps} wrócił z testów bez kontraktu, ale z nowymi butami i pewnością siebie.'
         },
       },
       {
         label: 'Nie, potrzebujemy go tutaj',
         apply: ({ p }) => {
-          p!.morale = cl(p!.morale - 20)
+          setMorale(p!, -20)
+          nudgeForm(p!, -1)
           return '{ps} gra dalej u nas, ale co chwila patrzy w telefon.'
         },
       },
@@ -424,16 +745,16 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'syn_prezesa_lawka',
-    player: 'syn_prezesa',
-    text: 'Prezes dzwoni: „Panie trenerze, a mój syn {ps} to dlaczego tak mało gra?”.',
+    player: (p) => p.traits.includes('syn_prezesa') && p.benchStreak >= 2,
+    text: 'Prezes dzwoni: „Panie trenerze, a mój syn {ps} to dlaczego od {mecze} meczów nie gra?”.',
     options: [
       {
         label: 'Obiecaj, że zagra',
         apply: ({ s, p }) => {
           trust(s, 8, -5, 0)
-          p!.morale = cl(p!.morale + 20)
-          p!.form = cl(p!.form + 2, -3, 3)
-          return 'Prezes zadowolony. Zawodnicy, którzy wylądują na ławce, mniej.'
+          setMorale(p!, 20)
+          s.flags[`obietnica:${p!.id}`] = s.round
+          return 'Prezes zadowolony. Ci, którzy wylądują przez to na ławce, mniej.'
         },
       },
       {
@@ -441,10 +762,11 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           if (rng.chance(0.3)) {
             trust(s, 4, 6, 2)
-            rep(s, 2)
+            coach(s, -2, 2)
             return 'Prezes przyznał Ci rację. Podobno sam tak myślał od lat.'
           }
           trust(s, -15, 6, 0)
+          coach(s, 8)
           return 'Prezes rzucił słuchawką. Szatnia za to bije brawo.'
         },
       },
@@ -456,7 +778,7 @@ export const EVENTS: GameEvent[] = [
     text: 'Pani Halinka, która od 30 lat pierze stroje, odchodzi na emeryturę. Nikt nie wie, jak działa pralka.',
     options: [
       {
-        label: 'Zatrudnij następcę za klubowe pieniądze',
+        label: 'Zatrudnij następcę',
         apply: ({ s }) => {
           const c = money(s, 500)
           s.budget -= c
@@ -467,6 +789,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Każdy pierze sam',
         apply: ({ s, rng }) => {
           teamMorale(s, -4)
+          mod(s, 'Różowe koszulki', -0.5, 2)
           if (rng.chance(0.4)) return 'Połowa drużyny wyszła na mecz w różowych koszulkach. Kibice zachwyceni.'
           return 'Stroje są… różne. Sędzia prawie odwołał mecz z powodu braku jednolitych barw.'
         },
@@ -498,13 +821,15 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Łap stopa',
         apply: ({ s, rng }) => {
-          teamForm(s, -1)
           if (rng.chance(0.5)) {
             trust(s, 0, 6, 5)
-            return 'Wszyscy dotarli! Bramkarz przyjechał ciągnikiem. Legenda tego meczu będzie żyła latami.'
+            mod(s, 'Legenda autostopu', 1, 1)
+            return 'Wszyscy dotarli! Bramkarz przyjechał ciągnikiem. Drużyna nakręcona jak nigdy.'
           }
           trust(s, -3, 2, 2)
-          return 'Dotarło 9 zawodników. Graliście w dziewiątkę przez pierwsze 20 minut.'
+          mod(s, 'Spóźnieni na rozgrzewkę', -2, 1)
+          coach(s, 5)
+          return 'Dotarło 9 zawodników. Reszta dobiegnie w trakcie meczu.'
         },
       },
     ],
@@ -521,8 +846,10 @@ export const EVENTS: GameEvent[] = [
           trust(s, 2, -3, 6)
           if (rng.chance(0.3)) {
             scandal(s, 'Youtuber w składzie meczowym')
+            mod(s, 'Cyrk z youtuberem', -1, 1)
             return 'Youtuber wszedł z ławki i dostał czerwoną kartkę po 40 sekundach. Film ma 2 mln wyświetleń.'
           }
+          coach(s, 0, 1)
           return 'Odcinek ma milion wyświetleń. Klub ma nowych kibiców w całej Polsce.'
         },
       },
@@ -537,15 +864,16 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'trening_dodatkowy',
-    text: 'Seria słabszych wyników. Asystent proponuje dodatkowy trening w niedzielę rano.',
-    condition: (s) => s.reports.slice(0, 3).filter((r) => (r.home === s.clubId ? r.hg < r.ag : r.ag < r.hg)).length >= 2,
+    condition: (s) => s.streak.slice(-3).filter((x) => x === 'L').length >= 2,
+    text: 'Słabsze wyniki. Asystent proponuje dodatkowy trening w niedzielę rano.',
     options: [
       {
         label: 'Tak, ciężka praca to podstawa',
         apply: ({ s }) => {
-          teamForm(s, 1)
+          mod(s, 'Dodatkowe treningi', 1.5, 2)
           trust(s, 3, -5, 0)
-          return 'Niedzielny trening odbył się. Pół drużyny przyszło prosto z kościoła.'
+          s.squad.forEach((p) => (p.progress += 0.15))
+          return 'Niedzielny trening się odbył. Pół drużyny przyszło prosto z kościoła.'
         },
       },
       {
@@ -553,6 +881,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           teamMorale(s, 5)
           trust(s, -2, 4, 0)
+          coach(s, -4)
           return 'Zawodnicy wypoczęci. Prezes pyta, za co Ci płaci.'
         },
       },
@@ -561,6 +890,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           teamMorale(s, 8)
           trust(s, 0, 6, 1)
+          coach(s, -6)
           return 'Grill integracyjny. Kiełbasa od sponsora. Jedność odbudowana.'
         },
       },
@@ -575,14 +905,14 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Wyrzuć go za drzwi',
         apply: ({ s }) => {
-          rep(s, 3)
+          coach(s, 0, 3)
           return 'Facet wyszedł. Na odchodne rzucił: „Pan jeszcze pożałuje”. Nie pożałowałeś.'
         },
       },
       {
         label: 'Zgłoś sprawę do związku',
         apply: ({ s, rng }) => {
-          rep(s, 5)
+          coach(s, 4, 5)
           if (rng.chance(0.5)) {
             trust(s, 4, 2, 6)
             return 'Prokuratura zatrzymała pół okręgu. Jesteś lokalnym bohaterem.'
@@ -604,9 +934,11 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           if (rng.chance(0.6)) {
             trust(s, 0, 4, 10)
+            coach(s, -3, 1)
             return 'Rozmowa była twarda, ale uczciwa. Kibice dali drużynie kredyt zaufania.'
           }
           trust(s, -3, 0, -5)
+          coach(s, 8)
           return 'Rozmowa skończyła się na tym, że zabrali Ci szalik. Na pamiątkę.'
         },
       },
@@ -626,16 +958,17 @@ export const EVENTS: GameEvent[] = [
     options: [
       {
         label: 'Dobra, niech strzela',
-        apply: ({ p }) => {
-          p!.morale = cl(p!.morale + 15)
-          p!.form = cl(p!.form + 1, -3, 3)
-          return '{ps} uszczęśliwiony. Wykonał rożny bezpośrednio na bramkę. Prawie.'
+        apply: ({ s, p }) => {
+          setMorale(p!, 15)
+          nudgeForm(p!, 1)
+          trust(s, 0, -2, 0)
+          return '{ps} uszczęśliwiony. Reszta drużyny mniej.'
         },
       },
       {
         label: 'Nie, są zasady',
         apply: ({ s, p }) => {
-          p!.morale = cl(p!.morale - 12)
+          setMorale(p!, -12)
           trust(s, 0, 2, 0)
           return '{ps} obrażony. Reszta drużyny odetchnęła.'
         },
@@ -650,7 +983,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Przekaż część budżetu transferowego na pensje',
         apply: ({ s }) => {
-          const c = Math.round(s.budget * 0.3)
+          const c = Math.round(Math.max(0, s.budget) * 0.3)
           s.budget -= c
           trust(s, 2, 5, 0)
           return `Pensje wypłacone (${k(c)} z budżetu transferowego). Zawodnicy wierzą w projekt.`
@@ -661,6 +994,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           teamMorale(s, -10)
           trust(s, 0, -8, 0)
+          mod(s, 'Zaległości w pensjach', -1.5, 3)
           return 'Zawodnicy grają na kredyt. Dwóch założyło grupę „Zaległości FC”.'
         },
       },
@@ -675,11 +1009,10 @@ export const EVENTS: GameEvent[] = [
         label: 'Jedź i zabłyśnij',
         apply: ({ s, rng }) => {
           if (rng.chance(0.6)) {
-            rep(s, 4)
-            s.coach.savings += 5000
+            coach(s, 0, 4, 5000)
             return 'Twoja analiza „wysokiego bloku” zrobiła wrażenie. Reputacja rośnie.'
           }
-          rep(s, -2)
+          coach(s, 5, -2)
           scandal(s, 'Wpadka w studiu telewizyjnym')
           return 'Pomyliłeś nazwisko selekcjonera na wizji. Mem żyje swoim życiem.'
         },
@@ -697,7 +1030,7 @@ export const EVENTS: GameEvent[] = [
     id: 'zagraniczny_testowicz',
     minLevel: 2,
     text: 'Na trening przyszedł zawodnik z Brazylii. Twierdzi, że grał w młodzieżówce Santosu. Nikt tego nie może sprawdzić.',
-    condition: (s) => s.squad.length < 26,
+    condition: (s) => s.squad.length < 27,
     options: [
       {
         label: 'Bierz go!',
@@ -717,14 +1050,22 @@ export const EVENTS: GameEvent[] = [
             morale: 80,
             traits: good ? [] : ['leniwy'],
             injuredFor: 0,
+            suspendedFor: 0,
+            yellows: 0,
             goals: 0,
+            assists: 0,
             apps: 0,
+            ratings: [],
+            ratingSum: 0,
+            progress: 0,
+            benchStreak: 0,
             value: 1000,
+            wage: Math.round(300 * Math.pow(1.1, skill - 20) / 100) * 100,
           })
           trust(s, 0, 0, 5)
           return good
             ? 'Brazylijczyk naprawdę umie grać! Kibice śpiewają po portugalsku. Źle, ale z sercem.'
-            : 'Brazylijczyk grał w młodzieżówce Santosu, ale chyba w siatkówkę.'
+            : 'Brazylijczyk grał w młodzieżówce Santosu, ale chyba w siatkówkę. Pensję i tak chce.'
         },
       },
       {
@@ -734,18 +1075,18 @@ export const EVENTS: GameEvent[] = [
     ],
   },
   {
-    id: 'stypendia_gmina',
+    id: 'dotacja_gmina',
     maxLevel: 3,
     text: 'Gmina ogłasza konkurs na dotacje dla sportu. Trzeba wypełnić 40 stron wniosku.',
     options: [
       {
         label: 'Siedź po nocach i wypełnij',
         apply: ({ s, rng }) => {
-          teamForm(s, -1)
+          coach(s, 10)
           if (rng.chance(0.6)) {
             const c = money(s, 3000)
             s.budget += c
-            return `Dotacja przyznana: ${k(c)}! Zmęczenie trenera udzieliło się drużynie.`
+            return `Dotacja przyznana: ${k(c)}! Trener nie spał tydzień.`
           }
           return 'Wniosek odrzucony. Brakowało pieczątki na stronie 37.'
         },
@@ -758,14 +1099,14 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'szklany_powrot',
-    player: 'szklany',
+    player: (p) => p.traits.includes('szklany') && p.injuredFor === 0,
     text: '{p} twierdzi, że „coś go ciągnie w łydce”. Mecz jest ważny.',
     options: [
       {
         label: 'Niech odpocznie',
         apply: ({ p }) => {
           p!.injuredFor = 1
-          return '{ps} odpoczywa. Ciągnie go teraz w drugiej łydce.'
+          return '{ps} odpoczywa jeden mecz. Ciągnie go teraz w drugiej łydce.'
         },
       },
       {
@@ -773,7 +1114,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ p, rng }) => {
           if (rng.chance(0.55)) {
             p!.injuredFor = rng.int(3, 8)
-            return `{ps} zerwał mięsień. Przerwa: ${p!.injuredFor} tyg. Lekarz klubowy kręci głową.`
+            return `{ps} zerwał mięsień. Przerwa: ${p!.injuredFor} meczów. Lekarz klubowy kręci głową.`
           }
           return '{ps} zagrał i nic mu nie jest. Tym razem.'
         },
@@ -789,8 +1130,9 @@ export const EVENTS: GameEvent[] = [
         label: 'Obiecaj wygraną w najbliższym meczu',
         apply: ({ s }) => {
           trust(s, 8, 0, 0)
-          teamMorale(s, 3)
-          return 'Prezes kupił obietnicę. Na razie.'
+          coach(s, 8)
+          s.flags.obietnicaWygranej = s.round
+          return 'Prezes kupił obietnicę. Na razie. Teraz trzeba wygrać.'
         },
       },
       {
@@ -801,6 +1143,7 @@ export const EVENTS: GameEvent[] = [
             return 'Prezes nie zrozumiał wykresów, ale były kolorowe. Zaufanie rośnie.'
           }
           trust(s, -4, 0, 0)
+          coach(s, 4)
           return '„Ja tu widzę tylko, że przegrywamy” – podsumował prezes.'
         },
       },
@@ -808,6 +1151,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Zaproponuj prezesowi miejsce na ławce',
         apply: ({ s }) => {
           trust(s, 12, -6, -2)
+          mod(s, 'Prezes na ławce', -1, 3)
           scandal(s, 'Prezes na ławce trenerskiej')
           return 'Prezes siedzi na ławce w dresie. Zmiany robi sam. Klimat w szatni gęstnieje.'
         },
@@ -817,7 +1161,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'mlody_talent_wies',
     maxLevel: 4,
-    condition: (s) => s.squad.length < 26,
+    condition: (s) => s.squad.length < 27,
     text: 'Dziadek przyprowadził na trening wnuka. „Strzela z lewej jak Lewandowski z prawej”.',
     options: [
       {
@@ -833,14 +1177,22 @@ export const EVENTS: GameEvent[] = [
             age: 16,
             pos: 'NAP',
             skill,
-            potential: skill + (great ? rng.int(20, 35) : rng.int(5, 12)),
+            potential: skill + (great ? rng.int(18, 30) : rng.int(5, 12)),
             form: 1,
             morale: 90,
             traits: great ? ['talent'] : [],
             injuredFor: 0,
+            suspendedFor: 0,
+            yellows: 0,
             goals: 0,
+            assists: 0,
             apps: 0,
+            ratings: [],
+            ratingSum: 0,
+            progress: 0,
+            benchStreak: 0,
             value: 2000,
+            wage: 100,
           })
           return great
             ? 'Wnuk naprawdę strzela! Dziadek ogląda każdy trening.'
@@ -862,16 +1214,16 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Bierz kasę',
         apply: ({ s }) => {
-          s.coach.savings += 20_000
-          rep(s, -4)
+          coach(s, 0, -4, 20_000)
           scandal(s, 'Reklama chwilówek z trenerem w roli głównej')
+          trust(s, 0, 0, -4)
           return 'Reklama leci w każdej przerwie. Kibice śpiewają przyśpiewkę o RRSO.'
         },
       },
       {
         label: 'Odmów',
         apply: ({ s }) => {
-          rep(s, 1)
+          coach(s, 0, 1)
           return 'Odmówiłeś. Reklamę nagrał trener rywala. Teraz to on jest memem.'
         },
       },
@@ -890,7 +1242,7 @@ export const EVENTS: GameEvent[] = [
           if (rng.chance(0.25)) {
             const p = rng.pick(s.squad)
             p.injuredFor = 2
-            return `Fantastyczne święto! Niestety ${p.firstName[0]}. ${p.lastName} został sfaulowany przez byłego reprezentanta. Dwa tygodnie przerwy.`
+            return `Fantastyczne święto! Niestety ${p.firstName[0]}. ${p.lastName} został sfaulowany przez byłego reprezentanta. Dwa mecze przerwy.`
           }
           return 'Fantastyczne święto. Oldboje przegrali, ale wygrali w trzeciej połowie.'
         },
@@ -912,7 +1264,8 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Przełóż trening',
         apply: ({ s }) => {
-          teamForm(s, -1)
+          coach(s, -15)
+          mod(s, 'Przełożony trening', -0.5, 1)
           return 'Obiad był pyszny. Trening przełożony. Zawodnicy nie protestowali.'
         },
       },
@@ -921,6 +1274,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           trust(s, 2, 2, 0)
           if (rng.chance(0.4)) {
+            coach(s, 15)
             scandal(s, 'Kryzys małżeński z powodu treningu we wtorek')
             return 'Spałeś przez tydzień w klubowym magazynie. Obok piłek i pachołków.'
           }
@@ -939,7 +1293,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           const c = money(s, 300)
           s.budget -= c
-          teamForm(s, 1)
+          mod(s, 'Nowe piłki', 0.5, 3)
           return `Nowe piłki kosztowały ${k(c)}. Zawodnicy zachwyceni, że są okrągłe.`
         },
       },
@@ -962,16 +1316,44 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           const c = money(s, 500)
           s.budget -= c
-          trust(s, 0, 0, 6)
+          trust(s, -2, 0, 6)
           return `Kara: ${k(c)}. Kibice kochają {ps} jeszcze bardziej.`
         },
       },
       {
         label: 'Potrąć karę z jego pensji',
         apply: ({ s, p }) => {
-          p!.morale = cl(p!.morale - 15)
+          setMorale(p!, -15)
           trust(s, 2, -2, -8)
           return 'Kibice wywiesili transparent w obronie {ps}. I odpalili kolejną racę.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'narwany_bojka',
+    player: 'narwany',
+    text: '{p} pokłócił się na treningu z kolegą z drużyny. Poszły pięści.',
+    options: [
+      {
+        label: 'Zawieś go na mecz',
+        apply: ({ s, p }) => {
+          p!.suspendedFor = Math.max(p!.suspendedFor, 1)
+          setMorale(p!, -10)
+          trust(s, 2, 3, 0)
+          return '{ps} pauzuje mecz za karę. Szatnia docenia, że są zasady.'
+        },
+      },
+      {
+        label: 'Niech sobie wyjaśnią sami',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.5)) {
+            trust(s, 0, 3, 0)
+            return 'Po treningu wypili razem piwo. Najlepsi kumple.'
+          }
+          trust(s, 0, -6, 0)
+          mod(s, 'Konflikt w szatni', -1.5, 3)
+          return 'Konflikt się pogłębia. Szatnia podzielona na dwa obozy.'
         },
       },
     ],
@@ -986,7 +1368,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ p, rng }) => {
           if (rng.chance(0.4)) {
             p!.traits = p!.traits.filter((t) => t !== 'leniwy')
-            p!.skill += 2
+            p!.progress += 1.5
             return '{ps} zaskoczył wszystkich i zaczął biegać. Podobno zakochał się w fizjoterapeutce.'
           }
           return '{ps} zgubił plan treningowy. Dwa razy.'
@@ -995,7 +1377,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Odsuń go od składu',
         apply: ({ s, p }) => {
-          p!.morale = cl(p!.morale - 20)
+          setMorale(p!, -20)
           trust(s, 2, 2, 0)
           return '{ps} odsunięty. Szatnia widzi, że zasady obowiązują wszystkich.'
         },
@@ -1011,6 +1393,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Powieś artykuł w szatni',
         apply: ({ s }) => {
           teamMorale(s, 8)
+          mod(s, 'Sportowa złość', 1, 3)
           return 'Artykuł wisi nad wejściem. Każdy zawodnik go uderza przed meczem.'
         },
       },
@@ -1030,8 +1413,9 @@ export const EVENTS: GameEvent[] = [
         label: 'Bierzemy!',
         apply: ({ s }) => {
           s.budget += money(s, 3000)
+          s.wageLimit = Math.round(s.wageLimit * 1.08)
           trust(s, 6, 0, -6)
-          return '„Kursowo Arena” brzmi okropnie, ale budżet wygląda pięknie.'
+          return '„Kursowo Arena” brzmi okropnie, ale budżet i limit pensji wyglądają pięknie.'
         },
       },
       {
@@ -1052,10 +1436,10 @@ export const EVENTS: GameEvent[] = [
         label: 'Trenuj fałszywą taktykę',
         apply: ({ s, rng }) => {
           if (rng.chance(0.5)) {
-            teamForm(s, 1)
-            return 'Rywale przygotowali się na 3-4-3, a wy zagraliście swoje. Sprytne!'
+            mod(s, 'Rywal oszukany', 1.5, 1)
+            return 'Rywale przygotują się na 3-4-3, a wy zagracie swoje. Sprytne!'
           }
-          teamForm(s, -1)
+          mod(s, 'Pomylona taktyka', -1.5, 1)
           return 'Zawodnicy pomylili fałszywą taktykę z prawdziwą. Chaos.'
         },
       },
@@ -1069,7 +1453,7 @@ export const EVENTS: GameEvent[] = [
     ],
   },
   {
-    id: 'mundial_szkolny',
+    id: 'lekcja_wf',
     maxLevel: 3,
     text: 'Szkoła podstawowa prosi Cię o poprowadzenie zajęć WF. „Dzieci chcą trenera z prawdziwego klubu”.',
     options: [
@@ -1077,7 +1461,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Poprowadź zajęcia',
         apply: ({ s }) => {
           trust(s, 2, 0, 6)
-          rep(s, 1)
+          coach(s, -5, 1)
           return 'Dzieci zachwycone. Trzech chłopaków zapisało się do akademii klubu.'
         },
       },

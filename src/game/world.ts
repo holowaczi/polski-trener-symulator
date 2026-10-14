@@ -1,4 +1,5 @@
 import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, NICKNAMES, TOWNS } from './data'
+import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
 import type { Rng } from './rng'
 import type { Cup, CupTie, Fixture, GameState, League, Player, Position, Team, TraitId } from './types'
 
@@ -6,41 +7,61 @@ export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
-function townFor(rng: Rng, level: number): string {
-  if (level <= 2) return `${rng.pick(TOWNS.villageA)} ${rng.pick(TOWNS.villageB)}`
-  if (level <= 5) return rng.pick(TOWNS.small)
-  return rng.pick(TOWNS.cities)
+export function leagueName(level: number, region: string): string {
+  if (level === 4) return `III liga (gr. ${REGION_GROUP[region] ?? 'I'})`
+  if (level <= 3) return `${LEVELS[level].name} · ${region}`
+  return LEVELS[level].name
 }
 
-export function makeTeamName(rng: Rng, level: number, used: Set<string>): { name: string; town: string } {
-  for (let i = 0; i < 200; i++) {
-    const town = townFor(rng, level)
-    const name = `${rng.pick(CLUB_PREFIXES)} ${town}`
-    if (!used.has(name)) {
-      used.add(name)
-      return { name, town }
-    }
-  }
-  const town = townFor(rng, level)
-  const name = `${rng.pick(CLUB_PREFIXES)} ${town} II`
-  used.add(name)
-  return { name, town }
+function villageName(rng: Rng): string {
+  return `${rng.pick(TOWNS.villageA)} ${rng.pick(TOWNS.villageB)}`
 }
 
-export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'leagues' | 'nextId'>): void {
+/** Świat gry: prawdziwe ligi centralne i III liga z grupy gracza, niżej fikcyjne kluby z prawdziwych miejscowości regionu. */
+export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'leagues' | 'nextId'>, region: string): void {
   const used = new Set<string>()
-  LEVELS.forEach((lv, level) => {
+  const towns = rng.shuffle([...(REGION_TOWNS[region] ?? TOWNS.small)])
+  let townIdx = 0
+  const nextTown = () => towns[townIdx++ % towns.length]
+
+  const addReal = (level: number, clubs: RealClub[]) => {
     const ids: number[] = []
-    for (let i = 0; i < lv.size; i++) {
-      const { name, town } = makeTeamName(rng, level, used)
+    for (const c of clubs) {
       const id = state.nextId++
-      // w każdej lidze jest kilku faworytów i kilku outsiderów
-      const giant = i < 2 ? 6 : i >= lv.size - 3 ? -4 : 0
-      state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + giant, 3.5)) }
+      state.teams[id] = { id, name: c.name, town: c.town, level, strength: c.strength, real: true, reserve: c.reserve }
+      used.add(c.name)
       ids.push(id)
     }
-    state.leagues.push({ level, name: lv.name, teamIds: ids, rounds: [] })
-  })
+    return ids
+  }
+
+  for (let level = 0; level < LEVELS.length; level++) {
+    const lv = LEVELS[level]
+    let ids: number[]
+    if (level === 7) ids = addReal(level, EKSTRAKLASA)
+    else if (level === 6) ids = addReal(level, I_LIGA)
+    else if (level === 5) ids = addReal(level, II_LIGA)
+    else if (level === 4) ids = addReal(level, III_LIGA[REGION_GROUP[region] ?? 'I'])
+    else {
+      ids = []
+      for (let i = 0; i < lv.size; i++) {
+        let name = ''
+        let town = ''
+        for (let tries = 0; tries < 50; tries++) {
+          town = level >= 2 ? nextTown() : villageName(rng)
+          name = `${rng.pick(CLUB_PREFIXES)} ${town}`
+          if (!used.has(name)) break
+        }
+        used.add(name)
+        const id = state.nextId++
+        // w każdej lidze jest kilku faworytów i kilku outsiderów
+        const tier = i < 2 ? 5 : i >= lv.size - 3 ? -4 : 0
+        state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + tier, 3.5)) }
+        ids.push(id)
+      }
+    }
+    state.leagues.push({ level, name: leagueName(level, region), teamIds: ids, rounds: [] })
+  }
 }
 
 /** terminarz każdy z każdym, mecz i rewanż (metoda kołowa) */
@@ -73,9 +94,45 @@ export function playerValue(p: Pick<Player, 'skill' | 'age' | 'potential'>): num
   return Math.round(raw / 10_000) * 10_000
 }
 
+/** pensja miesięczna: w B-klasie zwrot za paliwo, w Ekstraklasie dziesiątki tysięcy */
+export function wageFor(skill: number): number {
+  const raw = 300 * Math.pow(1.1, skill - 20)
+  if (raw < 1000) return Math.max(100, Math.round(raw / 50) * 50)
+  if (raw < 20_000) return Math.round(raw / 100) * 100
+  return Math.round(raw / 1000) * 1000
+}
+
 const TRAIT_POOL: TraitId[] = [
-  'imprezowicz', 'szklany', 'lider', 'weteran', 'talent', 'leniwy', 'pracus', 'krol_strzalow', 'kibic_z_mlyna',
+  'imprezowicz', 'szklany', 'lider', 'weteran', 'talent', 'leniwy', 'pracus', 'krol_strzalow', 'kibic_z_mlyna', 'narwany',
 ]
+
+export function newPlayer(
+  state: Pick<GameState, 'nextId'>,
+  p: Pick<Player, 'firstName' | 'lastName' | 'age' | 'pos' | 'skill' | 'potential'> & Partial<Player>,
+): Player {
+  const full: Player = {
+    id: state.nextId++,
+    form: 0,
+    morale: 60,
+    traits: [],
+    injuredFor: 0,
+    suspendedFor: 0,
+    yellows: 0,
+    goals: 0,
+    assists: 0,
+    apps: 0,
+    ratings: [],
+    ratingSum: 0,
+    progress: 0,
+    benchStreak: 0,
+    value: 0,
+    wage: 0,
+    ...p,
+  }
+  full.value = playerValue(full)
+  full.wage = wageFor(full.skill)
+  return full
+}
 
 export function generatePlayer(
   rng: Rng,
@@ -86,22 +143,23 @@ export function generatePlayer(
 ): Player {
   const age = opts.age ?? rng.int(17, 34)
   const base = LEVELS[level].base + (opts.skillOffset ?? 0)
-  let skill = Math.round(rng.normal(base, 6))
+  let skill = Math.round(rng.normal(base, 5))
   if (age < 20) skill -= rng.int(3, 8)
   if (age > 32) skill -= rng.int(0, 4)
   skill = clamp(skill, 8, 95)
-  const growth = age < 20 ? rng.int(5, 25) : age < 24 ? rng.int(2, 14) : age < 28 ? rng.int(0, 5) : 0
-  const potential = clamp(skill + growth, skill, 97)
+  // potencjał: młodzi mają zapas, ale rzadko ogromny
+  const growth = age < 20 ? rng.int(4, 18) : age < 23 ? rng.int(2, 10) : age < 27 ? rng.int(0, 4) : 0
+  const potential = clamp(skill + growth, skill, 95)
   const traits: TraitId[] = []
   if (rng.chance(0.4)) {
     let t = rng.pick(TRAIT_POOL)
     if (t === 'weteran' && age < 30) t = 'pracus'
     if (t === 'talent' && age > 23) t = 'krol_strzalow'
+    if (t === 'krol_strzalow' && pos === 'BR') t = 'lider'
     traits.push(t)
   }
   const [firstName, lastName] = opts.foreign ? rng.pick(FOREIGN_NAMES) : [rng.pick(FIRST_NAMES), rng.pick(LAST_NAMES)]
-  const p: Player = {
-    id: state.nextId++,
+  return newPlayer(state, {
     firstName,
     lastName,
     nickname: level <= 3 && rng.chance(0.15) ? rng.pick(NICKNAMES) : undefined,
@@ -109,29 +167,23 @@ export function generatePlayer(
     pos,
     skill,
     potential,
-    form: 0,
-    morale: 60,
     traits,
-    injuredFor: 0,
-    goals: 0,
-    apps: 0,
-    value: 0,
-  }
-  p.value = playerValue(p)
-  return p
+  })
 }
 
 export function generateSquad(rng: Rng, state: Pick<GameState, 'nextId'>, level: number, skillOffset = 0): Player[] {
   const layout: [Position, number][] = [
-    ['BR', 2],
-    ['OBR', 6],
-    ['POM', 6],
+    ['BR', 3],
+    ['OBR', 7],
+    ['POM', 7],
     ['NAP', 4],
   ]
   const squad: Player[] = []
   for (const [pos, count] of layout) {
     for (let i = 0; i < count; i++) {
-      squad.push(generatePlayer(rng, state, level, pos, { skillOffset, foreign: level >= 5 && rng.chance(0.2) }))
+      // pierwsza jedenastka trochę mocniejsza od zmienników
+      const starterBonus = i < (pos === 'BR' ? 1 : pos === 'NAP' ? 2 : 4) ? 2 : -2
+      squad.push(generatePlayer(rng, state, level, pos, { skillOffset: skillOffset + starterBonus, foreign: level >= 5 && rng.chance(0.25) }))
     }
   }
   return squad
@@ -141,7 +193,7 @@ export function playerName(p: Player): string {
   return p.nickname ? `${p.firstName} „${p.nickname}” ${p.lastName}` : `${p.firstName} ${p.lastName}`
 }
 
-export function shortName(p: Player): string {
+export function shortName(p: Pick<Player, 'firstName' | 'lastName'>): string {
   return `${p.firstName[0]}. ${p.lastName}`
 }
 
@@ -151,7 +203,7 @@ export function cupRoundName(i: number): string {
 }
 
 /** losowanie Pucharu Polski: 32 drużyny z różnych poziomów, klub gracza zawsze w drabince */
-export function drawCup(rng: Rng, state: GameState): Cup {
+export function drawCup(rng: Rng, state: GameState, weeks: number): Cup {
   const quota = [2, 2, 3, 3, 4, 4, 6, 8]
   const picked: number[] = []
   state.leagues.forEach((lg) => {
@@ -163,8 +215,7 @@ export function drawCup(rng: Rng, state: GameState): Cup {
     picked.push(state.clubId)
   }
   const ties = pairUp(rng, state.teams, picked)
-  const total = state.leagues.find((l) => l.teamIds.includes(state.clubId ?? -1))?.rounds.length ?? 30
-  const schedule = [0.15, 0.35, 0.55, 0.75, 0.95].map((f) => Math.max(1, Math.round(total * f)))
+  const schedule = [0.12, 0.3, 0.5, 0.7, 0.9].map((f) => Math.max(1, Math.round(weeks * f)))
   return { rounds: [ties], schedule }
 }
 
@@ -180,6 +231,6 @@ export function pairUp(rng: Rng, teams: Record<number, Team>, ids: number[]): Cu
   return ties
 }
 
-export function leagueOf(state: GameState, teamId: number): League | undefined {
+export function leagueOf(state: Pick<GameState, 'leagues'>, teamId: number): League | undefined {
   return state.leagues.find((l) => l.teamIds.includes(teamId))
 }

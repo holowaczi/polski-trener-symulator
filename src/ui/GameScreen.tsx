@@ -15,11 +15,12 @@ import {
   playUntilBreak,
   resolveEvent,
   retire,
-  squadRating,
   startLicenseCourse,
   stayAtClub,
   waitForOffers,
 } from '../game/engine'
+import { previewStrength } from '../game/match'
+import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 
@@ -87,8 +88,9 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   )
 }
 
-function Bar({ label, value }: { label: string; value: number }) {
-  const tone = value < 25 ? 'bad' : value < 50 ? 'warn' : 'good'
+function Bar({ label, value, invert }: { label: string; value: number; invert?: boolean }) {
+  const v = invert ? 100 - value : value
+  const tone = v < 25 ? 'bad' : v < 50 ? 'warn' : 'good'
   return (
     <div className="bar" title={`${label}: ${value}/100`}>
       <span className="bar-label">{label}</span>
@@ -103,7 +105,8 @@ function Bar({ label, value }: { label: string; value: number }) {
 function Header({ s }: { s: GameState }) {
   const team = club(s)
   const lg = clubLeague(s)
-  const pos = clubPosition(s)
+  // przed pierwszym meczem miejsce w tabeli nic nie znaczy
+  const pos = s.round > 0 ? clubPosition(s) : undefined
   return (
     <header className="hud">
       <div className="hud-main">
@@ -128,6 +131,11 @@ function Header({ s }: { s: GameState }) {
           {team && <span>Cel: {goalLabel(s.goal, team.level)}</span>}
           <span>Reputacja {s.coach.reputation}</span>
           <span>Oszczędności {formatMoney(s.coach.savings)}</span>
+          {team && (
+            <span className={wageBill(s) > s.wageLimit ? 'warn-text' : ''}>
+              Pensje {formatMoney(wageBill(s))} / {formatMoney(s.wageLimit)} mies.
+            </span>
+          )}
         </div>
       </div>
       {team && (
@@ -135,6 +143,7 @@ function Header({ s }: { s: GameState }) {
           <Bar label="Zarząd" value={s.trust.board} />
           <Bar label="Szatnia" value={s.trust.squad} />
           <Bar label="Kibice" value={s.trust.fans} />
+          <Bar label="Stres" value={s.coach.stress} invert />
         </div>
       )}
     </header>
@@ -143,18 +152,27 @@ function Header({ s }: { s: GameState }) {
 
 function PlayBar({ s, act }: { s: GameState; act: Act }) {
   const info = nextMatchInfo(s)
-  const { rating } = squadRating(s)
+  const mine = previewStrength(s)
   let label = 'Zakończ sezon'
+  let oppStr: number | undefined
   if (info) {
     const f = info.league ?? info.cup!
     const home = f.home === s.clubId
     const opp = s.teams[home ? f.away : f.home]
+    oppStr = opp.strength
     label = `${info.cup && !info.league ? 'Puchar: ' : ''}${home ? 'u siebie' : 'na wyjeździe'} z ${opp.name}`
   }
   return (
     <div className="playbar">
-      <div className="small muted">
-        Następny mecz: <b>{label}</b> · siła składu {rating}
+      <div className="small muted playbar-info">
+        <span>
+          Następny mecz: <b>{label}</b>
+        </span>
+        <span>
+          Ty: atak {mine.att} · obrona {mine.def}
+          {oppStr !== undefined && <> · rywal {oppStr}</>}
+          {mine.xi.length < 11 && <b className="warn-text"> · tylko {mine.xi.length} w składzie!</b>}
+        </span>
       </div>
       <div className="row">
         <button className="primary" onClick={() => act((g) => playNext(g))}>
@@ -193,9 +211,12 @@ function OfferCard({ s, o, act }: { s: GameState; o: JobOffer; act: Act }) {
         <b>{o.teamName}</b>
         <span className="pill">{o.leagueName}</span>
       </div>
-      <div className="small">
-        Cel: {goalLabel(o.goal, o.level)} · Pensja: {formatMoney(o.salary)}/sezon
-      </div>
+      <dl className="offer-facts small">
+        <dt>Cel</dt>
+        <dd>{goalLabel(o.goal, o.level)}</dd>
+        <dt>Pensja</dt>
+        <dd>{formatMoney(o.salary)} za sezon</dd>
+      </dl>
       <p className="small muted">{o.note}</p>
       <button className="primary" disabled={!allowed} onClick={() => act((g) => acceptOffer(g, o.teamId))}>
         {allowed ? 'Biorę tę robotę' : `Wymaga ${LEVELS[o.level].license}`}

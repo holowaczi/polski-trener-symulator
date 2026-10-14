@@ -14,7 +14,13 @@ Przeglądarkowa gra o karierze trenera piłkarskiego, od B-klasy do Ekstraklasy.
 
 ## Co jest w środku
 
-- 8 poziomów rozgrywkowych z awansami i spadkami we wszystkich ligach.
+- Prawdziwe kluby sezonu 2026/27: Ekstraklasa, I liga, II liga i grupa III ligi zależna od województwa. Niższe ligi to fikcyjne kluby z prawdziwych miejscowości regionu. Zawodnicy są fikcyjni.
+- 8 poziomów rozgrywkowych z awansami i spadkami we wszystkich ligach (baraże uproszczone do miejsc premiowanych).
+- Ręczny wybór pierwszej jedenastki i 7 rezerwowych albo automatyczny skład.
+- Mecz liczony w 15-minutowych odcinkach: dyspozycja dnia zawodników decyduje o wyniku i o ich ocenach, są kartki, zawieszenia, kontuzje na konkretną liczbę meczów i zmiany.
+- Forma wynika z ostatnich ocen, a rozwój z ocen, wieku i potencjału.
+- Limit pensji klubu, oferty innych klubów za Twoich zawodników (sprzedaj, negocjuj, odrzuć).
+- Zdarzenia reagują na to, co dzieje się w sezonie (ławka, czerwone kartki, serie, stres trenera) i mają trwałe skutki: efekty czasowe dla drużyny, morale i forma zawodników, obietnice do dotrzymania.
 - Puchar Polski (32 drużyny z różnych lig, gospodarzem niżej notowany).
 - Licencje trenerskie blokujące wyższe ligi.
 - Rozwój zawodników, juniorzy, emerytury, cechy (Imprezowicz, Szklany, Syn prezesa…).
@@ -33,7 +39,10 @@ npm run build    # wersja produkcyjna w dist/
 ## Struktura
 
 - `src/game/` – logika gry w czystym TypeScripcie, bez Reacta
-  - `engine.ts` – sezon, mecze, zaufanie, transfery, oferty, licencje
+  - `engine.ts` – sezon, tabela, puchar, zdarzenia, oferty pracy, licencje
+  - `match.ts` – skład, siła drużyny, symulacja meczu, oceny, rozwój
+  - `market.ts` – transfery, pensje, oferty za zawodników
+  - `realData.ts` – prawdziwe ligi 2026/27 i miejscowości województw
   - `world.ts` – generowanie klubów, zawodników, terminarza i pucharu
   - `events.ts` – zdarzenia losowe (tu najłatwiej dopisywać humor)
   - `commentary.ts` – komentarze meczowe
@@ -43,11 +52,10 @@ npm run build    # wersja produkcyjna w dist/
 
 ## Dopisywanie zdarzeń
 
-Każde zdarzenie w `src/game/events.ts` ma tekst, opcjonalne warunki (poziom ligi, cecha zawodnika) i 2–3 opcje. Opcja dostaje stan gry i zwraca tekst wyniku. W tekstach działają `{p}`, `{ps}`, `{klub}`, `{miasto}`, `{trener}`.
+Każde zdarzenie w `src/game/events.ts` ma tekst, opcjonalne warunki (poziom ligi, cecha zawodnika) i 2–3 opcje. Opcja dostaje stan gry i zwraca tekst wyniku. W tekstach działają `{p}`, `{ps}`, `{ocena}`, `{mecze}`, `{klub}`, `{miasto}`, `{trener}`. Zdarzenie może dotyczyć zawodnika spełniającego warunek (np. długo na ławce), a opcja może dodać efekt czasowy dla drużyny.
 
 ## Pomysły na dalej
 
 - Europejskie puchary, praca w reprezentacji, wyjazd za granicę.
 - Konta i ranking online (np. Supabase).
-- Ręczne ustawianie składu.
 - Więcej zdarzeń i komentarzy, także od społeczności.

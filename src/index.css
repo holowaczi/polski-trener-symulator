@@ -229,11 +229,16 @@ select {
 }
 .bars {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-top: 10px;
 }
-@media (max-width: 560px) {
+@media (max-width: 760px) {
+  .bars {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 460px) {
   .bars {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -677,4 +682,131 @@ blockquote {
   .bar-fill {
     transition: none;
   }
+}
+.offer-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 2px 0;
+}
+.offer-facts dt {
+  color: var(--muted);
+}
+.offer-facts dd {
+  margin: 0;
+}
+.offer {
+  justify-content: space-between;
+}
+.offer button {
+  margin-top: auto;
+}
+.playbar-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.slot {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.slot button {
+  border: 0;
+  border-radius: 0;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  background: transparent;
+}
+.slot button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.table tr.bench td {
+  background: var(--surface-2);
+}
+.lineup-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.chip.good {
+  border-color: var(--good);
+  color: var(--good);
+}
+.chip.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.rating {
+  display: inline-block;
+  min-width: 34px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rating.r-hi {
+  background: var(--good);
+  color: #fff;
+}
+.rating.r-mid {
+  background: var(--surface-2);
+}
+.rating.r-lo {
+  background: var(--bad);
+  color: #fff;
+}
+.match-events {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  font-size: 0.88rem;
+  display: grid;
+  gap: 2px;
+}
+.ratings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px 12px;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+.ratings-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.bids {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bid {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
 }

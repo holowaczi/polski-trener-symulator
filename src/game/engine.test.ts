@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS } from './data'
+import { acceptBid, buyPlayer } from './market'
 import {
   acceptOffer,
-  buyPlayer,
   computeTable,
   finishTransfers,
   newGame,
@@ -30,6 +30,7 @@ function botCareer(seed: number, seasons: number): GameState {
       case 'transfer': {
         const target = s.transferList.filter((t) => t.fee <= s.budget).sort((a, b) => b.player.skill - a.player.skill)[0]
         if (target && s.squad.length < 24) buyPlayer(s, target.player.id)
+        if (s.bids[0] && guard % 2) acceptBid(s, s.bids[0].playerId)
         finishTransfers(s)
         break
       }
@@ -76,10 +77,13 @@ describe('kariera', () => {
         expect(lg.teamIds).toHaveLength(LEVELS[i].size)
         expect(new Set(lg.teamIds).size).toBe(LEVELS[i].size)
         for (const id of lg.teamIds) expect(s.teams[id].level).toBe(i)
+        if (i > 5) for (const id of lg.teamIds) expect(s.teams[id].reserve).toBeFalsy()
       })
       for (const p of s.squad) {
         expect(Number.isFinite(p.skill)).toBe(true)
+        expect(p.skill).toBeLessThanOrEqual(Math.max(p.potential, 95))
         expect(p.morale).toBeGreaterThanOrEqual(0)
+        expect(p.injuredFor).toBeGreaterThanOrEqual(0)
       }
       expect(Number.isFinite(s.budget)).toBe(true)
     })
@@ -99,5 +103,15 @@ describe('kariera', () => {
       const fixtures = lg.rounds.flat().filter((f) => f.hg !== undefined).length
       expect(played).toBe(fixtures * 2)
     }
+  })
+})
+
+describe('prawdziwe ligi', () => {
+  it('Ekstraklasa i III liga z regionu gracza', () => {
+    const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region: 'małopolskie', seed: 1 })
+    const names = (lvl: number) => s.leagues[lvl].teamIds.map((id) => s.teams[id].name)
+    expect(names(7)).toContain('Legia Warszawa')
+    expect(names(7)).toHaveLength(18)
+    expect(names(4)).toContain('Wisłoka Dębica')
   })
 })

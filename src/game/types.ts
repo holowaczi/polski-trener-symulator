@@ -11,6 +11,7 @@ export type TraitId =
   | 'pracus'
   | 'krol_strzalow'
   | 'kibic_z_mlyna'
+  | 'narwany'
 
 export interface Player {
   id: number
@@ -21,16 +22,30 @@ export interface Player {
   pos: Position
   skill: number
   potential: number
-  /** -3..3 */
+  /** -3..3, wyliczana z ostatnich ocen meczowych */
   form: number
   /** 0..100 */
   morale: number
   traits: TraitId[]
+  /** kontuzja: liczba meczów przerwy */
   injuredFor: number
+  /** zawieszenie: liczba meczów */
+  suspendedFor: number
+  yellows: number
   goals: number
+  assists: number
   apps: number
+  /** ostatnie oceny meczowe (najnowsza na końcu) */
+  ratings: number[]
+  ratingSum: number
+  /** ułamkowy postęp umiejętności, przy ±1 zmienia się skill */
+  progress: number
+  /** mecze z rzędu bez gry, mimo że był zdrowy */
+  benchStreak: number
   /** wartość rynkowa w zł */
   value: number
+  /** pensja miesięczna w zł */
+  wage: number
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -43,6 +58,13 @@ export interface Tactic {
   style: Style
 }
 
+export interface Lineup {
+  /** automatyczny wybór przed każdym meczem */
+  auto: boolean
+  xi: number[]
+  bench: number[]
+}
+
 export interface Team {
   id: number
   name: string
@@ -50,6 +72,10 @@ export interface Team {
   level: number
   /** siła drużyn sterowanych przez komputer */
   strength: number
+  /** prawdziwy klub z bieżącego sezonu */
+  real?: boolean
+  /** drużyna rezerw, nie awansuje wyżej niż II liga */
+  reserve?: boolean
 }
 
 export interface Fixture {
@@ -63,7 +89,6 @@ export interface League {
   level: number
   name: string
   teamIds: number[]
-  /** rounds[kolejka] = mecze */
   rounds: Fixture[][]
 }
 
@@ -88,9 +113,8 @@ export interface CupTie {
 }
 
 export interface Cup {
-  /** rundy pucharu, każda to lista par */
   rounds: CupTie[][]
-  /** kolejki ligowe, po których rozgrywana jest dana runda */
+  /** tygodnie, w których rozgrywana jest dana runda */
   schedule: number[]
   eliminatedAt?: number
   winner?: number
@@ -106,8 +130,9 @@ export interface Coach {
   license: License
   /** 0..100 */
   reputation: number
+  /** 0..100: wysoki stres osłabia drużynę i rodzi kłopoty */
+  stress: number
   savings: number
-  /** kurs licencyjny w trakcie: ile rund do końca */
   courseLeft: number
 }
 
@@ -119,6 +144,14 @@ export interface Trust {
 
 export type GoalType = 'awans' | 'czołówka' | 'środek' | 'utrzymanie'
 
+export interface PlayerRating {
+  id: number
+  name: string
+  pos: Position
+  rating: number
+  sub?: boolean
+}
+
 export interface MatchReport {
   round: number
   cup?: boolean
@@ -127,7 +160,18 @@ export interface MatchReport {
   hg: number
   ag: number
   lines: string[]
-  scorers: string[]
+  /** chronologiczne wydarzenia meczu */
+  events: string[]
+  ratings: PlayerRating[]
+  myStrength: { att: number; def: number }
+  oppStrength: number
+}
+
+/** efekt czasowy: zmienia siłę drużyny przez kilka meczów */
+export interface Modifier {
+  label: string
+  amount: number
+  matches: number
 }
 
 export interface SeasonRecord {
@@ -154,6 +198,8 @@ export interface JobOffer {
 export interface PendingEvent {
   eventId: string
   playerId?: number
+  /** dodatkowe dane zdarzenia, np. oferta za zawodnika */
+  data?: Record<string, number>
   text: string
   options: { label: string }[]
 }
@@ -164,6 +210,14 @@ export interface TransferTarget {
   player: Player
   fee: number
   from: string
+}
+
+export interface Bid {
+  playerId: number
+  teamId: number
+  fee: number
+  /** czy już raz negocjowano */
+  countered?: boolean
 }
 
 export interface GameState {
@@ -177,18 +231,26 @@ export interface GameState {
   cup: Cup
   clubId: number | null
   squad: Player[]
+  lineup: Lineup
   tactic: Tactic
   trust: Trust
   goal: GoalType
   budget: number
+  /** miesięczny limit pensji klubu */
+  wageLimit: number
   salary: number
   season: number
   round: number
   phase: Phase
-  /** faza, do której wracamy po zdarzeniu */
   resumePhase?: Phase
   pendingEvent?: PendingEvent
   transferList: TransferTarget[]
+  bids: Bid[]
+  modifiers: Modifier[]
+  /** pamięć zdarzeń do łańcuchów i warunków */
+  flags: Record<string, number>
+  /** ostatnie wyniki drużyny: W, D, L */
+  streak: string[]
   reports: MatchReport[]
   news: string[]
   history: SeasonRecord[]
@@ -201,7 +263,6 @@ export interface GameState {
   usedEvents: string[]
   lastSeasonSummary?: string[]
   winterWindowDone: boolean
-  /** komunikat na ekranie wyboru pracy */
   hiringNote?: string
   retireReason?: string
 }
