@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS } from './data'
 import { LOWER_LEAGUES } from './lowerData'
+import { teamsAtLevel } from './world'
 import { acceptBid, buyPlayer } from './market'
 import {
   acceptOffer,
@@ -74,12 +75,20 @@ describe('kariera', () => {
     it(`przechodzi 12 sezonów bez błędów (seed ${seed})`, () => {
       const s = botCareer(seed, 12)
       expect(s.history.length).toBeGreaterThan(5)
-      s.leagues.forEach((lg, i) => {
-        expect(lg.teamIds).toHaveLength(LEVELS[i].size)
-        expect(new Set(lg.teamIds).size).toBe(LEVELS[i].size)
+      for (const lg of s.leagues) {
+        const i = lg.level
+        if (i >= 4) expect(lg.teamIds).toHaveLength(LEVELS[i].size)
+        else {
+          expect(lg.teamIds.length).toBeGreaterThanOrEqual(8)
+          expect(lg.teamIds.length).toBeLessThanOrEqual(18)
+        }
+        expect(new Set(lg.teamIds).size).toBe(lg.teamIds.length)
         for (const id of lg.teamIds) expect(s.teams[id].level).toBe(i)
         if (i > 5) for (const id of lg.teamIds) expect(s.teams[id].reserve).toBeFalsy()
-      })
+      }
+      // liczba drużyn w grupach się nie zmienia między sezonami
+      const start = newGame({ firstName: 'a', lastName: 'b', age: 30, region: s.coach.region, seed })
+      expect(s.leagues.map((l) => l.teamIds.length)).toEqual(start.leagues.map((l) => l.teamIds.length))
       for (const p of s.squad) {
         expect(Number.isFinite(p.skill)).toBe(true)
         expect(p.skill).toBeLessThanOrEqual(Math.max(p.potential, 95))
@@ -110,25 +119,38 @@ describe('kariera', () => {
 describe('prawdziwe ligi', () => {
   it('Ekstraklasa i III liga z regionu gracza', () => {
     const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region: 'małopolskie', seed: 1 })
-    const names = (lvl: number) => s.leagues[lvl].teamIds.map((id) => s.teams[id].name)
+    const names = (lvl: number) => teamsAtLevel(s, lvl).map((id) => s.teams[id].name)
     expect(names(7)).toContain('Legia Warszawa')
     expect(names(7)).toHaveLength(18)
     expect(names(4)).toContain('Wisłoka Dębica')
   })
 
-  it('niższe ligi z prawdziwymi klubami regionu', () => {
+  it('niższe ligi: wszystkie grupy z prawdziwymi klubami regionu', () => {
     for (const region of Object.keys(LOWER_LEAGUES)) {
       const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region, seed: 3 })
+      const all = new Set<string>()
       for (let level = 0; level <= 3; level++) {
-        const g = LOWER_LEAGUES[region][3 - level]
-        const lg = s.leagues[level]
-        expect(lg.teamIds).toHaveLength(LEVELS[level].size)
-        expect(new Set(lg.teamIds.map((id) => s.teams[id].name)).size).toBe(LEVELS[level].size)
-        if (!g?.clubs.length) continue
-        expect(lg.name.startsWith(g.tier)).toBe(true)
-        const real = lg.teamIds.filter((id) => g.clubs.some((c) => c.name === s.teams[id].name)).length
-        expect(real).toBe(Math.min(LEVELS[level].size, g.clubs.length))
+        const tier = LOWER_LEAGUES[region][3 - level]
+        const groups = s.leagues.filter((l) => l.level === level)
+        expect(groups.length).toBeGreaterThan(0)
+        const real = tier?.groups.filter((g) => g.clubs.length) ?? []
+        if (real.length) expect(groups).toHaveLength(real.length)
+        for (const lg of groups) {
+          expect(lg.teamIds.length).toBeGreaterThanOrEqual(8)
+          expect(lg.teamIds.length).toBeLessThanOrEqual(18)
+          for (const id of lg.teamIds) {
+            expect(all.has(s.teams[id].name)).toBe(false)
+            all.add(s.teams[id].name)
+          }
+        }
+        for (const g of real) {
+          const lg = groups.find((l) => l.group === g.name)!
+          expect(lg.name.startsWith(tier.tier)).toBe(true)
+          const hits = lg.teamIds.filter((id) => g.clubs.some((c) => c.name === s.teams[id].name)).length
+          expect(hits).toBeGreaterThanOrEqual(Math.min(8, g.clubs.length) - 2)
+        }
       }
     }
   })
+
 })

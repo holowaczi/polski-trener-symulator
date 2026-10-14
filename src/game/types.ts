@@ -88,6 +88,8 @@ export interface Fixture {
 export interface League {
   level: number
   name: string
+  /** nazwa grupy, gdy na poziomie jest kilka lig */
+  group?: string
   teamIds: number[]
   rounds: Fixture[][]
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Act } from '../App'
-import { FORMATIONS, STYLE_INFO, TRAITS } from '../game/data'
-import { club, clubLeague, computeTable, formatMoney, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
+import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
+import { club, clubLeague, computeTable, formatMoney, promotionSlots, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
 import type { Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
@@ -242,14 +242,45 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
 
 // ---------- tabela ----------
 
+function groupsNote(n: number): string {
+  if (n < 2) return ''
+  const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)
+  return ` Na tym poziomie ${few ? 'grają' : 'gra'} ${n} ${few ? 'grupy' : 'grup'}.`
+}
+
 export function TableView({ s }: { s: GameState }) {
-  const lg = clubLeague(s)
+  const mine = clubLeague(s)
+  const [pick, setPick] = useState<number | null>(null)
+  const lg = s.leagues[pick ?? (mine ? s.leagues.indexOf(mine) : 0)]
   if (!lg) return null
   const rows = computeTable(lg)
   const size = rows.length
+  const up = promotionSlots(s, lg.level)
+  const down = relegationSlots(s, lg)
+  const levels = [...new Set(s.leagues.map((l) => l.level))].sort((a, b) => b - a)
   return (
     <div className="scroll-x">
-      <h2>{lg.name}</h2>
+      <div className="table-head">
+        <h2>{lg.name}</h2>
+        <select
+          aria-label="Pokaż tabelę"
+          value={s.leagues.indexOf(lg)}
+          onChange={(e) => setPick(Number(e.target.value))}
+        >
+          {levels.map((lv) => (
+            <optgroup key={lv} label={LEVELS[lv].name}>
+              {s.leagues.map((l, i) =>
+                l.level === lv ? (
+                  <option key={i} value={i}>
+                    {l === mine ? '★ ' : ''}
+                    {l.group ?? l.name}
+                  </option>
+                ) : null,
+              )}
+            </optgroup>
+          ))}
+        </select>
+      </div>
       <table className="table">
         <thead>
           <tr>
@@ -269,8 +300,8 @@ export function TableView({ s }: { s: GameState }) {
               key={r.teamId}
               className={[
                 r.teamId === s.clubId ? 'me' : '',
-                i < (lg.level >= 5 ? 3 : 2) && lg.level < 7 ? 'promo' : '',
-                i >= size - (lg.level >= 6 ? 3 : 2) && lg.level > 0 ? 'releg' : '',
+                i < up ? 'promo' : '',
+                i >= size - down ? 'releg' : '',
               ].join(' ')}
             >
               <td>{i + 1}</td>
@@ -289,7 +320,9 @@ export function TableView({ s }: { s: GameState }) {
           ))}
         </tbody>
       </table>
-      <p className="small muted">Zielone: awans (z barażami w uproszczeniu). Czerwone: spadek.</p>
+      <p className="small muted">
+        Zielone: awans{up === 1 ? ' (tylko mistrz grupy)' : ''}. Czerwone: spadek{down ? ` (${down})` : ''}.{groupsNote(s.leagues.filter((l) => l.level === lg.level).length)}
+      </p>
     </div>
   )
 }

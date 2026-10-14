@@ -2,7 +2,7 @@ import { LEVELS } from './data'
 import type { Rng } from './rng'
 import type { Bid, GameState, Player, Position, Team } from './types'
 import { adjustTrust, avgRating, club, formatMoney, news, setMorale, wageBill, withRng } from './util'
-import { generatePlayer, playerName, wageFor } from './world'
+import { generatePlayer, playerName, teamsAtLevel, wageFor } from './world'
 
 export const MAX_SQUAD = 28
 export const MIN_SQUAD = 16
@@ -29,7 +29,7 @@ export function refreshTransferList(s: GameState): void {
       // gwiazdy z niższych lig chcą więcej
       p.wage = Math.round((p.wage * (free ? 0.9 : 1 + rng.next() * 0.3)) / 100) * 100
       const fee = free ? 0 : Math.round((p.value * (1 + rng.next() * 0.8)) / 100) * 100
-      const from = free ? 'wolny zawodnik' : s.teams[rng.pick(s.leagues[t.level].teamIds.filter((x) => x !== t.id))].name
+      const from = free ? 'wolny zawodnik' : s.teams[rng.pick(teamsAtLevel(s, t.level).filter((x) => x !== t.id))].name
       list.push({ player: p, fee, from })
     }
     return list
@@ -114,7 +114,7 @@ export function makeBid(rng: Rng, s: GameState, p: Player): Bid | undefined {
   const levels = [t.level, Math.min(7, t.level + 1), Math.min(7, t.level + 2)]
   const level = rng.pick(levels)
   if (p.skill < LEVELS[level].base - 4) return undefined
-  const teamId = rng.pick(s.leagues[level].teamIds.filter((id) => id !== t.id))
+  const teamId = rng.pick(teamsAtLevel(s, level).filter((id) => id !== t.id))
   const fee = Math.round((p.value * (0.8 + rng.next() * 0.7)) / 100) * 100
   return { playerId: p.id, teamId, fee }
 }

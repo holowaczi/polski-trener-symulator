@@ -17,6 +17,7 @@ import {
   pairUp,
   playerName,
   playerValue,
+  teamsAtLevel,
   wageFor,
 } from './world'
 
@@ -35,11 +36,61 @@ export function goalLabel(goal: GoalType, level: number): string {
   return 'Utrzymanie'
 }
 
-export function goalMet(goal: GoalType, pos: number, size: number, level: number): boolean {
-  if (goal === 'awans') return level === 7 ? pos === 1 : pos <= (SWAPS[level] ?? 2)
+export function goalMet(goal: GoalType, pos: number, size: number, level: number, up = SWAPS[level] ?? 2, down = SWAPS[level - 1] ?? 2): boolean {
+  if (goal === 'awans') return level === 7 ? pos === 1 : pos <= up
   if (goal === 'czołówka') return pos <= 4
   if (goal === 'środek') return pos <= Math.ceil(size / 2)
-  return pos <= size - (SWAPS[level - 1] ?? 2)
+  return pos <= size - down
+}
+
+function groupsAt(s: GameState, level: number): League[] {
+  return s.leagues.filter((l) => l.level === level)
+}
+
+/** ilu awansuje z jednej grupy: przy kilku grupach tylko zwycięzca, przy pojedynczych ligach jak w SWAPS */
+export function promotionSlots(s: GameState, level: number): number {
+  if (level >= 7) return 0
+  return groupsAt(s, level).length === 1 && groupsAt(s, level + 1).length === 1 ? SWAPS[level] : 1
+}
+
+/** ilu spada z danej grupy: tylu, ilu awansuje z poziomu niżej, rozłożonych po grupach */
+export function relegationSlots(s: GameState, lg: League): number {
+  if (lg.level === 0) return 0
+  const total = promotionSlots(s, lg.level - 1) * groupsAt(s, lg.level - 1).length
+  const uppers = groupsAt(s, lg.level)
+  const i = uppers.indexOf(lg)
+  return Math.floor(total / uppers.length) + (i < total % uppers.length ? 1 : 0)
+}
+
+/** awanse i spadki między wszystkimi grupami; drużyny, które spadają, trafiają do grup, z których ktoś awansował */
+function promotionPlan(rng: Rng, s: GameState, tables: Map<League, TableRow[]>) {
+  const up = new Set<number>()
+  const down = new Set<number>()
+  const moves: { lg: League; out: number[]; in: number[] }[] = []
+  for (let level = 0; level < 7; level++) {
+    const lowers = groupsAt(s, level)
+    const uppers = groupsAt(s, level + 1)
+    const k = promotionSlots(s, level)
+    const lowerOut = lowers.map((lg) =>
+      tables
+        .get(lg)!
+        .filter((r) => !(s.teams[r.teamId].reserve && level + 1 > RESERVE_MAX_LEVEL))
+        .slice(0, k)
+        .map((r) => r.teamId),
+    )
+    const upperOut = uppers.map((lg) => {
+      const n = relegationSlots(s, lg)
+      return n ? tables.get(lg)!.slice(-n).map((r) => r.teamId) : []
+    })
+    lowerOut.flat().forEach((id) => up.add(id))
+    upperOut.flat().forEach((id) => down.add(id))
+    // spadkowicze do grup niżej, beniaminkowie do grup wyżej, tak żeby każda grupa zachowała liczbę drużyn
+    const goingDown = rng.shuffle(upperOut.flat())
+    const goingUp = rng.shuffle(lowerOut.flat())
+    lowers.forEach((lg, i) => moves.push({ lg, out: lowerOut[i], in: goingDown.splice(0, lowerOut[i].length) }))
+    uppers.forEach((lg, i) => moves.push({ lg, out: upperOut[i], in: goingUp.splice(0, upperOut[i].length) }))
+  }
+  return { up, down, moves }
 }
 
 const REP_NEEDED = [0, 6, 14, 24, 35, 48, 62, 76]
@@ -115,8 +166,7 @@ export function newGame(input: NewGameInput): GameState {
     for (const lg of s.leagues) lg.rounds = makeFixtures(rng, lg.teamIds)
   })
   s.cup = withRng(s, (rng) => drawCup(rng, s, SEASON_WEEKS))
-  const bklasa = s.leagues[0]
-  const picks = withRng(s, (rng) => rng.shuffle([...bklasa.teamIds]).slice(0, 3))
+  const picks = withRng(s, (rng) => rng.shuffle(teamsAtLevel(s, 0)).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
   s.hiringNote = `Masz ${input.age} lat, licencję UEFA C i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
   return s
@@ -636,8 +686,7 @@ function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean,
     const maxL = Math.min(7, aroundLevel + (afterFiring ? 0 : 1))
     for (let level = maxL; level >= minL; level--) {
       if (!licenseAllows(s, level)) continue
-      const lg = s.leagues[level]
-      const cands = lg.teamIds.filter((x) => x !== s.clubId && x !== excludeId)
+      const cands = teamsAtLevel(s, level).filter((x) => x !== s.clubId && x !== excludeId)
       // wielkie kluby wymagają większej reputacji
       const id = rng.pick(cands)
       const need = REP_NEEDED[level] + Math.max(0, s.teams[id].strength - LEVELS[level].base) * 1.5
@@ -649,7 +698,7 @@ function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean,
     }
     if (!offers.length) {
       const level = Math.max(0, Math.min(minL, 1))
-      const id = rng.pick(s.leagues[level].teamIds.filter((x) => x !== excludeId))
+      const id = rng.pick(teamsAtLevel(s, level).filter((x) => x !== excludeId))
       offers.push(makeOffer(s, id, 'Nikt inny nie chciał. Ale mają nowe siatki w bramkach!'))
     }
     return offers
@@ -716,16 +765,17 @@ export function endSeason(s: GameState): void {
       if (s.cup.rounds[i] && s.cup.winner === undefined && !s.cup.rounds[i].every((t) => t.winner !== undefined)) playCupRound(rng, s, i)
   })
   const t = club(s)
-  const tables = s.leagues.map((lg) => computeTable(lg))
+  const tables = new Map(s.leagues.map((lg) => [lg, computeTable(lg)] as const))
+  const plan = withRng(s, (rng) => promotionPlan(rng, s, tables))
   let fired = false
   if (t) {
     const lg = clubLeague(s)!
-    const table = tables[lg.level]
+    const table = tables.get(lg)!
     const pos = table.findIndex((r) => r.teamId === t.id) + 1
     const size = lg.teamIds.length
-    const met = goalMet(s.goal, pos, size, lg.level)
-    const promoted = lg.level < 7 && pos <= SWAPS[lg.level] && !(t.reserve && lg.level >= RESERVE_MAX_LEVEL)
-    const relegated = lg.level > 0 && pos > size - SWAPS[lg.level - 1]
+    const met = goalMet(s.goal, pos, size, lg.level, promotionSlots(s, lg.level), relegationSlots(s, lg))
+    const promoted = plan.up.has(t.id)
+    const relegated = plan.down.has(t.id)
     let outcome = `${pos}. miejsce`
     if (pos === 1) {
       s.trophies.push(lg.level === 7 ? `Mistrzostwo Polski (sezon ${s.season})` : `Mistrzostwo: ${lg.name} (sezon ${s.season})`)
@@ -757,24 +807,15 @@ export function endSeason(s: GameState): void {
     if (bestAvg) summary.push(`Najwyższa średnia ocen: ${playerName(bestAvg)} (${(bestAvg.ratingSum / bestAvg.apps).toFixed(2)}).`)
   } else summary.push('Sezon spędzony w roli eksperta w lokalnym radiu. Słuchalność: 37 osób.')
 
-  // awanse i spadki we wszystkich ligach
-  for (let level = 0; level < 7; level++) {
-    const n = SWAPS[level]
-    const lower = s.leagues[level]
-    const upper = s.leagues[level + 1]
-    const eligible = tables[level].filter((r) => !(s.teams[r.teamId].reserve && level + 1 > RESERVE_MAX_LEVEL))
-    const up = eligible.slice(0, n).map((r) => r.teamId)
-    const down = tables[level + 1].slice(-n).map((r) => r.teamId)
-    lower.teamIds = lower.teamIds.filter((id) => !up.includes(id)).concat(down)
-    upper.teamIds = upper.teamIds.filter((id) => !down.includes(id)).concat(up)
-    for (const id of up) {
-      s.teams[id].level = level + 1
-      s.teams[id].strength += 2
-    }
-    for (const id of down) {
-      s.teams[id].level = level
-      s.teams[id].strength -= 2
-    }
+  // awanse i spadki we wszystkich ligach i grupach
+  for (const m of plan.moves) m.lg.teamIds = m.lg.teamIds.filter((id) => !m.out.includes(id)).concat(m.in)
+  for (const id of plan.up) {
+    s.teams[id].level++
+    s.teams[id].strength += 2
+  }
+  for (const id of plan.down) {
+    s.teams[id].level--
+    s.teams[id].strength -= 2
   }
   withRng(s, (rng) => {
     for (const team of Object.values(s.teams)) {

@@ -8,18 +8,23 @@ export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
-/** prawdziwa grupa ligowa dla poziomów 0–3 (IV liga i niżej), jeśli ją mamy */
-function lowerGroup(level: number, region: string) {
-  const g = LOWER_LEAGUES[region]?.[3 - level]
-  return g && g.clubs.length ? g : undefined
+/** prawdziwe grupy dla poziomów 0–3 (IV liga i niżej), od IV ligi w dół */
+function lowerTier(level: number, region: string) {
+  return LOWER_LEAGUES[region]?.[3 - level]
 }
+
+/** domyślna liczba grup, gdy nie mamy danych: im niżej, tym więcej grup */
+const DEFAULT_GROUPS = [4, 3, 2, 1]
 
 export function leagueName(level: number, region: string): string {
   if (level === 4) return `III liga (gr. ${REGION_GROUP[region] ?? 'I'})`
-  const g = level <= 3 ? lowerGroup(level, region) : undefined
-  if (g) return g.group === g.tier ? `${g.tier} · ${region}` : `${g.tier} · ${g.group}`
-  if (level <= 3) return `${LEVELS[level].name} · ${region}`
+  if (level <= 3) return `${lowerTier(level, region)?.tier ?? LEVELS[level].name} · ${region}`
   return LEVELS[level].name
+}
+
+/** wszystkie drużyny na danym poziomie, ze wszystkich grup */
+export function teamsAtLevel(state: Pick<GameState, 'leagues'>, level: number): number[] {
+  return state.leagues.filter((l) => l.level === level).flatMap((l) => l.teamIds)
 }
 
 function villageName(rng: Rng): string {
@@ -52,28 +57,43 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
     else if (level === 5) ids = addReal(level, II_LIGA)
     else if (level === 4) ids = addReal(level, III_LIGA[REGION_GROUP[region] ?? 'I'])
     else {
-      ids = []
-      // prawdziwe kluby z grupy w regionie, w losowej kolejności; brakujące miejsca dopełniamy fikcyjnymi
-      const real = rng.shuffle([...(lowerGroup(level, region)?.clubs ?? [])]).filter((c) => !used.has(c.name))
-      for (let i = 0; i < lv.size; i++) {
-        let name = ''
-        let town = ''
-        const reserve = real[i]?.reserve
-        if (real[i]) {
-          name = real[i].name
-          town = real[i].town
-        } else for (let tries = 0; tries < 50; tries++) {
-          town = level >= 2 ? nextTown() : villageName(rng)
-          name = `${rng.pick(CLUB_PREFIXES)} ${town}`
-          if (!used.has(name)) break
+      // niższe ligi: kilka grup na poziom, prawdziwe kluby z województwa, braki dopełniają fikcyjne
+      const tier = lowerTier(level, region)
+      const realGroups = tier?.groups.filter((g) => g.clubs.length) ?? []
+      const fallbackCount = level < 3 ? Math.max(1, state.leagues.filter((l) => l.level === level + 1).length) : 1
+      const groups = realGroups.length
+        ? realGroups
+        : Array.from({ length: tier ? fallbackCount : DEFAULT_GROUPS[level] }, (_, i) => ({ name: `gr. ${i + 1}`, clubs: [] }))
+      const tierName = tier?.groups.length ? tier.tier : LEVELS[level].name
+      for (const g of groups) {
+        const real = rng.shuffle([...g.clubs]).filter((c) => !used.has(c.name))
+        // rozmiar grupy jak w rzeczywistości (8–18), przy niepełnych danych standardowy
+        const size = real.length >= 8 ? Math.min(real.length, 18) : lv.size
+        const gids: number[] = []
+        for (let i = 0; i < size; i++) {
+          let name = ''
+          let town = ''
+          const reserve = real[i]?.reserve
+          if (real[i]) {
+            name = real[i].name
+            town = real[i].town
+          } else
+            for (let tries = 0; tries < 50; tries++) {
+              town = level >= 2 ? nextTown() : villageName(rng)
+              name = `${rng.pick(CLUB_PREFIXES)} ${town}`
+              if (!used.has(name)) break
+            }
+          used.add(name)
+          const id = state.nextId++
+          // w każdej grupie jest kilku faworytów i kilku outsiderów
+          const bump = i < 2 ? 5 : i >= size - 3 ? -4 : 0
+          state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + bump, 3.5)), real: real[i] ? true : undefined, reserve }
+          gids.push(id)
         }
-        used.add(name)
-        const id = state.nextId++
-        // w każdej lidze jest kilku faworytów i kilku outsiderów
-        const tier = i < 2 ? 5 : i >= lv.size - 3 ? -4 : 0
-        state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + tier, 3.5)), real: real[i] ? true : undefined, reserve }
-        ids.push(id)
+        const name = groups.length === 1 && !realGroups.length ? `${tierName} · ${region}` : `${tierName} · ${g.name}`
+        state.leagues.push({ level, name, group: g.name, teamIds: gids, rounds: [] })
       }
+      continue
     }
     state.leagues.push({ level, name: leagueName(level, region), teamIds: ids, rounds: [] })
   }
@@ -224,10 +244,10 @@ export function cupRoundName(i: number): string {
 export function drawCup(rng: Rng, state: GameState, weeks: number): Cup {
   const quota = [2, 2, 3, 3, 4, 4, 6, 8]
   const picked: number[] = []
-  state.leagues.forEach((lg) => {
-    const pool = rng.shuffle(lg.teamIds.filter((id) => id !== state.clubId))
-    picked.push(...pool.slice(0, quota[lg.level]))
-  })
+  for (let level = 0; level < LEVELS.length; level++) {
+    const pool = rng.shuffle(teamsAtLevel(state, level).filter((id) => id !== state.clubId))
+    picked.push(...pool.slice(0, quota[level]))
+  }
   if (state.clubId !== null) {
     picked.pop()
     picked.push(state.clubId)

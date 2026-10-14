@@ -87,7 +87,7 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
   const out: string[] = []
   for (const k of Object.keys(A).sort()) {
     const xs = A[k]
-    out.push(`${k.padEnd(22)} n=${String(xs.length).padStart(5)} mean=${mean(xs).toFixed(3)} min=${Math.min(...xs).toFixed(2)} max=${Math.max(...xs).toFixed(2)}`)
+    out.push(`${k.padEnd(22)} n=${String(xs.length).padStart(5)} mean=${mean(xs).toFixed(3)} min=${xs.reduce((a, b) => Math.min(a, b), Infinity).toFixed(2)} max=${xs.reduce((a, b) => Math.max(a, b), -Infinity).toFixed(2)}`)
   }
   console.log(out.join('\n'))
   console.log(careers.join('\n'))
