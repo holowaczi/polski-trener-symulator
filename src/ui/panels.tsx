@@ -11,7 +11,7 @@ import { playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
-function ConfirmButton(props: {
+export function ConfirmButton(props: {
   label: string
   confirmLabel: string
   onConfirm: () => void

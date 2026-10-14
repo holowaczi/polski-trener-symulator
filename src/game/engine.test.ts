@@ -12,6 +12,7 @@ import {
   playNext,
   resolveEvent,
   retire,
+  simulateToBreak,
   stayAtClub,
   startLicenseCourse,
 } from './engine'
@@ -159,4 +160,20 @@ describe('prawdziwe ligi', () => {
     }
   })
 
+})
+
+describe('szybka symulacja', () => {
+  it('gra do okna, końca sezonu albo zwolnienia i sama rozstrzyga zdarzenia', () => {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'śląskie', seed: 7 })
+    acceptOffer(s, s.offers[0].teamId)
+    for (let i = 0; i < 6; i++) {
+      if (s.phase === 'transfer') finishTransfers(s)
+      else if (s.phase === 'seasonEnd') stayAtClub(s)
+      else if (s.phase === 'hiring') acceptOffer(s, s.offers[0].teamId)
+      const msg = simulateToBreak(s)
+      expect(msg).toMatch(/^Przesymulowano/)
+      expect(['transfer', 'seasonEnd', 'hiring']).toContain(s.phase)
+      expect(s.pendingEvent).toBeUndefined()
+    }
+  })
 })

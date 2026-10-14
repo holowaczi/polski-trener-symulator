@@ -198,6 +198,26 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
           </ol>
         </section>
       )}
+      <footer className="card disclaimer muted">
+        <h2>Zastrzeżenie</h2>
+        <p>
+          Polski Trener Symulator to niekomercyjna gra fanowska, stworzona dla rozrywki. Nie jest powiązana z PZPN, wojewódzkimi związkami piłki nożnej,
+          Ekstraklasą S.A. ani żadnym klubem, nie jest też przez nie autoryzowana ani wspierana.
+        </p>
+        <p>
+          Nazwy klubów, lig i rozgrywek pojawiają się wyłącznie w celach informacyjnych, żeby oddać strukturę polskiej piłki. Wszelkie znaki towarowe i nazwy
+          należą do ich właścicieli. Gra nie używa herbów, logotypów ani oficjalnych materiałów.
+        </p>
+        <p>
+          Wszyscy zawodnicy, trenerzy, prezesi, działacze i ich wypowiedzi są fikcyjni i generowani losowo. Zbieżność imion i nazwisk z prawdziwymi osobami jest
+          przypadkowa. Zdarzenia w grze, w tym humorystyczne, nie opisują prawdziwych osób ani klubów i nie są oceną ich działalności. Wyniki, siła drużyn,
+          budżety i pensje są zmyślone.
+        </p>
+        <p>
+          Gra działa w całości w przeglądarce. Zapis kariery trzymamy tylko w pamięci Twojej przeglądarki (localStorage) i nie wysyłamy go nigdzie.
+        </p>
+        <p>Wersja 0.2.0 (alfa).</p>
+      </footer>
     </main>
   )
 }

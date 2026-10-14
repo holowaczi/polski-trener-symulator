@@ -548,6 +548,37 @@ export function playUntilBreak(s: GameState): void {
   while (s.phase === 'season' && guard++ < 40) playNext(s)
 }
 
+function plural(n: number, one: string, few: string, many: string): string {
+  if (n === 1) return one
+  const d = n % 10
+  const t = n % 100
+  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many
+}
+
+/**
+ * Szybka symulacja: gra aż do okna transferowego, końca sezonu albo zwolnienia.
+ * Zdarzenia rozstrzyga asystent: oferty za zawodników odrzuca, resztę wybiera po swojemu.
+ */
+export function simulateToBreak(s: GameState): string {
+  let played = 0
+  let decided = 0
+  let guard = 0
+  while ((s.phase === 'season' || s.phase === 'event') && guard++ < 200) {
+    if (s.phase === 'event') {
+      const pe = s.pendingEvent!
+      const choice = pe.eventId === 'bid' ? 1 : withRng(s, (rng) => rng.int(0, pe.options.length - 1))
+      news(s, `Asystent zdecydował: „${pe.options[choice].label}”.`)
+      resolveEvent(s, choice)
+      decided++
+    } else {
+      if (nextMatchInfo(s)) played++
+      playNext(s)
+    }
+  }
+  const where = s.phase === 'transfer' ? 'do okna transferowego' : s.phase === 'seasonEnd' ? 'do końca sezonu' : s.phase === 'hiring' ? 'do zwolnienia' : 'dalej'
+  return `Przesymulowano ${where}: ${played} ${plural(played, 'mecz', 'mecze', 'meczów')}${decided ? `, asystent rozstrzygnął ${decided} ${plural(decided, 'sprawę', 'sprawy', 'spraw')}` : ''}.`
+}
+
 // ---------- zdarzenia ----------
 
 function pickEvent(rng: Rng, s: GameState): { ev: GameEvent; player?: Player } | undefined {

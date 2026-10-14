@@ -12,9 +12,9 @@ import {
   licenseAllows,
   nextMatchInfo,
   playNext,
-  playUntilBreak,
   resolveEvent,
   retire,
+  simulateToBreak,
   startLicenseCourse,
   stayAtClub,
   waitForOffers,
@@ -23,7 +23,7 @@ import { previewStrength } from '../game/match'
 import { careerScore, multiplierOf } from '../game/score'
 import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
-import { CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
+import { ConfirmButton, CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 import { Bar, ClubView, CoachCard } from './profiles'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
@@ -42,7 +42,20 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   const [tab, setTab] = useState<Tab>('mecz')
+  const [auto, setAuto] = useState<AutoState>({ speed: 1, running: false })
   const team = club(s)
+
+  // tryb automatyczny: kolejny mecz po chwili; zdarzenie czeka na decyzję, okno, koniec sezonu i zwolnienie zatrzymują
+  useEffect(() => {
+    if (!auto.running) return
+    if (s.phase === 'event') return
+    if (s.phase !== 'season') {
+      setAuto((a) => ({ ...a, running: false }))
+      return
+    }
+    const t = setTimeout(() => act((g) => playNext(g)), SPEEDS[auto.speed].ms)
+    return () => clearTimeout(t)
+  }, [auto, s, act])
 
   useEffect(() => {
     if (s.phase === 'transfer') setTab('transfery')
@@ -89,7 +102,7 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
               </>
             )}
           </section>
-          {s.phase === 'season' && <PlayBar s={s} act={act} />}
+          {s.phase === 'season' && <PlayBar s={s} act={act} auto={auto} setAuto={setAuto} />}
         </>
       )}
       {s.phase === 'event' && s.pendingEvent && <EventModal s={s} act={act} />}
@@ -156,7 +169,15 @@ function Header({ s }: { s: GameState }) {
   )
 }
 
-function PlayBar({ s, act }: { s: GameState; act: Act }) {
+type AutoState = { speed: number; running: boolean }
+
+const SPEEDS = [
+  { label: 'Wolno', ms: 3000 },
+  { label: 'Normalnie', ms: 1500 },
+  { label: 'Szybko', ms: 500 },
+]
+
+function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: AutoState; setAuto: (a: AutoState) => void }) {
   const info = nextMatchInfo(s)
   const mine = previewStrength(s)
   let label = 'Zakończ sezon'
@@ -181,11 +202,29 @@ function PlayBar({ s, act }: { s: GameState; act: Act }) {
         </span>
       </div>
       <div className="row">
-        <button className="primary" onClick={() => act((g) => playNext(g))}>
+        <button className="primary" disabled={auto.running} onClick={() => act((g) => playNext(g))}>
           Rozegraj mecz
         </button>
-        <button onClick={() => act((g) => playUntilBreak(g))}>Graj do przerwy</button>
+        <button className={auto.running ? 'active' : ''} onClick={() => setAuto({ ...auto, running: !auto.running })}>
+          {auto.running ? '⏸ Pauza' : '▶ Graj automatycznie'}
+        </button>
+        <span className="speeds" role="group" aria-label="Szybkość">
+          {SPEEDS.map((sp, i) => (
+            <button key={sp.label} className={auto.speed === i ? 'speed active' : 'speed'} onClick={() => setAuto({ ...auto, speed: i })}>
+              {sp.label}
+            </button>
+          ))}
+        </span>
+        <ConfirmButton
+          label="⏩ Symuluj do okna"
+          confirmLabel="Na pewno? Asystent sam rozstrzygnie zdarzenia"
+          onConfirm={() => {
+            setAuto({ ...auto, running: false })
+            act((g) => simulateToBreak(g))
+          }}
+        />
       </div>
+      {auto.running && <p className="small muted">Tryb automatyczny: zatrzyma się przy zdarzeniu, oknie transferowym, końcu sezonu albo zwolnieniu.</p>}
     </div>
   )
 }

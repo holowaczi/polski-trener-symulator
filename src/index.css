@@ -1009,3 +1009,32 @@ blockquote {
     position: static;
   }
 }
+
+/* tryb automatyczny */
+.speeds {
+  display: inline-flex;
+  gap: 0;
+}
+.speeds .speed {
+  border-radius: 0;
+  padding-inline: 0.6rem;
+}
+.speeds .speed + .speed {
+  margin-left: -1px;
+}
+.speeds .speed:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.speeds .speed:last-child {
+  border-radius: 0 8px 8px 0;
+}
+.speeds .speed.active,
+.playbar button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.disclaimer {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
