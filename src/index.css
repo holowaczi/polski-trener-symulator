@@ -944,3 +944,14 @@ blockquote {
   border-bottom: 1px dashed var(--border);
   padding: 2px 0;
 }
+
+.cup-stage {
+  margin-top: 16px;
+}
+.cup-stage h4 {
+  margin: 12px 0 4px;
+}
+.cup-stage details summary {
+  cursor: pointer;
+  margin: 4px 0;
+}

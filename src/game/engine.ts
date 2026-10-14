@@ -1,21 +1,19 @@
 import { licenseCovers, startMultiplier } from './score'
+import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { COACH_QUOTES, LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
 import { departureEffects, generateBids, makeBid, refreshTransferList, renewWages, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { CupTie, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
+import type { Cup, CupTie, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import {
   clamp,
-  cupRoundName,
-  drawCup,
   generatePlayer,
   generateSquad,
   generateWorld,
   leagueOf,
   makeFixtures,
-  pairUp,
   playerName,
   playerValue,
   teamsAtLevel,
@@ -173,7 +171,9 @@ export function newGame(input: NewGameInput): GameState {
     generateWorld(rng, s, input.region)
     for (const lg of s.leagues) lg.rounds = makeFixtures(rng, lg.teamIds)
   })
-  s.cup = withRng(s, (rng) => drawCup(rng, s, SEASON_WEEKS))
+  // zwycięzca zeszłorocznego pucharu wojewódzkiego: zwykle mocny klub IV ligi
+  s.cupQualifier = withRng(s, (rng) => rng.pick([...teamsAtLevel(s, 5)].sort((a, b) => s.teams[b].strength - s.teams[a].strength).slice(0, 6)))
+  drawCups(s)
   const picks = withRng(s, (rng) => rng.shuffle(teamsAtLevel(s, bottomLevel(s))).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
   s.hiringNote = `Masz ${input.age} lat, licencję ${s.coach.license} i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
@@ -360,10 +360,31 @@ function hasClubMatch(s: GameState, week: number): boolean {
   return cupTieForWeek(s, week) !== undefined
 }
 
+/** oba etapy Pucharu Polski grane w tym sezonie */
+export function cupsOf(s: GameState): Cup[] {
+  return s.regionalCup ? [s.regionalCup, s.cup] : [s.cup]
+}
+
+function drawCups(s: GameState): void {
+  s.regionalCup = withRng(s, (rng) => drawRegionalCup(rng, s))
+  s.cup = withRng(s, (rng) => drawCentralCup(rng, s))
+}
+
 function cupTieForWeek(s: GameState, week: number): CupTie | undefined {
-  const idx = s.cup.schedule.indexOf(week)
-  if (idx < 0) return undefined
-  return s.cup.rounds[idx]?.find((t) => t.home === s.clubId || t.away === s.clubId)
+  for (const cup of cupsOf(s)) {
+    const idx = cup.schedule.indexOf(week)
+    if (idx < 0) continue
+    const tie = cup.rounds[idx]?.find((t) => t.home === s.clubId || t.away === s.clubId)
+    if (tie) return tie
+  }
+  return undefined
+}
+
+function playCupsForWeek(rng: Rng, s: GameState, week: number): void {
+  for (const cup of cupsOf(s)) {
+    const idx = cup.schedule.indexOf(week)
+    if (idx >= 0 && cup.rounds[idx]) playCupRound(rng, s, cup, idx)
+  }
 }
 
 export function playWeek(s: GameState): void {
@@ -383,16 +404,17 @@ export function playWeek(s: GameState): void {
         } else playAiFixture(rng, s, f)
       }
     }
-    const cupIdx = s.cup.schedule.indexOf(week)
-    if (cupIdx >= 0 && s.cup.rounds[cupIdx]) playCupRound(rng, s, cupIdx)
+    playCupsForWeek(rng, s, week)
   })
   if (s.reports.length > 40) s.reports.length = 40
   s.round++
   afterWeek(s)
 }
 
-function playCupRound(rng: Rng, s: GameState, idx: number): void {
-  const ties = s.cup.rounds[idx]
+function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
+  const ties = cup.rounds[idx]
+  const regional = cup !== s.cup
+  const cupName = regional ? 'Puchar wojewódzki' : 'Puchar Polski'
   const winners: number[] = []
   for (const t of ties) {
     if (t.winner !== undefined) {
@@ -418,23 +440,35 @@ function playCupRound(rng: Rng, s: GameState, idx: number): void {
     winners.push(t.winner)
     if (mine) {
       if (t.winner === s.clubId) {
-        news(s, `Puchar Polski: awans dalej! (${cupRoundName(idx)})`)
-        adjustTrust(s, { fans: 4, board: 2 })
+        news(s, `${cupName}: awans dalej! (${roundName(cup, idx)})`)
+        adjustTrust(s, { fans: regional ? 2 : 4, board: regional ? 1 : 2 })
       } else {
-        s.cup.eliminatedAt = idx
-        news(s, `Puchar Polski: odpadamy w rundzie ${cupRoundName(idx)}.`)
+        cup.eliminatedAt = idx
+        news(s, `${cupName}: odpadamy (${roundName(cup, idx)}).`)
       }
     }
   }
-  if (winners.length === 1) {
-    s.cup.winner = winners[0]
-    if (winners[0] === s.clubId) {
+  if (winners.length === 1 && !cup.byes?.length) {
+    cup.winner = winners[0]
+    if (regional) {
+      if (winners[0] === s.clubId) {
+        s.trophies.push(`Puchar Polski na szczeblu wojewódzkim (sezon ${s.season})`)
+        adjustTrust(s, { fans: 10, board: 8, squad: 5 })
+        adjustCoach(s, { reputation: 3, stress: -8 })
+        news(s, 'Puchar wojewódzki nasz! W przyszłym sezonie gramy w Pucharze Polski z ligowcami z całego kraju.')
+      } else news(s, `Puchar wojewódzki zdobywa ${s.teams[winners[0]].name}. Zagra w przyszłym sezonie w etapie centralnym.`)
+    } else if (winners[0] === s.clubId) {
       s.trophies.push(`Puchar Polski (sezon ${s.season})`)
       adjustTrust(s, { fans: 20, board: 15, squad: 10 })
       adjustCoach(s, { reputation: 10, stress: -20 })
       news(s, 'PUCHAR POLSKI JEST NASZ! Kibice wnoszą trenera do autobusu.')
     } else news(s, `Puchar Polski zdobywa ${s.teams[winners[0]].name}.`)
-  } else s.cup.rounds[idx + 1] = pairUp(rng, s.teams, winners)
+  } else {
+    // po pierwszej rundzie dochodzą drużyny, które miały wolny los
+    const next = [...winners, ...(idx === 0 ? (cup.byes ?? []) : [])]
+    if (idx === 0) cup.byes = undefined
+    cup.rounds[idx + 1] = pairUp(rng, s.teams, next)
+  }
 }
 
 function afterWeek(s: GameState): void {
@@ -685,8 +719,7 @@ export function waitForOffers(s: GameState): void {
   while (s.round < SEASON_WEEKS) {
     withRng(s, (rng) => {
       for (const lg of s.leagues) for (const f of lg.rounds[s.round] ?? []) if (f.hg === undefined) playAiFixture(rng, s, f)
-      const ci = s.cup.schedule.indexOf(s.round)
-      if (ci >= 0 && s.cup.rounds[ci]) playCupRound(rng, s, ci)
+      playCupsForWeek(rng, s, s.round)
     })
     s.round++
   }
@@ -780,9 +813,12 @@ export function endSeason(s: GameState): void {
   const summary: string[] = []
   withRng(s, (rng) => {
     for (const lg of s.leagues) for (const round of lg.rounds) for (const f of round) if (f.hg === undefined) playAiFixture(rng, s, f)
-    for (let i = 0; i < s.cup.schedule.length; i++)
-      if (s.cup.rounds[i] && s.cup.winner === undefined && !s.cup.rounds[i].every((t) => t.winner !== undefined)) playCupRound(rng, s, i)
+    for (const cup of cupsOf(s))
+      for (let i = 0; i < cup.schedule.length; i++)
+        if (cup.rounds[i] && cup.winner === undefined && !cup.rounds[i].every((t) => t.winner !== undefined)) playCupRound(rng, s, cup, i)
   })
+  // zwycięzca etapu wojewódzkiego gra w przyszłym sezonie w etapie centralnym
+  if (s.regionalCup) s.cupQualifier = s.regionalCup.winner
   const t = club(s)
   const tables = new Map(s.leagues.map((lg) => [lg, computeTable(lg)] as const))
   const plan = withRng(s, (rng) => promotionPlan(rng, s, tables))
@@ -802,12 +838,16 @@ export function endSeason(s: GameState): void {
     }
     if (promoted) outcome += ', awans'
     if (relegated) outcome += ', spadek'
-    const cupText =
-      s.cup.winner === t.id
-        ? 'zwycięstwo'
-        : s.cup.eliminatedAt !== undefined
-          ? `odpadł: ${cupRoundName(s.cup.eliminatedAt)}`
-          : 'nie grał'
+    const cupText = cupsOf(s)
+      .map((cup) => {
+        const inCup = cup.rounds.some((r) => r.some((x) => x.home === t.id || x.away === t.id)) || cup.byes?.includes(t.id)
+        if (!inCup) return ''
+        const stage = cup === s.cup ? 'centralny' : 'wojewódzki'
+        if (cup.winner === t.id) return `${stage}: zwycięstwo`
+        return cup.eliminatedAt !== undefined ? `${stage}: ${roundName(cup, cup.eliminatedAt)}` : ''
+      })
+      .filter(Boolean)
+      .join(', ') || 'nie grał'
     summary.push(`${t.name}: ${outcome} (${lg.name}). Cel: ${goalLabel(s.goal, lg.level).toLowerCase()}, ${met ? 'wykonany' : 'niewykonany'}.`)
     const repGain = (met ? 4 : -4) + (promoted ? 3 + Math.round(lg.level / 2) : 0) + (pos === 1 ? 2 + Math.round(lg.level / 2) : 0) - (relegated ? 6 : 0)
     adjustCoach(s, { reputation: repGain, stress: met ? -15 : 10 })
@@ -894,7 +934,7 @@ function startNewSeasonWorld(s: GameState): void {
   withRng(s, (rng) => {
     for (const lg of s.leagues) lg.rounds = makeFixtures(rng, lg.teamIds)
   })
-  s.cup = withRng(s, (rng) => drawCup(rng, s, SEASON_WEEKS))
+  drawCups(s)
   s.reports = []
 }
 

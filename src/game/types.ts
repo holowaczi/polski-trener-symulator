@@ -76,6 +76,8 @@ export interface Team {
   real?: boolean
   /** drużyna rezerw, nie awansuje wyżej niż II liga */
   reserve?: boolean
+  /** gość etapu centralnego Pucharu Polski spoza województwa gracza (opis do drabinki) */
+  guest?: string
 }
 
 export interface Fixture {
@@ -115,6 +117,11 @@ export interface CupTie {
 }
 
 export interface Cup {
+  title?: string
+  /** nazwy rund, np. „Runda wstępna”, „1/32 finału” */
+  names?: string[]
+  /** drużyny, które wchodzą do drabinki dopiero w drugiej rundzie */
+  byes?: number[]
   rounds: CupTie[][]
   /** tygodnie, w których rozgrywana jest dana runda */
   schedule: number[]
@@ -237,7 +244,12 @@ export interface GameState {
   coach: Coach
   teams: Record<number, Team>
   leagues: League[]
+  /** Puchar Polski, etap centralny */
   cup: Cup
+  /** Puchar Polski, etap wojewódzki w województwie gracza */
+  regionalCup?: Cup
+  /** zwycięzca etapu wojewódzkiego z poprzedniego sezonu, gra w etapie centralnym */
+  cupQualifier?: number
   clubId: number | null
   squad: Player[]
   lineup: Lineup

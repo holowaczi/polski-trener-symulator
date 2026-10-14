@@ -2,7 +2,7 @@ import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, TOWNS } 
 import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
 import { LOWER_LEAGUES } from './lowerData'
 import type { Rng } from './rng'
-import type { Cup, CupTie, Fixture, GameState, League, Player, Position, Team, TraitId } from './types'
+import type { Fixture, GameState, League, Player, Position, TraitId } from './types'
 
 export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
@@ -238,40 +238,6 @@ export function playerName(p: Player): string {
 
 export function shortName(p: Pick<Player, 'firstName' | 'lastName'>): string {
   return `${p.firstName[0]}. ${p.lastName}`
-}
-
-const CUP_ROUND_NAMES = ['1/16 finału', '1/8 finału', 'Ćwierćfinał', 'Półfinał', 'Finał']
-export function cupRoundName(i: number): string {
-  return CUP_ROUND_NAMES[i] ?? `Runda ${i + 1}`
-}
-
-/** losowanie Pucharu Polski: 32 drużyny z różnych poziomów, klub gracza zawsze w drabince */
-export function drawCup(rng: Rng, state: GameState, weeks: number): Cup {
-  const quota = [1, 1, 2, 2, 3, 3, 4, 4, 6, 8]
-  const picked: number[] = []
-  for (let level = 0; level < LEVELS.length; level++) {
-    const pool = rng.shuffle(teamsAtLevel(state, level).filter((id) => id !== state.clubId))
-    picked.push(...pool.slice(0, quota[level]))
-  }
-  if (state.clubId !== null) {
-    picked.pop()
-    picked.push(state.clubId)
-  }
-  const ties = pairUp(rng, state.teams, picked)
-  const schedule = [0.12, 0.3, 0.5, 0.7, 0.9].map((f) => Math.max(1, Math.round(weeks * f)))
-  return { rounds: [ties], schedule }
-}
-
-export function pairUp(rng: Rng, teams: Record<number, Team>, ids: number[]): CupTie[] {
-  const pool = rng.shuffle([...ids])
-  const ties: CupTie[] = []
-  for (let i = 0; i + 1 < pool.length; i += 2) {
-    const a = teams[pool[i]]
-    const b = teams[pool[i + 1]]
-    // w Pucharze Polski gospodarzem jest drużyna z niższej ligi
-    ties.push(a.level <= b.level ? { home: a.id, away: b.id } : { home: b.id, away: a.id })
-  }
-  return ties
 }
 
 export function leagueOf(state: Pick<GameState, 'leagues'>, teamId: number): League | undefined {

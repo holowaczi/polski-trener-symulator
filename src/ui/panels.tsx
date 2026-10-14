@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { Act } from '../App'
 import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
-import { club, clubLeague, computeTable, formatMoney, promotionSlots, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
+import { club, clubLeague, computeTable, cupsOf, formatMoney, promotionSlots, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
-import type { Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
+import type { Cup, CupTie, Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill } from '../game/util'
-import { cupRoundName, playerName } from '../game/world'
+import { playerName } from '../game/world'
+import { cupLabel, roundName } from '../game/cup'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
 function ConfirmButton(props: {
@@ -676,35 +677,89 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
 
 // ---------- puchar ----------
 
+function CupTieRow({ s, t }: { s: GameState; t: CupTie }) {
+  const mine = t.home === s.clubId || t.away === s.clubId
+  return (
+    <li className={mine ? 'me' : ''}>
+      <span className={t.winner === t.home ? 'win-name' : ''}>{teamName(s, t.home)}</span>{' '}
+      <span className="muted small">({cupLabel(s, t.home)})</span> <b>{t.hg !== undefined ? `${t.hg}:${t.ag}` : 'vs'}</b>
+      {t.pens && <span className="small"> (k. {t.pens})</span>}{' '}
+      <span className={t.winner === t.away ? 'win-name' : ''}>{teamName(s, t.away)}</span>{' '}
+      <span className="muted small">({cupLabel(s, t.away)})</span>
+    </li>
+  )
+}
+
+function CupBracket({ s, cup }: { s: GameState; cup: Cup }) {
+  const isMine = (t: CupTie) => t.home === s.clubId || t.away === s.clubId
+  const waiting = cup.byes?.includes(s.clubId ?? -1)
+  return (
+    <section className="cup-stage">
+      <h3>{cup.title ?? 'Puchar Polski'}</h3>
+      {waiting && <p className="small">Macie wolny los w pierwszej rundzie, wchodzicie do gry w następnej.</p>}
+      {cup.winner !== undefined && (
+        <p>
+          🏆 Zwycięzca: <b>{teamName(s, cup.winner)}</b>
+        </p>
+      )}
+      {cup.rounds.map((round, i) => {
+        const mine = round.filter(isMine)
+        const rest = round.filter((t) => !isMine(t))
+        return (
+          <div key={i} className="cup-round">
+            <h4>
+              {roundName(cup, i)} <span className="small muted">(tydzień {cup.schedule[i]})</span>
+            </h4>
+            {round.length <= 8 ? (
+              <ul className="cup-list">
+                {round.map((t, j) => (
+                  <CupTieRow key={j} s={s} t={t} />
+                ))}
+              </ul>
+            ) : (
+              <>
+                {mine.length > 0 && (
+                  <ul className="cup-list">
+                    {mine.map((t, j) => (
+                      <CupTieRow key={j} s={s} t={t} />
+                    ))}
+                  </ul>
+                )}
+                <details>
+                  <summary className="small">Pozostałe mecze ({rest.length})</summary>
+                  <ul className="cup-list">
+                    {rest.map((t, j) => (
+                      <CupTieRow key={j} s={s} t={t} />
+                    ))}
+                  </ul>
+                </details>
+              </>
+            )}
+          </div>
+        )
+      })}
+    </section>
+  )
+}
+
 export function CupView({ s }: { s: GameState }) {
-  const inCup = s.cup.rounds[0]?.some((t) => t.home === s.clubId || t.away === s.clubId)
+  const cups = cupsOf(s)
+  const playing = (cup: Cup) =>
+    cup.byes?.includes(s.clubId ?? -1) || cup.rounds.some((r) => r.some((t) => t.home === s.clubId || t.away === s.clubId))
+  const inAny = cups.some(playing)
+  // najpierw etap, w którym gra klub gracza
+  const ordered = [...cups].sort((a, b) => Number(playing(b)) - Number(playing(a)))
   return (
     <div>
       <h2>Puchar Polski</h2>
-      {!inCup && <p className="muted">W tym sezonie nie gracie w pucharze. Okręgowy związek zgubił zgłoszenie.</p>}
-      {s.cup.rounds.map((round, i) => (
-        <div key={i} className="cup-round">
-          <h3>
-            {cupRoundName(i)} <span className="small muted">(tydzień {s.cup.schedule[i]})</span>
-          </h3>
-          <ul className="cup-list">
-            {round.map((t, j) => {
-              const mine = t.home === s.clubId || t.away === s.clubId
-              return (
-                <li key={j} className={mine ? 'me' : ''}>
-                  <span className={t.winner === t.home ? 'win-name' : ''}>{teamName(s, t.home)}</span>{' '}
-                  <span className="muted small">({s.teams[t.home].level + 1})</span>{' '}
-                  <b>{t.hg !== undefined ? `${t.hg}:${t.ag}` : 'vs'}</b>
-                  {t.pens && <span className="small"> (k. {t.pens})</span>}{' '}
-                  <span className={t.winner === t.away ? 'win-name' : ''}>{teamName(s, t.away)}</span>{' '}
-                  <span className="muted small">({s.teams[t.away].level + 1})</span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+      <p className="small muted">
+        Niższe ligi zaczynają od etapu wojewódzkiego, który trwa cały sezon. Jego zwycięzca gra w następnym sezonie w etapie centralnym: II liga i część III ligi
+        zaczynają od rundy wstępnej, a Ekstraklasa, I liga i zdobywcy pucharów wojewódzkich od 1/32 finału. Gospodarzem jest drużyna z niższej ligi.
+      </p>
+      {!inAny && <p className="muted">W tym sezonie nie gracie w pucharze. Okręgowy związek zgubił zgłoszenie.</p>}
+      {ordered.map((cup, i) => (
+        <CupBracket key={i} s={s} cup={cup} />
       ))}
-      <p className="small muted">W nawiasie poziom ligi: 1 to B-klasa, 8 to Ekstraklasa. Gospodarzem jest drużyna z niższej ligi.</p>
     </div>
   )
 }

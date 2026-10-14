@@ -58,7 +58,8 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
     if (h.outcome.includes('awans')) promotions += 8 * w
     if (h.outcome.includes('spadek')) relegations -= 3 * w
   }
-  const cups = s.trophies.filter((t) => t.startsWith('Puchar Polski')).length * 150
+  const cups = s.trophies.filter((t) => t.startsWith('Puchar Polski (')).length * 150
+  const regionalCups = s.trophies.filter((t) => t.startsWith('Puchar Polski na szczeblu')).length * 40
   const peak = s.history.length ? Math.max(...s.history.map((h) => h.level)) : -1
   const lines: ScoreLine[] = [
     { label: 'Sezony (im wyższa liga, tym więcej)', points: seasons },
@@ -66,6 +67,7 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
     { label: 'Awanse', points: promotions },
     { label: 'Spadki', points: relegations },
     { label: 'Puchar Polski', points: cups },
+    { label: 'Puchary wojewódzkie', points: regionalCups },
     { label: 'Wygrane mecze', points: s.totalStats.w },
     { label: 'Szczyt kariery', points: peak >= 0 ? 10 * (peak + 1) : 0 },
     { label: 'Zwolnienia', points: -20 * s.totalStats.firedCount },
