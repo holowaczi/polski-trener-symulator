@@ -801,7 +801,9 @@ export const EVENTS: GameEvent[] = [
             trust(s, 2, 5, 3)
             return 'Pani Halinka zostaje. Warunek: trener nosi jej sweter na meczach.'
           }
-          return 'Pani Halinka odmówiła. „Panie, ja już mam wnuki do prania”.'
+          teamMorale(s, -3)
+          s.budget -= money(s, 300)
+          return 'Pani Halinka odmówiła. „Panie, ja już mam wnuki do prania”. Pralnia w mieście liczy sobie sporo.'
         },
       },
     ],
@@ -1070,7 +1072,10 @@ export const EVENTS: GameEvent[] = [
       },
       {
         label: 'Podziękuj',
-        apply: () => 'Brazylijczyk poszedł do rywala zza miedzy. Ciekawe, co z tego będzie.',
+        apply: ({ s }) => {
+          trust(s, 0, 0, -3)
+          return 'Brazylijczyk poszedł do rywala zza miedzy. Kibice pytają, czemu u nas zawsze „nie ma budżetu”.'
+        },
       },
     ],
   },
@@ -1093,7 +1098,11 @@ export const EVENTS: GameEvent[] = [
       },
       {
         label: 'Nie ma czasu, jest liga',
-        apply: () => 'Dotację dostało koło gospodyń wiejskich. Zasłużenie.',
+        apply: ({ s }) => {
+          trust(s, -4, 0, 0)
+          coach(s, -4)
+          return 'Dotację dostało koło gospodyń wiejskich. Prezes liczył na te pieniądze, ale trener przynajmniej się wyspał.'
+        },
       },
     ],
   },
@@ -1201,7 +1210,10 @@ export const EVENTS: GameEvent[] = [
       },
       {
         label: 'Niech wróci za rok',
-        apply: () => 'Dziadek obrażony. Wnuk zapisał się do rywala.',
+        apply: ({ s }) => {
+          trust(s, -1, 0, -4)
+          return 'Dziadek obrażony i opowiada o tym w całej parafii. Wnuk zapisał się do rywala.'
+        },
       },
     ],
   },
@@ -1371,7 +1383,9 @@ export const EVENTS: GameEvent[] = [
             p!.progress += 1.5
             return '{ps} zaskoczył wszystkich i zaczął biegać. Podobno zakochał się w fizjoterapeutce.'
           }
-          return '{ps} zgubił plan treningowy. Dwa razy.'
+          setMorale(p!, -6)
+          nudgeForm(p!, -1)
+          return '{ps} zgubił plan treningowy. Dwa razy. Forma też gdzieś się zgubiła.'
         },
       },
       {
@@ -1399,7 +1413,11 @@ export const EVENTS: GameEvent[] = [
       },
       {
         label: 'Zignoruj',
-        apply: () => 'Zignorowałeś. Gazeta też ignoruje was do końca sezonu.',
+        apply: ({ s }) => {
+          coach(s, -4)
+          trust(s, 0, 0, -3)
+          return 'Zignorowałeś. Trener śpi spokojnie, ale kibice uznali, że gazeta ma rację.'
+        },
       },
     ],
   },
@@ -1467,7 +1485,10 @@ export const EVENTS: GameEvent[] = [
       },
       {
         label: 'Nie mam czasu',
-        apply: () => 'Zajęcia poprowadził katecheta. Grali w dwa ognie.',
+        apply: ({ s }) => {
+          trust(s, -1, 0, -4)
+          return 'Zajęcia poprowadził katecheta. Grali w dwa ognie, a rodzice zapamiętali, kto odmówił.'
+        },
       },
     ],
   },

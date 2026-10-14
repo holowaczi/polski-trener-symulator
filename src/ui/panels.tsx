@@ -54,19 +54,26 @@ export function Rating({ r }: { r?: number }) {
 }
 
 function Status({ p }: { p: Player }) {
+  const chips = []
   if (p.injuredFor > 0)
-    return (
-      <span className="chip bad" title="kontuzja">
+    chips.push(
+      <span key="i" className="chip bad" title={`kontuzja: nie zagra w ${p.injuredFor} m.`}>
         🩹 {p.injuredFor} m.
-      </span>
+      </span>,
     )
   if (p.suspendedFor > 0)
-    return (
-      <span className="chip bad" title="zawieszenie">
-        🟥 {p.suspendedFor} m.
-      </span>
+    chips.push(
+      <span key="s" className="chip bad" title={`zawieszony: pauzuje ${p.suspendedFor} m.`}>
+        ⛔ pauza {p.suspendedFor} m.
+      </span>,
     )
-  return null
+  else if (p.yellows > 0)
+    chips.push(
+      <span key="y" className={`chip ${p.yellows >= 3 ? 'bad' : ''}`} title="żółte kartki (4 = pauza)">
+        🟨 {p.yellows}/4
+      </span>,
+    )
+  return chips.length ? <>{chips}</> : null
 }
 
 function Traits({ p }: { p: Player }) {

@@ -396,7 +396,8 @@ function afterWeek(s: GameState): void {
     endSeason(s)
     return
   }
-  maybeEvent(s)
+  // maks. jedno wydarzenie na mecz: tylko po tygodniu, w którym klub grał
+  if (hasClubMatch(s, s.round - 1)) maybeEvent(s)
 }
 
 function openWindow(s: GameState): void {

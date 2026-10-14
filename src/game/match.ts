@@ -278,77 +278,76 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   }
 
   const goalsy = 1 + (7 - level) * 0.045
-  for (let seg = 0; seg < 6; seg++) {
-    const { att, def } = strengthNow()
-    const home = isHome ? 2.5 : -2.5
-    const oppA = oppStr - oppRed * 3
-    const lMe = clamp(((1.1 * Math.exp((att - oppA + home) / 14)) / 6) * goalsy, 0.01, 1.2)
-    const lOpp = clamp(((0.95 * Math.exp((oppA - def - home) / 14)) / 6) * goalsy, 0.01, 1.2)
-    const base = seg * 15
-    const mg = rng.poisson(lMe)
-    for (let i = 0; i < mg; i++) {
-      const minute = base + rng.int(1, 15)
-      const pool = active()
-      if (!pool.length) break
-      const scorer = weightedPick(rng, pool, (x) => {
-        let w = x.p.pos === 'NAP' ? 5 : x.p.pos === 'POM' ? 2 : x.p.pos === 'OBR' ? 0.6 : 0.02
-        if (x.p.traits.includes('krol_strzalow')) w *= 1.8
-        return w * Math.max(1, effectiveSkill(x.p) + x.day * 4)
-      })
-      scorer.goals++
-      const others = pool.filter((x) => x !== scorer && x.p.pos !== 'BR')
-      let assist = ''
-      if (others.length && rng.chance(0.7)) {
-        const a = weightedPick(rng, others, (x) => (x.p.pos === 'POM' ? 3 : x.p.pos === 'NAP' ? 2 : 1))
-        a.assists++
-        assist = ` (asysta: ${shortName(a.p)})`
-      }
-      myGoals++
-      myGoalsArr.push(minute)
-      events.push({ minute, text: `${minute}' ⚽ ${shortName(scorer.p)}${assist}` })
+  // mecz rozgrywany minuta po minucie, żeby zdarzenia szły po kolei:
+  // kto zszedł (czerwień, uraz, zmiana), ten już nic nie strzeli ani nie dostanie kartki
+  let lMe = 0
+  let lOpp = 0
+  for (let minute = 1; minute <= 90; minute++) {
+    if ((minute - 1) % 15 === 0) {
+      const { att, def } = strengthNow()
+      const home = isHome ? 2.5 : -2.5
+      const oppA = oppStr - oppRed * 3
+      lMe = clamp(((1.1 * Math.exp((att - oppA + home) / 14)) / 90) * goalsy, 0.0007, 0.08)
+      lOpp = clamp(((0.95 * Math.exp((oppA - def - home) / 14)) / 90) * goalsy, 0.0007, 0.08)
     }
-    const og = rng.poisson(lOpp)
-    for (let i = 0; i < og; i++) {
-      const minute = base + rng.int(1, 15)
+    if (rng.chance(lMe)) {
+      const pool = active()
+      if (pool.length) {
+        const scorer = weightedPick(rng, pool, (x) => {
+          let w = x.p.pos === 'NAP' ? 5 : x.p.pos === 'POM' ? 2 : x.p.pos === 'OBR' ? 0.6 : 0.02
+          if (x.p.traits.includes('krol_strzalow')) w *= 1.8
+          return w * Math.max(1, effectiveSkill(x.p) + x.day * 4)
+        })
+        scorer.goals++
+        const others = pool.filter((x) => x !== scorer && x.p.pos !== 'BR')
+        let assist = ''
+        if (others.length && rng.chance(0.7)) {
+          const a = weightedPick(rng, others, (x) => (x.p.pos === 'POM' ? 3 : x.p.pos === 'NAP' ? 2 : 1))
+          a.assists++
+          assist = ` (asysta: ${shortName(a.p)})`
+        }
+        myGoals++
+        myGoalsArr.push(minute)
+        events.push({ minute, text: `${minute}' ⚽ ${shortName(scorer.p)}${assist}` })
+      }
+    }
+    if (rng.chance(lOpp)) {
       oppGoals++
       events.push({ minute, text: `${minute}' ⚽ ${randomSurname(rng)} (${s.teams[opp].name})` })
     }
-    // kartki i kontuzje
+    // kartki i kontuzje: ok. 0,6 żółtej i 0,03 bezpośredniej czerwieni na mecz dla całej drużyny
     for (const x of active()) {
       const narwany = x.p.traits.includes('narwany')
-      if (rng.chance(narwany ? 0.04 : 0.016)) {
+      if (rng.chance(narwany ? 0.0016 : 0.0006)) {
         x.yellow++
-        const minute = base + rng.int(1, 15)
         if (x.yellow >= 2) {
           x.red = true
           x.to = minute
           events.push({ minute, text: `${minute}' 🟥 ${shortName(x.p)} – druga żółta, gramy w dziesiątkę` })
         } else events.push({ minute, text: `${minute}' 🟨 ${shortName(x.p)}` })
-      } else if (rng.chance(narwany ? 0.004 : 0.0012)) {
+      } else if (rng.chance(narwany ? 0.0001 : 0.00003)) {
         x.red = true
-        const minute = base + rng.int(1, 15)
         x.to = minute
         events.push({ minute, text: `${minute}' 🟥 ${shortName(x.p)} – czerwona kartka bezpośrednio!` })
       }
-      if (!x.red && rng.chance(x.p.traits.includes('szklany') ? 0.01 : 0.0028)) {
+      if (!x.red && rng.chance(x.p.traits.includes('szklany') ? 0.0007 : 0.0002)) {
         x.injured = true
-        const minute = base + rng.int(1, 15)
         x.to = minute
         events.push({ minute, text: `${minute}' 🩹 ${shortName(x.p)} schodzi z urazem` })
         substitute(x, minute, ' wymuszona')
       }
     }
-    if (rng.chance(0.012)) {
+    if (rng.chance(0.0004)) {
       oppRed++
-      events.push({ minute: base + rng.int(1, 15), text: `${base + 8}' 🟥 czerwona kartka dla rywali` })
+      events.push({ minute, text: `${minute}' 🟥 czerwona kartka dla rywali` })
     }
     // zmiany taktyczne po godzinie gry: schodzą najsłabsi tego dnia
-    if (seg === 3 || seg === 4) {
+    if (minute === 60 || minute === 75) {
       const tired = active()
         .filter((x) => !x.sub && x.p.pos !== 'BR')
         .sort((a, b) => a.day + a.goals - (b.day + b.goals))
-      const count = seg === 3 ? 2 : 1
-      for (let i = 0; i < count && tired[i]; i++) if (tired[i].day < 0.2) substitute(tired[i], base + 15, '')
+      const count = minute === 60 ? 2 : 1
+      for (let i = 0; i < count && tired[i]; i++) if (tired[i].day < 0.2) substitute(tired[i], minute, '')
     }
   }
 
@@ -358,6 +357,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   // oceny zawodników
   const diff = myGoals - oppGoals
   const ratings: PlayerRating[] = []
+  const afterNotes: string[] = []
   for (const x of pitch) {
     const minutes = x.to - x.from
     if (minutes <= 0 && !x.sub) continue
@@ -369,7 +369,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     if (minutes < 30) r = 6 + (r - 6) * 0.6
     r = clamp(Math.round(r * 10) / 10, 3, 10)
     ratings.push({ id: x.p.id, name: shortName(x.p), pos: x.p.pos, rating: r, sub: x.sub })
-    applyMatchToPlayer(rng, s, x, r)
+    afterNotes.push(...applyMatchToPlayer(rng, s, x, r))
   }
   const played = new Set(pitch.map((x) => x.p.id))
   for (const p of s.squad) {
@@ -460,7 +460,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     hg: isHome ? myGoals : oppGoals,
     ag: isHome ? oppGoals : myGoals,
     lines,
-    events: events.map((e) => e.text),
+    events: [...events.map((e) => e.text), ...afterNotes],
     ratings,
     myStrength: { att: Math.round(startStr.att * 10) / 10, def: Math.round(startStr.def * 10) / 10 },
     oppStrength: Math.round(oppStr * 10) / 10,
@@ -468,7 +468,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
 }
 
 /** po meczu: statystyki, forma z ocen, morale, rozwój, kartki i kontuzje */
-function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number): void {
+function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number): string[] {
   const p = x.p
   p.apps++
   p.goals += x.goals
@@ -486,10 +486,13 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
   developFromMatch(p, rating)
 
   if (rating >= 8.5) news(s, `${shortName(p)} z oceną ${rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)
+  const notes: string[] = []
   if (x.red) {
-    p.suspendedFor = x.yellow >= 2 ? 1 : rng.int(1, 3)
+    const ban = x.yellow >= 2 ? 1 : rng.int(1, 3)
+    p.suspendedFor = ban
     p.yellows = 0
-    news(s, `${shortName(p)} zawieszony na ${p.suspendedFor} ${p.suspendedFor === 1 ? 'mecz' : 'mecze'} za czerwoną kartkę.`)
+    news(s, `${shortName(p)} zawieszony na ${ban} ${ban === 1 ? 'mecz' : 'mecze'} za czerwoną kartkę.`)
+    notes.push(`⛔ ${shortName(p)} pauzuje ${ban === 1 ? 'w następnym meczu' : `${ban} mecze`} (czerwona kartka)`)
     adjustTrust(s, { squad: -1 })
   } else if (x.yellow) {
     p.yellows += x.yellow
@@ -497,7 +500,8 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
       p.suspendedFor = 1
       p.yellows = 0
       news(s, `${shortName(p)} pauzuje mecz za nadmiar żółtych kartek.`)
-    }
+      notes.push(`⛔ ${shortName(p)} pauzuje w następnym meczu (4. żółta kartka)`)
+    } else if (p.yellows === 3) notes.push(`⚠️ ${shortName(p)} ma 3 żółte, kolejna oznacza pauzę`)
   }
   if (x.injured) {
     let len = rng.pick(INJURY_LENGTHS)
@@ -505,7 +509,9 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
     if (p.age >= 32) len += 1
     p.injuredFor = len
     news(s, `${shortName(p)} kontuzjowany. Przerwa: ${len} ${len === 1 ? 'mecz' : len < 5 ? 'mecze' : 'meczów'}.`)
+    notes.push(`🩹 ${shortName(p)} nie zagra przez ${len} ${len === 1 ? 'mecz' : len < 5 ? 'mecze' : 'meczów'}`)
   }
+  return notes
 }
 
 /**
