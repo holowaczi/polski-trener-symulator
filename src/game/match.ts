@@ -1,8 +1,8 @@
-import { FORMATIONS, FIRST_NAMES, LAST_NAMES } from './data'
-import { commentary } from './commentary'
+import { FORMATIONS, FIRST_NAMES, LAST_NAMES, LEVELS } from './data'
+import { pickIncident } from './commentary'
 import type { Rng } from './rng'
 import type { Formation, GameState, MatchReport, Player, PlayerRating, Position } from './types'
-import { adjustCoach, adjustTrust, club, isAvailable, news, setMorale } from './util'
+import { adjustCoach, adjustTrust, club, formatMoney, isAvailable, news, setMorale } from './util'
 import { clamp, playerValue, shortName } from './world'
 
 export const BENCH_SIZE = 7
@@ -246,7 +246,11 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     const d = s.teams[opp].level - level
     if (d < 0) oppStr -= Math.min(3, -d * 1.2)
   }
-  const bonus = teamBonus(s, xi).total
+  // najwyżej jedno zdarzenie meczowe, zawsze z realnym skutkiem
+  const incident = pickIncident(rng, level, xi.map(shortName))
+  const incPlayer = incident ? pitch.find((x) => shortName(x.p) === incident.x) : undefined
+  if (incident?.day && incPlayer) incPlayer.day += incident.day
+  const bonus = teamBonus(s, xi).total + (incident?.str ?? 0)
   const ment = MENTALITY[s.tactic.mentality]
   let oppRed = 0
   const myGoalsArr: number[] = []
@@ -440,16 +444,22 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   for (const m of s.modifiers) m.matches--
   s.modifiers = s.modifiers.filter((m) => m.matches > 0)
 
+  const lines: string[] = []
+  if (incident) {
+    if (incident.budget) {
+      const amount = Math.round((LEVELS[level].budget * incident.budget) / 100) * 100
+      s.budget = Math.max(0, s.budget + amount)
+      incident.effect += ` (${amount > 0 ? '+' : ''}${formatMoney(amount)})`
+    }
+    adjustTrust(s, { fans: incident.fans, board: incident.board, squad: incident.squad })
+    if (incident.stress) adjustCoach(s, { stress: incident.stress })
+    if (incPlayer) {
+      if (incident.morale) setMorale(incPlayer.p, incident.morale)
+      if (incident.injure && !incPlayer.p.injuredFor) incPlayer.p.injuredFor = incident.injure
+    }
+    lines.push(`${incident.text} Skutek: ${incident.effect}.`)
+  }
   const best = [...ratings].sort((a, b) => b.rating - a.rating)[0]
-  const lines = commentary(rng, {
-    level,
-    myGoals,
-    oppGoals,
-    myTeam: s.teams[me].name,
-    oppTeam: s.teams[opp].name,
-    xiNames: xi.map(shortName),
-    goals: [],
-  })
   if (best) lines.unshift(`Zawodnik meczu: ${best.name} (${best.rating.toFixed(1)}).`)
 
   return {
