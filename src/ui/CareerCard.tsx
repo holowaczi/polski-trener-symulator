@@ -39,6 +39,8 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
   const card = careerCard(s)
   const ref = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
+  const [image, setImage] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const download = async () => {
     if (!ref.current) return
@@ -46,6 +48,8 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
     try {
       const bg = getComputedStyle(document.body).backgroundColor
       const url = await toPng(ref.current, { pixelRatio: 2, backgroundColor: bg })
+      // obrazek pokazujemy też na stronie, bo nie każda przeglądarka pozwala pobrać plik
+      setImage(url)
       const a = document.createElement('a')
       a.href = url
       a.download = `kariera-${card.name.replace(/\s+/g, '-').toLowerCase()}.png`
@@ -131,19 +135,25 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
         </button>
         <button
           onClick={() => {
-            try {
-              void navigator.clipboard.writeText(shareText)
-            } catch {
-              // schowek niedostępny
-            }
+            navigator.clipboard
+              ?.writeText(shareText)
+              .then(() => setCopied(true))
+              .catch(() => setCopied(false))
           }}
         >
-          Kopiuj tekst na X
+          {copied ? 'Skopiowano' : 'Kopiuj tekst na X'}
         </button>
         <button className="ghost" onClick={onNew}>
           Nowa kariera
         </button>
       </div>
+      <p className="share-text small muted">{shareText}</p>
+      {image && (
+        <figure className="card-image">
+          <img src={image} alt={`Karta trenera ${card.name}`} />
+          <figcaption className="small muted">Jeśli plik się nie pobrał, przytrzymaj obrazek albo kliknij go prawym przyciskiem i zapisz.</figcaption>
+        </figure>
+      )}
     </main>
   )
 }

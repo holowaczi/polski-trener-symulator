@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Act } from '../App'
 import { FORMATIONS, STYLE_INFO, TRAITS } from '../game/data'
 import {
@@ -14,6 +15,31 @@ import {
 } from '../game/engine'
 import type { Formation, GameState, Mentality, Player, Style } from '../game/types'
 import { cupRoundName, playerName } from '../game/world'
+
+/** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
+function ConfirmButton(props: {
+  label: string
+  confirmLabel: string
+  onConfirm: () => void
+  className?: string
+  disabled?: boolean
+}) {
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return
+    const t = setTimeout(() => setArmed(false), 3000)
+    return () => clearTimeout(t)
+  }, [armed])
+  return (
+    <button
+      className={`${props.className ?? ''}${armed ? ' danger' : ''}`}
+      disabled={props.disabled}
+      onClick={() => (armed ? props.onConfirm() : setArmed(true))}
+    >
+      {armed ? props.confirmLabel : props.label}
+    </button>
+  )
+}
 
 function teamName(s: GameState, id: number) {
   return s.teams[id]?.name ?? '?'
@@ -198,15 +224,13 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
               p={p}
               inXI={xiIds.has(p.id)}
               actions={
-                <button
+                <ConfirmButton
                   className="tiny ghost"
                   disabled={s.squad.length <= 14}
-                  onClick={() => {
-                    if (confirm(`Rozwiązać kontrakt z ${playerName(p)}?`)) act((g) => releasePlayer(g, p.id))
-                  }}
-                >
-                  Zwolnij
-                </button>
+                  label="Zwolnij"
+                  confirmLabel="Na pewno?"
+                  onConfirm={() => act((g) => releasePlayer(g, p.id))}
+                />
               }
             />
           ))}
@@ -460,15 +484,14 @@ export function CareerView({ s, act }: { s: GameState; act: Act }) {
           </ul>
         </>
       )}
-      <button
+      <ConfirmButton
         className="ghost"
-        onClick={() => {
-          if (confirm('Na pewno kończysz karierę?'))
-            act((g) => retire(g, team ? `Odszedłeś z ${team.name} w trakcie sezonu. Prezes do dziś nie wie dlaczego.` : 'Koniec.'))
-        }}
-      >
-        Zakończ karierę
-      </button>
+        label="Zakończ karierę"
+        confirmLabel="Tak, kończę karierę"
+        onConfirm={() =>
+          act((g) => retire(g, team ? `Odszedłeś z ${team.name} w trakcie sezonu. Prezes do dziś nie wie dlaczego.` : 'Koniec.'))
+        }
+      />
     </div>
   )
 }
