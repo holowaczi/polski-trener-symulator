@@ -24,7 +24,7 @@ export function refreshTransferList(s: GameState): void {
       const free = rng.chance(0.3)
       const p = generatePlayer(rng, s, t.level, pos, {
         skillOffset: free ? -4 : rng.int(-3, 4),
-        foreign: rng.chance(t.level >= 4 ? 0.25 : 0.05),
+        foreign: rng.chance(t.level >= 6 ? 0.25 : 0.05),
       })
       // gwiazdy z niższych lig chcą więcej
       p.wage = Math.round((p.wage * (free ? 0.9 : 1 + rng.next() * 0.3)) / 100) * 100
@@ -111,7 +111,7 @@ function bidChance(p: Player): number {
 export function makeBid(rng: Rng, s: GameState, p: Player): Bid | undefined {
   const t = club(s)!
   // kupują kluby z tej samej albo wyższej ligi, którym ten zawodnik by się przydał
-  const levels = [t.level, Math.min(7, t.level + 1), Math.min(7, t.level + 2)]
+  const levels = [t.level, Math.min(9, t.level + 1), Math.min(9, t.level + 2)]
   const level = rng.pick(levels)
   if (p.skill < LEVELS[level].base - 4) return undefined
   const teamId = rng.pick(teamsAtLevel(s, level).filter((id) => id !== t.id))

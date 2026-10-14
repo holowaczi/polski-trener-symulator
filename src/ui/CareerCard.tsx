@@ -9,20 +9,22 @@ function PathChart({ path }: { path: number[] }) {
   const h = 120
   const pad = 14
   if (path.length === 0) return null
+  // skala od najniższego poziomu w grze (klasa C) do Ekstraklasy
+  const top = LEVELS.length - 1
   const pts = path.map((lv, i) => {
     const x = path.length === 1 ? w / 2 : pad + (i * (w - pad * 2)) / (path.length - 1)
-    const y = h - pad - (lv * (h - pad * 2)) / 7
+    const y = h - pad - (lv * (h - pad * 2)) / top
     return [x, y] as const
   })
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="path-chart" role="img" aria-label="Ścieżka kariery według poziomu ligi">
-      {[0, 7].map((lv) => {
-        const y = h - pad - (lv * (h - pad * 2)) / 7
+      {[0, top].map((lv) => {
+        const y = h - pad - (lv * (h - pad * 2)) / top
         return (
           <g key={lv}>
             <line x1={pad} x2={w - pad} y1={y} y2={y} className="grid" />
             <text x={pad} y={y - 3} className="axis">
-              {LEVELS[lv].name}
+              {lv === top ? LEVELS[lv].name : 'Najniższa klasa'}
             </text>
           </g>
         )

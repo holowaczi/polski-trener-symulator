@@ -10,21 +10,26 @@ export function clamp(v: number, min: number, max: number): number {
 
 /** prawdziwe grupy dla poziomów 0–3 (IV liga i niżej), od IV ligi w dół */
 function lowerTier(level: number, region: string) {
-  return LOWER_LEAGUES[region]?.[3 - level]
+  return LOWER_LEAGUES[region]?.[5 - level]
 }
 
 /** domyślna liczba grup, gdy nie mamy danych: im niżej, tym więcej grup */
-const DEFAULT_GROUPS = [4, 3, 2, 1]
+const DEFAULT_GROUPS = [0, 0, 4, 3, 2, 1]
 
 export function leagueName(level: number, region: string): string {
-  if (level === 4) return `III liga (gr. ${REGION_GROUP[region] ?? 'I'})`
-  if (level <= 3) return `${lowerTier(level, region)?.tier ?? LEVELS[level].name} · ${region}`
+  if (level === 6) return `III liga (gr. ${REGION_GROUP[region] ?? 'I'})`
+  if (level <= 5) return `${lowerTier(level, region)?.tier ?? LEVELS[level].name} · ${region}`
   return LEVELS[level].name
 }
 
 /** wszystkie drużyny na danym poziomie, ze wszystkich grup */
 export function teamsAtLevel(state: Pick<GameState, 'leagues'>, level: number): number[] {
   return state.leagues.filter((l) => l.level === level).flatMap((l) => l.teamIds)
+}
+
+/** najniższy poziom rozgrywek w województwie gracza */
+export function bottomLevel(state: Pick<GameState, 'leagues'>): number {
+  return state.leagues.reduce((m, l) => Math.min(m, l.level), LEVELS.length - 1)
 }
 
 function villageName(rng: Rng): string {
@@ -52,15 +57,15 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
   for (let level = 0; level < LEVELS.length; level++) {
     const lv = LEVELS[level]
     let ids: number[]
-    if (level === 7) ids = addReal(level, EKSTRAKLASA)
-    else if (level === 6) ids = addReal(level, I_LIGA)
-    else if (level === 5) ids = addReal(level, II_LIGA)
-    else if (level === 4) ids = addReal(level, III_LIGA[REGION_GROUP[region] ?? 'I'])
+    if (level === 9) ids = addReal(level, EKSTRAKLASA)
+    else if (level === 8) ids = addReal(level, I_LIGA)
+    else if (level === 7) ids = addReal(level, II_LIGA)
+    else if (level === 6) ids = addReal(level, III_LIGA[REGION_GROUP[region] ?? 'I'])
     else {
       // niższe ligi: kilka grup na poziom, prawdziwe kluby z województwa, braki dopełniają fikcyjne
       const tier = lowerTier(level, region)
       const realGroups = tier?.groups.filter((g) => g.clubs.length) ?? []
-      const fallbackCount = level < 3 ? Math.max(1, state.leagues.filter((l) => l.level === level + 1).length) : 1
+      const fallbackCount = level < 5 ? Math.max(1, state.leagues.filter((l) => l.level === level + 1).length) : 1
       const groups = realGroups.length
         ? realGroups
         : Array.from({ length: tier ? fallbackCount : DEFAULT_GROUPS[level] }, (_, i) => ({ name: `gr. ${i + 1}`, clubs: [] }))
@@ -79,7 +84,7 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
             town = real[i].town
           } else
             for (let tries = 0; tries < 50; tries++) {
-              town = level >= 2 ? nextTown() : villageName(rng)
+              town = level >= 4 ? nextTown() : villageName(rng)
               name = `${rng.pick(CLUB_PREFIXES)} ${town}`
               if (!used.has(name)) break
             }
@@ -218,7 +223,7 @@ export function generateSquad(rng: Rng, state: Pick<GameState, 'nextId'>, level:
     for (let i = 0; i < count; i++) {
       // pierwsza jedenastka trochę mocniejsza od zmienników
       const starterBonus = i < (pos === 'BR' ? 1 : pos === 'NAP' ? 2 : 4) ? 2 : -2
-      const p = generatePlayer(rng, state, level, pos, { skillOffset: skillOffset + starterBonus, foreign: level >= 5 && rng.chance(0.25) })
+      const p = generatePlayer(rng, state, level, pos, { skillOffset: skillOffset + starterBonus, foreign: level >= 7 && rng.chance(0.25) })
       // w jednej kadrze bez powtórzonych nazwisk, żeby relacja z meczu była czytelna
       for (let tries = 0; tries < 8 && FIRST_NAMES.includes(p.firstName) && squad.some((x) => x.lastName === p.lastName); tries++) p.lastName = rng.pick(LAST_NAMES)
       squad.push(p)
@@ -242,7 +247,7 @@ export function cupRoundName(i: number): string {
 
 /** losowanie Pucharu Polski: 32 drużyny z różnych poziomów, klub gracza zawsze w drabince */
 export function drawCup(rng: Rng, state: GameState, weeks: number): Cup {
-  const quota = [2, 2, 3, 3, 4, 4, 6, 8]
+  const quota = [1, 1, 2, 2, 3, 3, 4, 4, 6, 8]
   const picked: number[] = []
   for (let level = 0; level < LEVELS.length; level++) {
     const pool = rng.shuffle(teamsAtLevel(state, level).filter((id) => id !== state.clubId))

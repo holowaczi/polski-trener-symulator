@@ -77,14 +77,14 @@ describe('kariera', () => {
       expect(s.history.length).toBeGreaterThan(5)
       for (const lg of s.leagues) {
         const i = lg.level
-        if (i >= 4) expect(lg.teamIds).toHaveLength(LEVELS[i].size)
+        if (i >= 6) expect(lg.teamIds).toHaveLength(LEVELS[i].size)
         else {
           expect(lg.teamIds.length).toBeGreaterThanOrEqual(8)
           expect(lg.teamIds.length).toBeLessThanOrEqual(18)
         }
         expect(new Set(lg.teamIds).size).toBe(lg.teamIds.length)
         for (const id of lg.teamIds) expect(s.teams[id].level).toBe(i)
-        if (i > 5) for (const id of lg.teamIds) expect(s.teams[id].reserve).toBeFalsy()
+        if (i > 7) for (const id of lg.teamIds) expect(s.teams[id].reserve).toBeFalsy()
       }
       // liczba drużyn w grupach się nie zmienia między sezonami
       const start = newGame({ firstName: 'a', lastName: 'b', age: 30, region: s.coach.region, seed })
@@ -120,18 +120,22 @@ describe('prawdziwe ligi', () => {
   it('Ekstraklasa i III liga z regionu gracza', () => {
     const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region: 'małopolskie', seed: 1 })
     const names = (lvl: number) => teamsAtLevel(s, lvl).map((id) => s.teams[id].name)
-    expect(names(7)).toContain('Legia Warszawa')
-    expect(names(7)).toHaveLength(18)
-    expect(names(4)).toContain('Wisłoka Dębica')
+    expect(names(9)).toContain('Legia Warszawa')
+    expect(names(9)).toHaveLength(18)
+    expect(names(6)).toContain('Wisłoka Dębica')
   })
 
   it('niższe ligi: wszystkie grupy z prawdziwymi klubami regionu', () => {
     for (const region of Object.keys(LOWER_LEAGUES)) {
       const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region, seed: 3 })
       const all = new Set<string>()
-      for (let level = 0; level <= 3; level++) {
-        const tier = LOWER_LEAGUES[region][3 - level]
+      for (let level = 0; level <= 5; level++) {
+        const tier = LOWER_LEAGUES[region][5 - level]
         const groups = s.leagues.filter((l) => l.level === level)
+        if (!tier && level < 2) {
+          expect(groups).toHaveLength(0)
+          continue
+        }
         expect(groups.length).toBeGreaterThan(0)
         const real = tier?.groups.filter((g) => g.clubs.length) ?? []
         if (real.length) expect(groups).toHaveLength(real.length)

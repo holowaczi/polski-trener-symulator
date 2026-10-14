@@ -1,6 +1,9 @@
 import type { License, Position, TraitId } from './types'
 
 export const LEVELS = [
+  // najniższe klasy istnieją tylko w województwach z V ligą (klasa B) i w śląskim oraz małopolskim (klasa C)
+  { name: 'C-klasa', size: 12, base: 13, budget: 800, salary: 2_000, license: 'brak' as License },
+  { name: 'B-klasa', size: 12, base: 19, budget: 1_500, salary: 4_000, license: 'brak' as License },
   { name: 'B-klasa', size: 12, base: 24, budget: 2_500, salary: 6_000, license: 'brak' as License },
   { name: 'A-klasa', size: 14, base: 31, budget: 6_000, salary: 12_000, license: 'UEFA C' as License },
   { name: 'Klasa okręgowa', size: 16, base: 38, budget: 15_000, salary: 24_000, license: 'UEFA C' as License },
@@ -12,9 +15,9 @@ export const LEVELS = [
 ]
 
 /** ile drużyn zamienia się miejscami między poziomem L a L+1 (uproszczenie: baraże liczone jako awans) */
-export const SWAPS = [2, 2, 2, 2, 2, 3, 3]
+export const SWAPS = [2, 2, 2, 2, 2, 2, 2, 3, 3]
 /** rezerwy nie mogą grać wyżej niż II liga */
-export const RESERVE_MAX_LEVEL = 5
+export const RESERVE_MAX_LEVEL = 7
 
 export const LICENSES: License[] = ['brak', 'UEFA C', 'UEFA B', 'UEFA A', 'UEFA Pro']
 

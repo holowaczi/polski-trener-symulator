@@ -56,7 +56,7 @@ const HIGH_LEVEL: Incident[] = [
 /** zdarzenie na mecz: mniej więcej co trzeci mecz, nigdy więcej niż jedno */
 export function pickIncident(rng: Rng, level: number, names: string[]): (Incident & { x: string }) | undefined {
   if (!rng.chance(0.35)) return undefined
-  const pool = level <= 2 ? LOW_LEVEL : level <= 5 ? MID_LEVEL : HIGH_LEVEL
+  const pool = level <= 4 ? LOW_LEVEL : level <= 7 ? MID_LEVEL : HIGH_LEVEL
   const inc = rng.pick(pool)
   const x = rng.pick(names.length ? names : ['ktoś'])
   return { ...inc, x, text: inc.text.replace(/\{x\}/g, x), effect: inc.effect.replace(/\{x\}/g, x) }

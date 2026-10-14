@@ -124,15 +124,15 @@ export function styleFit(s: GameState, xi: Player[], level: number): { value: nu
   const midAvg = avg(xi.filter((p) => p.pos === 'POM').map((p) => p.skill))
   switch (s.tactic.style) {
     case 'laga':
-      if (level <= 2) return { value: 1, note: 'Laga na tym poziomie to sztuka wojenna.' }
-      if (level <= 4) return { value: 0.5, note: 'Laga jeszcze działa, ale obrońcy zaczynają rozumieć.' }
+      if (level <= 4) return { value: 1, note: 'Laga na tym poziomie to sztuka wojenna.' }
+      if (level <= 6) return { value: 0.5, note: 'Laga jeszcze działa, ale obrońcy zaczynają rozumieć.' }
       return { value: -1.5, note: 'Na tym poziomie laga to podanie do rywala.' }
     case 'pressing':
       if (age < 25) return { value: 1, note: 'Młoda kadra biega jak nakręcona.' }
       if (age < 27.5) return { value: 0.5, note: 'Pressing jest, ale do 60. minuty.' }
       return { value: -2, note: 'Weterani pressują głównie sędziego.' }
     case 'posiadanie':
-      if (level <= 1) return { value: -1.5, note: 'Na tej murawie piłka sama zmienia kierunek.' }
+      if (level <= 3) return { value: -1.5, note: 'Na tej murawie piłka sama zmienia kierunek.' }
       if (midAvg - mean >= 2) return { value: 1, note: 'Pomocnicy klepią jak w Barcelonie.' }
       if (midAvg - mean >= -1) return { value: 0.5, note: 'Posiadanie jest, strzałów mniej.' }
       return { value: -1.5, note: 'Pomocnicy nie nadążają za własnym pomysłem.' }
@@ -171,7 +171,7 @@ export function previewStrength(s: GameState): { att: number; def: number; overa
 
 export function simulateScore(rng: Rng, hs: number, as: number, level: number): { hg: number; ag: number } {
   const diff = hs + HOME_ADV - as
-  const goalsy = 1 + (7 - level) * 0.045
+  const goalsy = 1 + (9 - level) * 0.045
   const lh = clamp(1.3 * Math.exp(diff / 16) * goalsy, 0.15, 5)
   const la = clamp(1.05 * Math.exp(-diff / 16) * goalsy, 0.15, 5)
   let hg = rng.poisson(lh)
@@ -187,7 +187,7 @@ export function simulateScore(rng: Rng, hs: number, as: number, level: number): 
 /** przewaga własnego boiska w punktach siły */
 export const HOME_ADV = 1.5
 /** szansa na wyrównanie przy jednobramkowej różnicy; na górze ligi grają ostrożniej */
-const DRAW_PULL = [0.06, 0.07, 0.07, 0.08, 0.09, 0.1, 0.1, 0.11]
+const DRAW_PULL = [0.05, 0.06, 0.06, 0.07, 0.07, 0.08, 0.09, 0.1, 0.1, 0.11]
 
 export function aiStrength(rng: Rng, s: GameState, teamId: number): number {
   return s.teams[teamId].strength + rng.normal(0, 2.5)
@@ -293,7 +293,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     return true
   }
 
-  const goalsy = 1 + (7 - level) * 0.045
+  const goalsy = 1 + (9 - level) * 0.045
   // mecz rozgrywany minuta po minucie, żeby zdarzenia szły po kolei:
   // kto zszedł (czerwień, uraz, zmiana), ten już nic nie strzeli ani nie dostanie kartki
   let lMe = 0

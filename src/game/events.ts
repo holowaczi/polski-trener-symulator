@@ -392,7 +392,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'wojt_syn',
-    maxLevel: 3,
+    maxLevel: 5,
     text: 'Wójt gminy przyszedł na trening. Jego syn „ma papiery na granie” i powinien zagrać w pierwszym składzie.',
     options: [
       {
@@ -418,7 +418,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'masarnia',
-    maxLevel: 4,
+    maxLevel: 6,
     text: 'Sponsor główny, lokalna masarnia, grozi wycofaniem się. Chce, żeby zawodnicy grali w koszulkach z wielką kiełbasą.',
     options: [
       {
@@ -522,7 +522,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'murawa_dziki',
-    maxLevel: 3,
+    maxLevel: 5,
     text: 'Dziki zryły pół boiska. Mecz za cztery dni.',
     options: [
       {
@@ -577,7 +577,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'agent',
-    minLevel: 2,
+    minLevel: 4,
     player: (p) => p.skill > 40 && p.apps >= 2,
     text: 'Agent {p} dzwoni: jego klient „ma oferty z Cypru” i chce podwyżki.',
     options: [
@@ -606,7 +606,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'dziennikarz',
-    minLevel: 3,
+    minLevel: 5,
     text: 'Dziennikarz lokalnego portalu pyta na konferencji, czy nie boisz się zwolnienia.',
     options: [
       {
@@ -774,7 +774,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'pranie',
-    maxLevel: 2,
+    maxLevel: 4,
     text: 'Pani Halinka, która od 30 lat pierze stroje, odchodzi na emeryturę. Nikt nie wie, jak działa pralka.',
     options: [
       {
@@ -838,7 +838,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'youtuber',
-    minLevel: 1,
+    minLevel: 3,
     text: 'Znany youtuber chce nagrać odcinek „Gram w klubie z niższej ligi przez tydzień”.',
     options: [
       {
@@ -900,7 +900,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'sedzia_koperta',
-    minLevel: 1,
+    minLevel: 3,
     once: true,
     text: 'Tajemniczy mężczyzna w skórzanej kurtce sugeruje, że „sędzia na sobotę jest do dogadania”.',
     options: [
@@ -927,7 +927,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'kibice_trening',
-    minLevel: 3,
+    minLevel: 5,
     condition: (s) => s.trust.fans < 40,
     text: 'Grupa kibiców przyszła na trening „porozmawiać” z drużyną.',
     options: [
@@ -979,7 +979,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'ksiegowa',
-    minLevel: 2,
+    minLevel: 4,
     text: 'Księgowa klubu informuje, że „pieniądze na pensje gdzieś są, tylko nie wiadomo gdzie”.',
     options: [
       {
@@ -1004,7 +1004,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'ekspert_tv',
-    minLevel: 5,
+    minLevel: 7,
     text: 'Telewizja zaprasza Cię do studia jako eksperta na mecz reprezentacji.',
     options: [
       {
@@ -1030,7 +1030,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'zagraniczny_testowicz',
-    minLevel: 2,
+    minLevel: 4,
     text: 'Na trening przyszedł zawodnik z Brazylii. Twierdzi, że grał w młodzieżówce Santosu. Nikt tego nie może sprawdzić.',
     condition: (s) => s.squad.length < 27,
     options: [
@@ -1081,7 +1081,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'dotacja_gmina',
-    maxLevel: 3,
+    maxLevel: 5,
     text: 'Gmina ogłasza konkurs na dotacje dla sportu. Trzeba wypełnić 40 stron wniosku.',
     options: [
       {
@@ -1169,7 +1169,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'mlody_talent_wies',
-    maxLevel: 4,
+    maxLevel: 6,
     condition: (s) => s.squad.length < 27,
     text: 'Dziadek przyprowadził na trening wnuka. „Strzela z lewej jak Lewandowski z prawej”.',
     options: [
@@ -1219,7 +1219,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'reklama_tv',
-    minLevel: 4,
+    minLevel: 6,
     once: true,
     text: 'Firma z branży pożyczek chce, żebyś wystąpił w ich reklamie. „Szybka gotówka jak szybka kontra”.',
     options: [
@@ -1243,7 +1243,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'mecz_pokazowy',
-    minLevel: 2,
+    minLevel: 4,
     text: 'Oldboje reprezentacji chcą zagrać mecz pokazowy z waszą drużyną na otwarcie nowego oświetlenia.',
     options: [
       {
@@ -1297,7 +1297,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'pilka_nowa',
-    maxLevel: 2,
+    maxLevel: 4,
     text: 'Klub ma tylko 4 piłki, w tym jedną do siatkówki.',
     options: [
       {
@@ -1423,7 +1423,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'sponsor_bukmacher',
-    minLevel: 5,
+    minLevel: 7,
     once: true,
     text: 'Bukmacher chce wykupić nazwę stadionu. Nowa nazwa: „Kursowo Arena”.',
     options: [
@@ -1447,7 +1447,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'dron',
-    minLevel: 3,
+    minLevel: 5,
     text: 'Nad boiskiem treningowym lata dron. Podobno to szpieg rywala.',
     options: [
       {
@@ -1472,7 +1472,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'lekcja_wf',
-    maxLevel: 3,
+    maxLevel: 5,
     text: 'Szkoła podstawowa prosi Cię o poprowadzenie zajęć WF. „Dzieci chcą trenera z prawdziwego klubu”.',
     options: [
       {

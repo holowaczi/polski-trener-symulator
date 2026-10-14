@@ -242,6 +242,13 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
 
 // ---------- tabela ----------
 
+/** nazwa poziomu w województwie gracza, np. „Klasa A”, bo ta sama głębokość nazywa się różnie w różnych regionach */
+function levelLabel(s: GameState, level: number): string {
+  const lg = s.leagues.find((l) => l.level === level)
+  if (!lg) return LEVELS[level].name
+  return lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '')
+}
+
 function groupsNote(n: number): string {
   if (n < 2) return ''
   const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)
@@ -268,7 +275,7 @@ export function TableView({ s }: { s: GameState }) {
           onChange={(e) => setPick(Number(e.target.value))}
         >
           {levels.map((lv) => (
-            <optgroup key={lv} label={LEVELS[lv].name}>
+            <optgroup key={lv} label={levelLabel(s, lv)}>
               {s.leagues.map((l, i) =>
                 l.level === lv ? (
                   <option key={i} value={i}>
