@@ -24,8 +24,9 @@ import { careerScore, multiplierOf } from '../game/score'
 import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
+import { Bar, ClubView, CoachCard } from './profiles'
 
-type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'wiesci' | 'kariera'
+type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'mecz', label: 'Mecz' },
@@ -34,8 +35,9 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'taktyka', label: 'Taktyka' },
   { id: 'transfery', label: 'Transfery' },
   { id: 'puchar', label: 'Puchar' },
+  { id: 'klub', label: 'Klub' },
+  { id: 'kariera', label: 'Trener' },
   { id: 'wiesci', label: 'Wieści' },
-  { id: 'kariera', label: 'Kariera' },
 ]
 
 export function GameScreen({ s, act }: { s: GameState; act: Act }) {
@@ -79,7 +81,13 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
             {tab === 'transfery' && <TransferView s={s} act={act} />}
             {tab === 'puchar' && <CupView s={s} />}
             {tab === 'wiesci' && <NewsView s={s} />}
-            {tab === 'kariera' && <CareerView s={s} act={act} />}
+            {tab === 'klub' && <ClubView s={s} act={act} />}
+            {tab === 'kariera' && (
+              <>
+                <CoachCard s={s} />
+                <CareerView s={s} act={act} />
+              </>
+            )}
           </section>
           {s.phase === 'season' && <PlayBar s={s} act={act} />}
         </>
@@ -89,33 +97,33 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   )
 }
 
-function Bar({ label, value, invert }: { label: string; value: number; invert?: boolean }) {
-  const v = invert ? 100 - value : value
-  const tone = v < 25 ? 'bad' : v < 50 ? 'warn' : 'good'
-  return (
-    <div className="bar" title={`${label}: ${value}/100`}>
-      <span className="bar-label">{label}</span>
-      <span className="bar-track">
-        <span className={`bar-fill ${tone}`} style={{ width: `${value}%` }} />
-      </span>
-      <span className="bar-val">{value}</span>
-    </div>
-  )
-}
-
 function Header({ s }: { s: GameState }) {
   const team = club(s)
   const lg = clubLeague(s)
   // przed pierwszym meczem miejsce w tabeli nic nie znaczy
   const pos = s.round > 0 ? clubPosition(s) : undefined
+  const mult = multiplierOf(s)
   return (
     <header className="hud">
-      <div className="hud-main">
-        <div>
+      <div className="hud-cards">
+        <div className="hud-card">
+          <div className="hud-kicker">Trener · sezon {s.season}</div>
           <div className="coach">
             {s.coach.firstName} {s.coach.lastName}
             <span className="muted"> · {s.coach.age} l. · {s.coach.license}</span>
           </div>
+          <div className="hud-stats">
+            <span>Reputacja {s.coach.reputation}</span>
+            <span title="Punkty kariery po mnożniku za start">
+              Punkty {careerScore(s).toLocaleString('pl-PL')}
+              {mult !== 1 ? ` (×${mult})` : ''}
+            </span>
+            <span>Oszczędności {formatMoney(s.coach.savings)}</span>
+          </div>
+          <Bar label="Stres" value={s.coach.stress} invert />
+        </div>
+        <div className="hud-card">
+          <div className="hud-kicker">Klub</div>
           <div className="club">
             {team ? team.name : 'Bez klubu'}
             {lg && (
@@ -126,31 +134,24 @@ function Header({ s }: { s: GameState }) {
               </span>
             )}
           </div>
-        </div>
-        <div className="hud-stats">
-          <span>Sezon {s.season}</span>
-          {team && <span>Cel: {goalLabel(s.goal, team.level)}</span>}
-          <span>Reputacja {s.coach.reputation}</span>
-          <span title="Punkty kariery po mnożniku za start">
-            Punkty {careerScore(s).toLocaleString('pl-PL')}
-            {multiplierOf(s) !== 1 ? ` (×${multiplierOf(s)})` : ''}
-          </span>
-          <span>Oszczędności {formatMoney(s.coach.savings)}</span>
           {team && (
-            <span className={wageBill(s) > s.wageLimit ? 'warn-text' : ''}>
-              Pensje {formatMoney(wageBill(s))} / {formatMoney(s.wageLimit)} mies.
-            </span>
+            <>
+              <div className="hud-stats">
+                <span>Cel: {goalLabel(s.goal, team.level)}</span>
+                <span>Budżet {formatMoney(s.budget)}</span>
+                <span className={wageBill(s) > s.wageLimit ? 'warn-text' : ''}>
+                  Pensje {formatMoney(wageBill(s))} / {formatMoney(s.wageLimit)}
+                </span>
+              </div>
+              <div className="bars">
+                <Bar label="Zarząd" value={s.trust.board} />
+                <Bar label="Szatnia" value={s.trust.squad} />
+                <Bar label="Kibice" value={s.trust.fans} />
+              </div>
+            </>
           )}
         </div>
       </div>
-      {team && (
-        <div className="bars">
-          <Bar label="Zarząd" value={s.trust.board} />
-          <Bar label="Szatnia" value={s.trust.squad} />
-          <Bar label="Kibice" value={s.trust.fans} />
-          <Bar label="Stres" value={s.coach.stress} invert />
-        </div>
-      )}
     </header>
   )
 }

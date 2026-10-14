@@ -3,6 +3,7 @@ import { LEVELS } from './data'
 import { LOWER_LEAGUES } from './lowerData'
 import { teamsAtLevel } from './world'
 import { acceptBid, buyPlayer } from './market'
+import { acceptDemand, canNegotiate } from './contracts'
 import {
   acceptOffer,
   computeTable,
@@ -30,6 +31,7 @@ function botCareer(seed: number, seasons: number): GameState {
         break
       }
       case 'transfer': {
+        for (const pl of [...s.squad].sort((x, y) => y.skill - x.skill)) if (canNegotiate(pl) && pl.age < 34) acceptDemand(s, pl.id)
         const target = s.transferList.filter((t) => t.fee <= s.budget).sort((a, b) => b.player.skill - a.player.skill)[0]
         if (target && s.squad.length < 24) buyPlayer(s, target.player.id)
         if (s.bids[0] && guard % 2) acceptBid(s, s.bids[0].playerId)

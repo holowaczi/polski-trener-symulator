@@ -8,7 +8,10 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const s = JSON.parse(raw) as GameState
-    return s.version === SAVE_VERSION ? s : null
+    if (s.version !== SAVE_VERSION) return null
+    // zapisy sprzed kontraktów: każdy dostaje umowę na 1–3 sezony
+    for (const p of s.squad) if (p.contract === undefined) p.contract = 1 + ((p.id * 7 + p.age) % 3)
+    return s
   } catch {
     return null
   }

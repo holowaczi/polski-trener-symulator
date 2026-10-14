@@ -1,6 +1,8 @@
 import { it } from 'vitest'
 import { careerScore } from './score'
+import { LEVELS } from './data'
 import { acceptBid, buyPlayer } from './market'
+import { acceptDemand, canNegotiate } from './contracts'
 import { acceptOffer, finishTransfers, newGame, playNext, resolveEvent, retire, stayAtClub, startLicenseCourse } from './engine'
 import type { GameState } from './types'
 import { previewStrength, teamBonus } from './match'
@@ -28,10 +30,11 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
           break
         }
         case 'transfer': {
+          for (const pl of [...s.squad].sort((x, y) => y.skill - x.skill)) if (canNegotiate(pl) && pl.age < 34) acceptDemand(s, pl.id)
           const target = s.transferList.filter((t) => t.fee <= s.budget).sort((a, b) => b.player.skill - a.player.skill)[0]
           if (target && s.squad.length < 24) {
             const lvl = s.teams[s.clubId!].level
-            push(A, 'buy_skill_minus_base', target.player.skill - [24, 31, 38, 45, 51, 57, 63, 69][lvl])
+            push(A, 'buy_skill_minus_base', target.player.skill - LEVELS[lvl].base)
             buyPlayer(s, target.player.id)
           }
           if (s.bids[0] && guard % 2) acceptBid(s, s.bids[0].playerId)
@@ -63,7 +66,7 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
           if (s.history[s.history.length - 1]) {
             const h = s.history[s.history.length - 1]!
             const pv = previewStrength(s)
-            push(A, `end_players_minus_base_L${h.level}`, pv.overall - teamBonus(s, pv.xi).total - [24, 31, 38, 45, 51, 57, 63, 69][h.level])
+            push(A, `end_players_minus_base_L${h.level}`, pv.overall - teamBonus(s, pv.xi).total - LEVELS[h.level].base)
           }
           // rozwój zawodników przez sezon
           for (const p of s.squad) {

@@ -33,6 +33,14 @@ const k = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)} tys. zł` : `${v}
 const money = (s: GameState, base: number) => Math.round(base * Math.pow(2.2, s.teams[s.clubId!].level))
 const last3 = (s: GameState) => s.streak.slice(-3).join('')
 const median = (s: GameState) => [...s.squad].sort((a, b) => b.skill - a.skill)[Math.min(13, s.squad.length - 1)]?.skill ?? 0
+/** umiejętność n-tego najlepszego zawodnika kadry */
+const topSkill = (s: GameState, n: number) => [...s.squad].sort((a, b) => b.skill - a.skill)[Math.min(n - 1, s.squad.length - 1)]?.skill ?? 0
+/** zawodnik odchodzi z klubu (sprzedaż) */
+const removePlayer = (s: GameState, p: Player) => {
+  s.squad = s.squad.filter((x) => x.id !== p.id)
+  s.lineup.xi = s.lineup.xi.filter((id) => id !== p.id)
+  s.lineup.bench = s.lineup.bench.filter((id) => id !== p.id)
+}
 
 export const EVENTS: GameEvent[] = [
   // ---------- zdarzenia wynikające z meczów ----------
@@ -191,14 +199,14 @@ export const EVENTS: GameEvent[] = [
         },
       },
       {
-        label: 'Wyjazd integracyjny nad jezioro',
+        label: 'Dwudniowy wyjazd integracyjny',
         apply: ({ s }) => {
           const c = money(s, 600)
           s.budget -= c
           trust(s, -2, 8, 0)
           coach(s, -10)
           mod(s, 'Odbudowana atmosfera', 1, 3)
-          return `Ognisko, kajaki i rozmowy do rana (${k(c)}). Drużyna znów jest drużyną.`
+          return `Hotel nad jeziorem, kajaki i rozmowy do rana (${k(c)}). Drużyna znów jest drużyną.`
         },
       },
       {
@@ -276,7 +284,7 @@ export const EVENTS: GameEvent[] = [
           if (rng.chance(0.35)) {
             mod(s, 'Trener w szpitalu', -2, 3)
             coach(s, -20, -2)
-            return 'Ląduję w szpitalu na obserwacji. Drużyna gra trzy mecze bez Ciebie na ławce.'
+            return 'Lądujesz w szpitalu na obserwacji. Drużyna gra trzy mecze bez Ciebie na ławce.'
           }
           return 'Jakoś dajesz radę. Kawa numer siedem tego dnia.'
         },
@@ -349,6 +357,7 @@ export const EVENTS: GameEvent[] = [
   // ---------- życie klubu ----------
   {
     id: 'wesele',
+    maxLevel: 5,
     player: 'any',
     text: '{p} przyszedł na trening prosto z wesela kuzyna. Jest w garniturze i mówi, że „da radę”.',
     options: [
@@ -418,7 +427,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'masarnia',
-    maxLevel: 6,
+    maxLevel: 5,
     text: 'Sponsor główny, lokalna masarnia, grozi wycofaniem się. Chce, żeby zawodnicy grali w koszulkach z wielką kiełbasą.',
     options: [
       {
@@ -454,6 +463,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'kontuzja_grill',
+    maxLevel: 5,
     player: 'any',
     text: '{p} poparzył się przy grillu na działce. Twierdzi, że „to nic”, ale ręka wygląda jak kaszanka.',
     options: [
@@ -479,6 +489,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'imprezowicz_dyskoteka',
+    maxLevel: 5,
     player: 'imprezowicz',
     text: '{p} był widziany w sobotę o 4 rano w remizie „Kosmos”. Zdjęcia krążą po grupie na Facebooku.',
     options: [
@@ -607,7 +618,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'dziennikarz',
     minLevel: 5,
-    text: 'Dziennikarz lokalnego portalu pyta na konferencji, czy nie boisz się zwolnienia.',
+    text: 'Dziennikarz pyta na konferencji, czy nie boisz się zwolnienia.',
     options: [
       {
         label: '„Boję się tylko Boga i mojej żony”',
@@ -637,6 +648,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'oboz',
+    maxLevel: 5,
     text: 'Prezes proponuje krótki obóz przygotowawczy. Do wyboru: Zakopane albo „ośrodek u szwagra pod Grójcem”.',
     options: [
       {
@@ -666,6 +678,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'bramkarz_kebab',
+    maxLevel: 5,
     player: (p) => p.pos === 'BR',
     text: '{p} zamówił kebab na ławkę rezerwowych w trakcie meczu. Kamera to nagrała.',
     options: [
@@ -810,6 +823,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'wyjazd_bus',
+    maxLevel: 5,
     text: 'Klubowy bus zepsuł się w drodze na mecz wyjazdowy. Do rozpoczęcia 90 minut.',
     options: [
       {
@@ -839,6 +853,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'youtuber',
     minLevel: 3,
+    maxLevel: 6,
     text: 'Znany youtuber chce nagrać odcinek „Gram w klubie z niższej ligi przez tydzień”.',
     options: [
       {
@@ -875,7 +890,7 @@ export const EVENTS: GameEvent[] = [
           mod(s, 'Dodatkowe treningi', 1.5, 2)
           trust(s, 3, -5, 0)
           s.squad.forEach((p) => (p.progress += 0.15))
-          return 'Niedzielny trening się odbył. Pół drużyny przyszło prosto z kościoła.'
+          return 'Niedzielny trening się odbył. Kilku zawodników odwołało rodzinne obiady i dało to odczuć.'
         },
       },
       {
@@ -888,12 +903,12 @@ export const EVENTS: GameEvent[] = [
         },
       },
       {
-        label: 'Zrób grilla dla drużyny',
+        label: 'Wspólna kolacja dla drużyny',
         apply: ({ s }) => {
           teamMorale(s, 8)
           trust(s, 0, 6, 1)
           coach(s, -6)
-          return 'Grill integracyjny. Kiełbasa od sponsora. Jedność odbudowana.'
+          return 'Kolacja na koszt sponsora, telefony w koszyku przy wejściu. Jedność odbudowana.'
         },
       },
     ],
@@ -901,6 +916,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'sedzia_koperta',
     minLevel: 3,
+    maxLevel: 6,
     once: true,
     text: 'Tajemniczy mężczyzna w skórzanej kurtce sugeruje, że „sędzia na sobotę jest do dogadania”.',
     options: [
@@ -980,6 +996,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'ksiegowa',
     minLevel: 4,
+    maxLevel: 7,
     text: 'Księgowa klubu informuje, że „pieniądze na pensje gdzieś są, tylko nie wiadomo gdzie”.',
     options: [
       {
@@ -1031,6 +1048,7 @@ export const EVENTS: GameEvent[] = [
   {
     id: 'zagraniczny_testowicz',
     minLevel: 4,
+    maxLevel: 6,
     text: 'Na trening przyszedł zawodnik z Brazylii. Twierdzi, że grał w młodzieżówce Santosu. Nikt tego nie może sprawdzić.',
     condition: (s) => s.squad.length < 27,
     options: [
@@ -1132,6 +1150,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'prezes_motywacja',
+    maxLevel: 5,
     condition: (s) => s.trust.board < 40,
     text: 'Prezes zaprasza na „poważną rozmowę” do swojej hurtowni.',
     options: [
@@ -1169,7 +1188,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'mlody_talent_wies',
-    maxLevel: 6,
+    maxLevel: 5,
     condition: (s) => s.squad.length < 27,
     text: 'Dziadek przyprowadził na trening wnuka. „Strzela z lewej jak Lewandowski z prawej”.',
     options: [
@@ -1400,7 +1419,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'prognoza',
-    text: 'Lokalna gazeta przed sezonem dała drużynie miano „murowanego kandydata do spadku”.',
+    text: 'Prasa przed sezonem dała drużynie miano „murowanego kandydata do spadku”.',
     condition: (s) => s.round < 6,
     options: [
       {
@@ -1416,7 +1435,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           coach(s, -4)
           trust(s, 0, 0, -3)
-          return 'Zignorowałeś. Trener śpi spokojnie, ale kibice uznali, że gazeta ma rację.'
+          return 'Zignorowałeś. Trener śpi spokojnie, ale kibice uznali, że prasa ma rację.'
         },
       },
     ],
@@ -1488,6 +1507,727 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           trust(s, -1, 0, -4)
           return 'Zajęcia poprowadził katecheta. Grali w dwa ognie, a rodzice zapamiętali, kto odmówił.'
+        },
+      },
+    ],
+  },
+
+  // ---------- piłka zawodowa (III liga wzwyż) ----------
+  {
+    id: 'tabloid_klub_nocny',
+    minLevel: 6,
+    player: (p) => p.traits.includes('imprezowicz') || (p.age <= 25 && p.apps >= 3),
+    text: 'Tabloid publikuje zdjęcia {p} z klubu nocnego w centrum miasta. Godzina 3:40, dwa dni przed meczem. Portal dopisał „ekskluzywnie”.',
+    options: [
+      {
+        label: 'Kara regulaminowa i oświadczenie klubu',
+        apply: ({ s, p }) => {
+          setMorale(p!, -15)
+          trust(s, 4, -1, 1)
+          return '{ps} płaci karę z regulaminu wewnętrznego. Rzecznik wydał oświadczenie, temat przycichł po dobie.'
+        },
+      },
+      {
+        label: 'Bronić go: „był na urodzinach brata”',
+        apply: ({ s, p, rng }) => {
+          setMorale(p!, 10)
+          if (rng.chance(0.45)) {
+            scandal(s, 'Kolejne zdjęcia z klubu nocnego, tym razem z butelką')
+            trust(s, -8, 2, -4)
+            coach(s, 6, -1)
+            return 'Następnego dnia tabloid dorzucił kolejne zdjęcia. Brat {ps} był wtedy w Norwegii.'
+          }
+          trust(s, -2, 4, 0)
+          return 'Wersja się obroniła. Szatnia widzi, że trener staje za swoimi.'
+        },
+      },
+      {
+        label: 'Odsuń go do rezerw na tydzień',
+        apply: ({ s, p }) => {
+          setMorale(p!, -22)
+          nudgeForm(p!, -1)
+          trust(s, 5, -3, 2)
+          return '{ps} trenuje z rezerwami. Agent już dzwoni do dyrektora sportowego.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'wpis_social_media',
+    minLevel: 6,
+    player: (p) => p.apps >= 2,
+    text: '{p} wrzucił w nocy wpis: „Niektórzy w tym klubie nie wiedzą, co to ambicja”. Usunął po godzinie, ale screenshoty już krążą.',
+    options: [
+      {
+        label: 'Rozmowa i publiczne przeprosiny',
+        apply: ({ s, p }) => {
+          setMorale(p!, -6)
+          trust(s, 3, 2, 0)
+          return '{ps} nagrał przeprosiny z klubowej sali konferencyjnej. Brzmiał jak zakładnik, ale sprawa zamknięta.'
+        },
+      },
+      {
+        label: 'Szkolenie medialne dla całej kadry',
+        apply: ({ s }) => {
+          const c = money(s, 250)
+          s.budget -= c
+          trust(s, 2, -2, 0)
+          coach(s, -2, 1)
+          return `Agencja PR przez trzy godziny tłumaczyła zawodnikom, czym jest „kryzys wizerunkowy” (${k(c)}). Połowa scrollowała telefony.`
+        },
+      },
+      {
+        label: 'Zapytaj go, kogo miał na myśli',
+        apply: ({ s, p, rng }) => {
+          if (rng.chance(0.5)) {
+            setMorale(p!, 8)
+            trust(s, 0, 4, 0)
+            mod(s, 'Oczyszczona atmosfera', 1, 2)
+            return '{ps} wskazał problem z intensywnością treningów. Miał trochę racji. Szatnia doceniła szczerość.'
+          }
+          trust(s, -2, -6, 0)
+          mod(s, 'Konflikt w szatni', -1.5, 2)
+          return '{ps} wymienił trzy nazwiska. Na odprawie było cicho jak w bibliotece.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'influencerka',
+    minLevel: 7,
+    player: (p) => p.age <= 29 && p.benchStreak >= 2,
+    text: 'Partnerka {p}, influencerka z 600 tysiącami obserwujących, wrzuca relację: „Ciekawe, ile jeszcze ten trener będzie niszczył mu karierę”.',
+    options: [
+      {
+        label: 'Nie komentuj, wystaw go w następnym meczu',
+        apply: ({ s, p }) => {
+          setMorale(p!, 12)
+          s.flags[`obietnica:${p!.id}`] = s.round
+          trust(s, -2, -3, 0)
+          coach(s, 3)
+          return '{ps} zagra. Szatnia zastanawia się, czy do składu wchodzi się teraz przez Instagram.'
+        },
+      },
+      {
+        label: 'Zakaz publikacji z wnętrza klubu',
+        apply: ({ s, p }) => {
+          setMorale(p!, -10)
+          trust(s, 3, 2, 0)
+          return 'Dział komunikacji wprowadza zakaz. Influencerka wrzuca relację o „cenzurze”, ale zasięgi już nie te.'
+        },
+      },
+      {
+        label: 'Zaproponuj jej współpracę z klubem',
+        apply: ({ s, p, rng }) => {
+          if (rng.chance(0.55)) {
+            s.budget += money(s, 400)
+            trust(s, 2, 0, 4)
+            setMorale(p!, 6)
+            return 'Influencerka prowadzi teraz kampanię karnetową. Sprzedaż w górę, krytyka trenera zniknęła z profilu.'
+          }
+          trust(s, -3, -2, -2)
+          scandal(s, 'Influencerka publikuje prywatne wiadomości od klubu')
+          return 'Influencerka opublikowała screena propozycji z podpisem „próbują mnie kupić”. Klasyka.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'oferta_egzotyczna',
+    minLevel: 7,
+    player: (p, s) => p.age >= 27 && p.skill >= median(s) && p.apps >= 3,
+    text: 'Klub z ligi saudyjskiej oferuje {p} kontrakt życia: trzy razy więcej niż zarabia u nas. Zawodnik przychodzi i mówi wprost, że chce odejść.',
+    options: [
+      {
+        label: 'Sprzedaj go',
+        apply: ({ s, p }) => {
+          const fee = Math.round(p!.value * 1.4)
+          s.budget += fee
+          removePlayer(s, p!)
+          trust(s, 4, -2, -3)
+          return `{ps} leci do Rijadu. Klub zarabia ${k(fee)}, kibice żegnają go mieszanymi uczuciami.`
+        },
+      },
+      {
+        label: 'Nie puszczaj, ma ważny kontrakt',
+        apply: ({ s, p }) => {
+          setMorale(p!, -25)
+          nudgeForm(p!, -1)
+          trust(s, 0, -2, 2)
+          return '{ps} zostaje. Na treningach jest, ale głową już na pustyni.'
+        },
+      },
+      {
+        label: 'Zatrzymaj go podwyżką o 30%',
+        apply: ({ s, p }) => {
+          p!.wage = Math.round((p!.wage * 1.3) / 100) * 100
+          setMorale(p!, 10)
+          trust(s, -2, -2, 3)
+          return '{ps} zostaje za lepsze pieniądze. Dyrektor finansowy przelicza siatkę płac i wzdycha.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'agent_transfer',
+    minLevel: 6,
+    player: (p, s) => p.age <= 25 && p.skill >= median(s),
+    text: 'Agent {p} udziela wywiadów, że „chłopak przerósł ten klub” i „jest gotowy na ligę belgijską”. Zawodnik milczy.',
+    options: [
+      {
+        label: 'Zakaz wstępu dla agenta na obiekty klubu',
+        apply: ({ s, p }) => {
+          setMorale(p!, -12)
+          trust(s, 4, 0, 3)
+          coach(s, 3)
+          return 'Agent ma zakaz wstępu. Zapowiada, że „o wszystkim zdecyduje klauzula”.'
+        },
+      },
+      {
+        label: 'Porozmawiaj z zawodnikiem bez agenta',
+        apply: ({ p, rng }) => {
+          if (rng.chance(0.6)) {
+            setMorale(p!, 10)
+            p!.progress += 0.3
+            return '{ps} przyznał, że chce jeszcze sezon pograć u nas. Agent dowiedział się ostatni.'
+          }
+          setMorale(p!, -8)
+          return '{ps} grzecznie słuchał i powtarzał: „proszę rozmawiać z moim menedżerem”.'
+        },
+      },
+      {
+        label: 'Ogłoś, że czekacie na oferty',
+        apply: ({ s, p }) => {
+          setMorale(p!, 6)
+          nudgeForm(p!, -1)
+          trust(s, 2, -2, -3)
+          return '{ps} odlicza dni do okna transferowego. Dobrze dla budżetu, gorzej dla koncentracji.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'kontrola_antydopingowa',
+    minLevel: 6,
+    player: (p) => p.apps >= 2,
+    text: 'Po kontroli antydopingowej {p} przyznaje, że brał suplement z zagranicznego sklepu internetowego. Lekarz klubowy blednie, czytając skład.',
+    options: [
+      {
+        label: 'Zgłoś sprawę i odsuń go do wyników',
+        apply: ({ s, p, rng }) => {
+          p!.suspendedFor = Math.max(p!.suspendedFor, 1)
+          setMorale(p!, -10)
+          trust(s, 4, 0, 0)
+          coach(s, 0, 1)
+          if (rng.chance(0.75)) return 'Wynik próbki czysty. {ps} wraca po meczu przerwy, a lekarz robi wykład o suplementach.'
+          p!.suspendedFor = 4
+          return 'Próbka pozytywna, ale współpraca z komisją złagodziła karę: {ps} pauzuje cztery mecze.'
+        },
+      },
+      {
+        label: 'Gra normalnie, czekamy na wynik',
+        apply: ({ s, p, rng }) => {
+          if (rng.chance(0.7)) {
+            setMorale(p!, 4)
+            return 'Wynik negatywny. Lekarz i tak wyrzucił z szatni wszystkie słoiki z napisami cyrylicą.'
+          }
+          p!.suspendedFor = 8
+          setMorale(p!, -25)
+          trust(s, -8, -2, -5)
+          scandal(s, 'Pozytywny wynik testu antydopingowego')
+          coach(s, 8, -2)
+          return 'Wynik pozytywny. {ps} zawieszony na osiem meczów, a media pytają, co działo się w sztabie medycznym.'
+        },
+      },
+      {
+        label: 'Kontrola wszystkich suplementów w kadrze',
+        apply: ({ s }) => {
+          const c = money(s, 200)
+          s.budget -= c
+          trust(s, 3, -1, 0)
+          coach(s, -2)
+          return `Dietetyk i lekarz przejrzeli wszystkie szafki (${k(c)}). Znaleźli też dwie kanapki z zeszłego miesiąca.`
+        },
+      },
+    ],
+  },
+  {
+    id: 'powolanie_kadra',
+    minLevel: 8,
+    player: (p, s) => p.skill >= topSkill(s, 3) && p.injuredFor === 0 && p.age >= 19,
+    text: '{p} dostał powołanie do reprezentacji. Selekcjoner planuje dać mu po 90 minut w obu meczach, a wy gracie zaraz po przerwie.',
+    options: [
+      {
+        label: 'Pogratuluj, niech jedzie i gra',
+        apply: ({ s, p, rng }) => {
+          setMorale(p!, 15)
+          coach(s, 0, 2)
+          trust(s, 2, 0, 3)
+          if (rng.chance(0.3)) {
+            p!.injuredFor = Math.max(p!.injuredFor, rng.int(2, 4))
+            return `{ps} zagrał świetnie, ale w drugim meczu naciągnął mięsień dwugłowy. Wraca do klubu z kontuzją: ${p!.injuredFor} meczów.`
+          }
+          return '{ps} wrócił z kadry z golem i nową pewnością siebie.'
+        },
+      },
+      {
+        label: 'Zadzwoń do sztabu kadry w sprawie obciążeń',
+        apply: ({ s, p, rng }) => {
+          if (rng.chance(0.6)) {
+            trust(s, 2, 0, 0)
+            return 'Sztab kadry przysłał plan minutowy. {ps} zagrał jeden mecz i wrócił świeży.'
+          }
+          setMorale(p!, -6)
+          coach(s, 3, -1)
+          return 'W studiu telewizyjnym przez pół wieczoru dyskutowano, czy klub „sabotuje reprezentację”.'
+        },
+      },
+      {
+        label: 'Zgłoś mikrouraz i zatrzymaj go w klubie',
+        apply: ({ s, p }) => {
+          setMorale(p!, -18)
+          trust(s, 1, -2, -6)
+          scandal(s, 'Podejrzane zgłoszenie urazu przed zgrupowaniem kadry')
+          return '{ps} zostaje w klubie, ale wściekły. Kibice pytają, od kiedy klub jest ważniejszy niż orzeł na piersi.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'oboz_turcja',
+    minLevel: 6,
+    text: 'Dyrektor sportowy przedstawia plan zimowego zgrupowania: dwa tygodnie w Turcji ze sparingami z ukraińskimi i skandynawskimi zespołami albo krajowy ośrodek w górach.',
+    options: [
+      {
+        label: 'Turcja, pełen pakiet',
+        apply: ({ s }) => {
+          const c = money(s, 900)
+          s.budget -= c
+          mod(s, 'Forma z tureckiego zgrupowania', 1.5, 3)
+          coach(s, -4)
+          return `Zgrupowanie w Belek (${k(c)}). Boiska jak dywan, sparingi z wymagającymi rywalami, zero śniegu.`
+        },
+      },
+      {
+        label: 'Krajowy ośrodek w górach',
+        apply: ({ s, rng }) => {
+          const c = money(s, 350)
+          s.budget -= c
+          if (rng.chance(0.5)) {
+            mod(s, 'Wydolność z gór', 1, 2)
+            return `Treningi na wysokości, sauna, odnowa (${k(c)}). Tanio i solidnie.`
+          }
+          mod(s, 'Zgrupowanie w śniegu', -0.5, 2)
+          return `Śnieg przykrył boiska, sparingi odwołane, drużyna trenowała na hali (${k(c)}).`
+        },
+      },
+      {
+        label: 'Bez zgrupowania, trenujemy u siebie',
+        apply: ({ s }) => {
+          trust(s, 2, -4, 0)
+          teamMorale(s, -4)
+          return 'Zarząd zadowolony z oszczędności. Zawodnicy oglądają na Instagramie zdjęcia rywali z palmami.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'premia_awans',
+    minLevel: 6,
+    condition: (s) => s.round >= 6 && s.streak.slice(-4).filter((x) => x === 'W').length >= 2,
+    text: 'Rada drużyny przynosi pismo: chce zapisania premii za awans w regulaminie, zanim „sprawa się rozstrzygnie”. Prezes uważa, że „premią jest sam awans”.',
+    options: [
+      {
+        label: 'Wywalcz dla nich pełną premię',
+        apply: ({ s }) => {
+          const c = money(s, 1200)
+          s.budget -= c
+          trust(s, -4, 8, 0)
+          teamMorale(s, 10)
+          mod(s, 'Premia na stole', 1, 3)
+          return `Premia zapisana: ${k(c)} do podziału. Szatnia gra jak o swoje, bo gra o swoje.`
+        },
+      },
+      {
+        label: 'Kompromis: premia za punkty',
+        apply: ({ s }) => {
+          const c = money(s, 400)
+          s.budget -= c
+          trust(s, 1, 3, 0)
+          teamMorale(s, 4)
+          return `Ustalono premię meczową za każdy punkt (${k(c)} na start). Nikt nie jest zachwycony, wszyscy podpisali.`
+        },
+      },
+      {
+        label: 'Stań po stronie prezesa',
+        apply: ({ s }) => {
+          trust(s, 6, -8, 0)
+          teamMorale(s, -8)
+          coach(s, 4)
+          return 'Rada drużyny wyszła bez słowa. Przez tydzień na treningach nikt nie żartował.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'dyrektor_sklad',
+    minLevel: 7,
+    text: 'Dyrektor sportowy przysyła Ci przed meczem „sugestię” składu. Na liście jest zimowy nabytek, za którego klub zapłacił najwięcej w historii.',
+    options: [
+      {
+        label: 'Wystaw zgodnie z sugestią',
+        apply: ({ s }) => {
+          trust(s, 6, -4, 0)
+          mod(s, 'Skład z gabinetu', -1, 1)
+          coach(s, 3)
+          return 'Nabytek gra. Dyrektor zadowolony, szatnia wie już, kto naprawdę ustala skład.'
+        },
+      },
+      {
+        label: 'Skład ustala trener',
+        apply: ({ s }) => {
+          trust(s, -7, 5, 0)
+          coach(s, 5, 1)
+          return 'Odpisałeś krótko: „Dziękuję za sugestię”. Dyrektor przestał mówić Ci „dzień dobry”.'
+        },
+      },
+      {
+        label: 'Zaproś go na odprawę i pokaż dane',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.55)) {
+            trust(s, 4, 2, 0)
+            return 'Dyrektor obejrzał dane z treningów i przyznał, że nabytek „potrzebuje czasu”. Rzadka chwila zgody.'
+          }
+          trust(s, -3, -1, 0)
+          coach(s, 4)
+          return 'Dyrektor obejrzał dane i stwierdził, że „dane nie grają”. Spotkanie trwało dwie godziny.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'konferencja_pulapka',
+    minLevel: 7,
+    text: 'Dziennikarz ogólnopolskiego portalu na konferencji: „Czy to prawda, że rozmawiał pan z innym klubem, a w szatni jest konflikt z kapitanem?”.',
+    options: [
+      {
+        label: '„Nie komentuję plotek”',
+        apply: ({ s }) => {
+          trust(s, 0, 0, -1)
+          coach(s, 2)
+          return 'Nagłówek: „Trener nie zaprzecza”. Kliknęło się świetnie.'
+        },
+      },
+      {
+        label: 'Zdementuj stanowczo i z humorem',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.6)) {
+            trust(s, 2, 3, 4)
+            coach(s, -2, 1)
+            return '„Jedyny konflikt z kapitanem dotyczy tego, kto płaci za kawę”. Sala się śmieje, temat zamknięty.'
+          }
+          trust(s, -2, 0, -2)
+          coach(s, 4, -1)
+          return 'Żart nie wyszedł. Fragment wycięto bez kontekstu i puszczono w kółko w studiu.'
+        },
+      },
+      {
+        label: 'Zablokuj portalowi akredytacje',
+        apply: ({ s }) => {
+          trust(s, 2, 2, -4)
+          coach(s, 3, -2)
+          scandal(s, 'Klub odbiera akredytację ogólnopolskiemu portalowi')
+          return 'Portal napisał o „zamachu na wolność prasy”. Szatnia jest za Tobą, media już nie.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'ultrasi_transparent',
+    minLevel: 6,
+    text: 'Ultrasi wywiesili na meczu transparent „Zarząd won!”. Komisja ligi wszczyna postępowanie, a prezes oczekuje, że trener publicznie potępi kibiców.',
+    options: [
+      {
+        label: 'Potęp transparent',
+        apply: ({ s }) => {
+          trust(s, 6, 0, -8)
+          return 'Zarząd docenia lojalność. Na następnym meczu doping był, ale jakby ciszej.'
+        },
+      },
+      {
+        label: 'Uciekaj od tematu: „Mówię o piłce”',
+        apply: ({ s }) => {
+          trust(s, -3, 0, -1)
+          coach(s, 2)
+          return 'Odpowiedź bez odpowiedzi. Obie strony uznały, że jesteś po stronie tej drugiej.'
+        },
+      },
+      {
+        label: '„Kibice mają prawo do swojego zdania”',
+        apply: ({ s }) => {
+          const c = money(s, 300)
+          s.budget -= c
+          trust(s, -8, 0, 9)
+          coach(s, 4)
+          return `Klub płaci karę za transparent (${k(c)}). Kibice skandują Twoje nazwisko, prezes już nie.`
+        },
+      },
+    ],
+  },
+  {
+    id: 'sponsor_techniczny',
+    minLevel: 7,
+    once: true,
+    text: 'Kończy się umowa na stroje. Globalna marka sportowa daje więcej pieniędzy, polska firma odzieżowa obiecuje limitowane kolekcje i „DNA klubu”.',
+    options: [
+      {
+        label: 'Globalna marka',
+        apply: ({ s }) => {
+          s.budget += money(s, 1600)
+          s.wageLimit = Math.round(s.wageLimit * 1.04)
+          trust(s, 5, 2, -2)
+          return 'Nowe stroje wyglądają jak szablon z katalogu, ale budżet i limit płac rosną.'
+        },
+      },
+      {
+        label: 'Polska firma',
+        apply: ({ s }) => {
+          s.budget += money(s, 900)
+          trust(s, 1, 0, 6)
+          return 'Kolekcja z herbem z lat 70. wyprzedała się w dwa dni. Kibice zachwyceni.'
+        },
+      },
+      {
+        label: 'Negocjuj udział w sprzedaży koszulek',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.5)) {
+            s.budget += money(s, 2000)
+            trust(s, 6, 0, 2)
+            return 'Udział w sprzedaży okazał się żyłą złota. Dział marketingu otwiera szampana bezalkoholowego.'
+          }
+          s.budget += money(s, 500)
+          trust(s, -3, 0, 0)
+          return 'Sprzedaż poniżej prognoz. Magazyn pełen koszulek w rozmiarze XXS.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'odwolanie_var',
+    minLevel: 7,
+    player: (p) => p.suspendedFor >= 2,
+    text: 'Po analizie VAR komisja ligi zawiesiła {p} na kilka meczów. Prawnik klubu uważa, że na powtórce z innej kamery widać, że ledwo musnął rywala.',
+    options: [
+      {
+        label: 'Odwołanie z kancelarią prawną',
+        apply: ({ s, p, rng }) => {
+          const c = money(s, 300)
+          s.budget -= c
+          if (rng.chance(0.45)) {
+            p!.suspendedFor = 1
+            setMorale(p!, 12)
+            trust(s, 2, 3, 2)
+            return `Komisja odwoławcza skróciła karę do jednego meczu (${k(c)}). {ps} dziękuje prawnikom.`
+          }
+          trust(s, -2, 1, 0)
+          return `Odwołanie oddalone (${k(c)}). W uzasadnieniu trzy strony o „intensywności kontaktu”.`
+        },
+      },
+      {
+        label: 'Przyjmij karę',
+        apply: ({ s, p }) => {
+          setMorale(p!, -6)
+          trust(s, 2, -1, 0)
+          return '{ps} pauzuje. Klub oszczędza na prawnikach, zawodnik na dobrym humorze nie.'
+        },
+      },
+      {
+        label: 'Publicznie skrytykuj sędziów VAR',
+        apply: ({ s, p }) => {
+          setMorale(p!, 8)
+          trust(s, -4, 4, 4)
+          coach(s, 3, -1)
+          s.budget -= money(s, 150)
+          scandal(s, 'Krytyka sędziów VAR na konferencji prasowej')
+          return 'Kara za wypowiedź przyszła szybciej niż uzasadnienie zawieszenia. Szatnia jest jednak za Tobą.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'akademia_cudowne_dziecko',
+    minLevel: 7,
+    player: (p) => p.age <= 19 && (p.traits.includes('talent') || p.potential >= p.skill + 12),
+    text: 'Skauci klubu z Portugalii od miesiąca siedzą na meczach juniorów. Teraz oficjalnie: chcą {p}. Rodzice już oglądają mieszkania w Lizbonie.',
+    options: [
+      {
+        label: 'Sprzedaj z procentem od następnego transferu',
+        apply: ({ s, p }) => {
+          const fee = Math.round(p!.value * 2.5)
+          s.budget += fee
+          removePlayer(s, p!)
+          trust(s, 5, 0, -3)
+          coach(s, 0, 3)
+          return `{ps} odchodzi za ${k(fee)} plus 20% od kolejnego transferu. Akademia ma nowy plakat na ścianie.`
+        },
+      },
+      {
+        label: 'Pierwszy zawodowy kontrakt i plan rozwoju',
+        apply: ({ s, p }) => {
+          p!.wage = Math.round((p!.wage * 1.8 + 1000) / 100) * 100
+          setMorale(p!, 15)
+          p!.progress += 0.6
+          trust(s, -2, 0, 5)
+          return '{ps} podpisuje kontrakt do 2030 roku. Kibice wierzą, że wychowanek zostanie na dłużej.'
+        },
+      },
+      {
+        label: 'Odrzuć ofertę bez rozmów',
+        apply: ({ s, p }) => {
+          setMorale(p!, -18)
+          nudgeForm(p!, -1)
+          trust(s, -1, 0, 2)
+          return '{ps} jest rozżalony, a agent rodziny zaczyna szukać klauzul w umowie szkoleniowej.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'dzial_analiz',
+    minLevel: 7,
+    once: true,
+    text: 'Szef działu analiz prosi o budżet na platformę danych, drugiego analityka i nowe kamizelki GPS. Prezentacja ma 48 slajdów.',
+    options: [
+      {
+        label: 'Daj pełny budżet',
+        apply: ({ s }) => {
+          const c = money(s, 800)
+          s.budget -= c
+          mod(s, 'Przewaga analityczna', 1, 5)
+          coach(s, -2, 2)
+          return `Inwestycja: ${k(c)}. Po tygodniu wiesz, że lewy obrońca rywala nie lubi biegać do tyłu.`
+        },
+      },
+      {
+        label: 'Tylko kamizelki GPS',
+        apply: ({ s }) => {
+          const c = money(s, 250)
+          s.budget -= c
+          s.squad.forEach((p) => (p.progress += 0.1))
+          return `Kamizelki kupione (${k(c)}). Sztab przygotowania motorycznego wreszcie wie, kto symuluje zmęczenie.`
+        },
+      },
+      {
+        label: 'Futbol to nie arkusz kalkulacyjny',
+        apply: ({ s }) => {
+          trust(s, 2, 0, 0)
+          coach(s, 0, -1)
+          return 'Analityk przyjął odmowę i trzy dni później dostał ofertę z klubu z Danii. Przyjął ją.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'poniedzialek_1800',
+    minLevel: 8,
+    text: 'Nadawca przenosi wasz mecz na poniedziałek, godzina 18:00. Kibice zapowiadają bojkot, dział biletów liczy puste krzesełka.',
+    options: [
+      {
+        label: 'Protestuj publicznie',
+        apply: ({ s }) => {
+          trust(s, -4, 0, 6)
+          coach(s, 2)
+          return 'Twoja wypowiedź o „kibicach, którzy pracują do 17:00” poszła w świat. Nadawca nie zmienił godziny.'
+        },
+      },
+      {
+        label: 'Przyjmij to: dodatkowy dzień regeneracji',
+        apply: ({ s }) => {
+          mod(s, 'Dzień więcej regeneracji', 0.5, 1)
+          trust(s, 1, 0, -3)
+          s.budget -= money(s, 150)
+          return 'Zawodnicy wypoczęci, ale trybuny w połowie puste. Wpływy z biletów spadają.'
+        },
+      },
+      {
+        label: 'Akcja dla kibiców: darmowy transport i tańsze bilety',
+        apply: ({ s }) => {
+          const c = money(s, 250)
+          s.budget -= c
+          trust(s, 2, 0, 7)
+          return `Klub dopłaca do autobusów i biletów (${k(c)}). Stadion pełny, nadawca chwali się ujęciami trybun.`
+        },
+      },
+    ],
+  },
+  {
+    id: 'wlasciciel_rozmowa',
+    minLevel: 6,
+    condition: (s) => s.trust.board < 40,
+    text: 'Właściciel klubu zaprasza Cię na „rozmowę o kierunku projektu” do biura na 22. piętrze. W sekretariacie siedzi znany trener bez pracy.',
+    options: [
+      {
+        label: 'Obiecaj wygraną w najbliższym meczu',
+        apply: ({ s }) => {
+          trust(s, 8, 0, 0)
+          coach(s, 8)
+          s.flags.obietnicaWygranej = s.round
+          return 'Właściciel przyjął deklarację. Trener z sekretariatu też ją słyszał.'
+        },
+      },
+      {
+        label: 'Przedstaw raport z danymi i planem',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.55)) {
+            trust(s, 10, 0, 0)
+            return 'Właściciel lubi liczby. Wskaźnik xG po Twojej stronie, kredyt zaufania przedłużony.'
+          }
+          trust(s, -4, 0, 0)
+          coach(s, 4)
+          return '„xG nie wpisuje się do tabeli” – podsumował właściciel i zerknął na zegarek.'
+        },
+      },
+      {
+        label: 'Zażądaj wzmocnień w zimowym oknie',
+        apply: ({ s, rng }) => {
+          if (rng.chance(0.45)) {
+            s.budget += money(s, 800)
+            trust(s, 2, 3, 0)
+            return 'Właściciel dorzuca pieniądze na transfery. „Ale to ostatni raz” – dodaje przy drzwiach.'
+          }
+          trust(s, -8, 2, 0)
+          coach(s, 6)
+          return 'Właściciel uznał, że trener „szuka wymówek”. Znany trener z sekretariatu uśmiechnął się pod nosem.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'kontuzja_kadra_mlodziezowa',
+    minLevel: 6,
+    maxLevel: 7,
+    player: (p) => p.age <= 21 && p.apps >= 2 && p.injuredFor === 0,
+    text: '{p} dostał powołanie do młodzieżowej reprezentacji na zgrupowanie w środku rundy. Klub może poprosić PZPN o zwolnienie.',
+    options: [
+      {
+        label: 'Puść go, to wyróżnienie',
+        apply: ({ s, p, rng }) => {
+          setMorale(p!, 12)
+          p!.progress += 0.4
+          trust(s, 1, 0, 3)
+          if (rng.chance(0.2)) {
+            p!.injuredFor = Math.max(p!.injuredFor, 2)
+            return '{ps} wrócił z kadry z doświadczeniem i skręconą kostką. Dwa mecze przerwy.'
+          }
+          return '{ps} wrócił z kadry pewniejszy siebie. Skauci zapisali nazwisko.'
+        },
+      },
+      {
+        label: 'Poproś o zwolnienie, jest potrzebny',
+        apply: ({ s, p }) => {
+          setMorale(p!, -12)
+          trust(s, 2, 0, -2)
+          return '{ps} zostaje w klubie. Przez tydzień nie odzywa się do nikogo ze sztabu.'
         },
       },
     ],

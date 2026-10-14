@@ -5,7 +5,8 @@ import { club, clubLeague, computeTable, cupsOf, formatMoney, promotionSlots, re
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
 import type { Cup, CupTie, Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
-import { avgRating, wageBill } from '../game/util'
+import { avgRating, wageBill, withRng } from '../game/util'
+import { acceptDemand, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 
@@ -409,6 +410,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
               <th>Wiek</th>
               <th>Um.</th>
               <th>Pot.</th>
+              <th title="Sezony do końca umowy">Umowa</th>
               <th>Forma</th>
               <th>Śr. ocen</th>
               <th>Morale</th>
@@ -437,6 +439,9 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                   <b>{p.skill}</b>
                 </td>
                 <td className="muted">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
+                <td>
+                  <Contract p={p} />
+                </td>
                 <td>
                   <Form v={p.form} />
                 </td>
@@ -520,6 +525,57 @@ export function TacticView({ s, act }: { s: GameState; act: Act }) {
 
 // ---------- transfery ----------
 
+function Contract({ p }: { p: Player }) {
+  const c = p.contract ?? 1
+  if (c <= 0) return <span className="warn-text">wygasa</span>
+  return <span className={c === 1 ? 'warn-text' : 'muted'}>{c} sez.</span>
+}
+
+/** rozmowy o nowych umowach: wygasające i w ostatnim roku */
+function ContractTalks({ s, act }: { s: GameState; act: Act }) {
+  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1).sort((a, b) => (a.contract ?? 1) - (b.contract ?? 1) || b.skill - a.skill)
+  if (!talks.length) return null
+  const bill = wageBill(s)
+  return (
+    <>
+      <h2>Umowy do przedłużenia</h2>
+      <p className="small muted">
+        Zawodnicy z wygasłą umową odejdą za darmo, jeśli nie podpiszą nowej przed zamknięciem okna. Tym w ostatnim roku umowy możesz ją przedłużyć już
+        teraz. Targowanie się może zbić pensję o 15%, ale drugie podejście kończy rozmowy.
+      </p>
+      <div className="bids">
+        {talks.map((p) => {
+          const demand = p.haggled ?? wageDemand(s, p)
+          const years = wantedYears(p)
+          const over = bill - p.wage + demand > s.wageLimit
+          return (
+            <div key={p.id} className="bid">
+              <div>
+                <span className={`pos pos-${p.pos}`}>{p.pos}</span> <b>{playerName(p)}</b> ({p.age} l., um. {p.skill}) · <Contract p={p} />
+                <div className="small muted">
+                  Teraz {formatMoney(p.wage)}/mies. · chce <b>{formatMoney(demand)}</b> na {years} {years === 1 ? 'sezon' : 'sezony'} · średnia ocen{' '}
+                  {avgRating(p)?.toFixed(2) ?? '–'} · morale {p.morale}
+                  {p.talksOver ? ' · zerwał rozmowy' : p.haggled ? ' · nie zejdzie niżej' : ''}
+                  {over ? ' · przekroczy limit pensji' : ''}
+                </div>
+              </div>
+              <div className="row">
+                <button className="tiny primary" disabled={p.talksOver || over} onClick={() => act((g) => acceptDemand(g, p.id))}>
+                  Podpisz
+                </button>
+                <button className="tiny" disabled={p.talksOver} onClick={() => act((g) => withRng(g, (rng) => haggle(rng, g, p.id)))}>
+                  Targuj się
+                </button>
+                <ConfirmButton className="tiny ghost" label="Pożegnaj" confirmLabel="Na pewno?" disabled={s.squad.length <= MIN_SQUAD} onConfirm={() => act((g) => letGo(g, p.id))} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
 export function TransferView({ s, act }: { s: GameState; act: Act }) {
   const bill = wageBill(s)
   return (
@@ -533,6 +589,8 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
           Kadra {s.squad.length} (min. {MIN_SQUAD}, maks. {MAX_SQUAD})
         </span>
       </div>
+
+      <ContractTalks s={s} act={act} />
 
       {s.bids.length > 0 && (
         <>
@@ -578,6 +636,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
               <th>Wiek</th>
               <th>Um.</th>
               <th>Pot.</th>
+              <th title="Długość umowy, którą podpisze">Umowa</th>
               <th className="left">Skąd</th>
               <th>Cena</th>
               <th>Pensja</th>
@@ -601,6 +660,9 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                     <b>{p.skill}</b>
                   </td>
                   <td className="muted">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
+                  <td>
+                    <Contract p={p} />
+                  </td>
                   <td className="left small">{from}</td>
                   <td>{fee ? formatMoney(fee) : 'za darmo'}</td>
                   <td className={overWage ? 'warn-text' : ''}>{formatMoney(p.wage)}</td>
@@ -623,7 +685,9 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
       {!s.transferList.length && <p className="muted">Rynek pusty. Wszyscy dobrzy poszli do rywala.</p>}
 
       <h2>Sprzedaż</h2>
-      <p className="small muted">Szybka sprzedaż daje 70% wartości. Lepsze pieniądze dają oferty innych klubów.</p>
+      <p className="small muted">
+        Szybka sprzedaż daje 70% wartości, a zawodnik w ostatnim roku umowy tylko 45%. Lepsze pieniądze dają oferty innych klubów.
+      </p>
       <div className="scroll-x">
         <table className="table">
           <thead>
@@ -632,6 +696,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
               <th className="left">Zawodnik</th>
               <th>Wiek</th>
               <th>Um.</th>
+              <th>Umowa</th>
               <th>Śr. ocen</th>
               <th>Wartość</th>
               <th>Pensja</th>
@@ -653,6 +718,9 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   <b>{p.skill}</b>
                 </td>
                 <td>
+                  <Contract p={p} />
+                </td>
+                <td>
                   <Rating r={avgRating(p)} />
                 </td>
                 <td className="muted">{formatMoney(p.value)}</td>
@@ -662,7 +730,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                     className="tiny"
                     disabled={s.squad.length <= MIN_SQUAD}
                     label="Sprzedaj"
-                    confirmLabel={`Za ${formatMoney(Math.round((p.value * 0.7) / 100) * 100)}?`}
+                    confirmLabel={`Za ${formatMoney(Math.round((p.value * ((p.contract ?? 1) <= 1 ? 0.45 : 0.7)) / 100) * 100)}?`}
                     onConfirm={() => act((g) => sellPlayer(g, p.id))}
                   />
                 </td>

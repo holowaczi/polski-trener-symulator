@@ -79,7 +79,8 @@ export function sellPlayer(s: GameState, playerId: number): string {
   const p = s.squad.find((x) => x.id === playerId)
   if (!p) return ''
   if (s.squad.length <= MIN_SQUAD) return `Kadra nie może mieć mniej niż ${MIN_SQUAD} zawodników.`
-  const price = Math.round((p.value * 0.7) / 100) * 100
+  // w ostatnim roku umowy zawodnik jest wart dużo mniej
+  const price = Math.round((p.value * ((p.contract ?? 1) <= 1 ? 0.45 : 0.7)) / 100) * 100
   s.budget += price
   const extra = departureEffects(s, p)
   const msg = `${playerName(p)} sprzedany za ${formatMoney(price)}.${extra}`
@@ -115,7 +116,7 @@ export function makeBid(rng: Rng, s: GameState, p: Player): Bid | undefined {
   const level = rng.pick(levels)
   if (p.skill < LEVELS[level].base - 4) return undefined
   const teamId = rng.pick(teamsAtLevel(s, level).filter((id) => id !== t.id))
-  const fee = Math.round((p.value * (0.8 + rng.next() * 0.7)) / 100) * 100
+  const fee = Math.round((p.value * (0.8 + rng.next() * 0.7) * ((p.contract ?? 1) <= 1 ? 0.65 : 1)) / 100) * 100
   return { playerId: p.id, teamId, fee }
 }
 
@@ -190,14 +191,3 @@ export function counterBid(s: GameState, playerId: number): string {
 }
 
 /** przedłużenie kontraktów po sezonie: lepsi gracze chcą więcej */
-export function renewWages(s: GameState): string[] {
-  const notes: string[] = []
-  for (const p of s.squad) {
-    const fair = wageFor(p.skill)
-    if (fair > p.wage * 1.15) {
-      p.wage = fair
-      notes.push(`${playerName(p)} wywalczył podwyżkę do ${formatMoney(fair)}/mies.`)
-    }
-  }
-  return notes.slice(0, 4)
-}

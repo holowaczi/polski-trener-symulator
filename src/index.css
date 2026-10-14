@@ -955,3 +955,57 @@ blockquote {
   cursor: pointer;
   margin: 4px 0;
 }
+
+.hud-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .hud-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.hud-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.hud-kicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hud-card .bars {
+  grid-template-columns: 1fr;
+}
+.profile .bars {
+  max-width: 420px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 8px 0 12px;
+}
+.facts dt {
+  color: var(--muted);
+}
+.facts dd {
+  margin: 0;
+}
+.reasons {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+.hud-card .bars {
+  margin-top: 2px;
+  gap: 4px;
+}
+@media (max-width: 640px) {
+  /* na telefonie dwa profile zajęłyby pół ekranu, więc nagłówek przewija się z resztą */
+  .hud {
+    position: static;
+  }
+}

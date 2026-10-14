@@ -46,6 +46,12 @@ export interface Player {
   value: number
   /** pensja miesięczna w zł */
   wage: number
+  /** sezony do końca umowy (0 = umowa wygasła, trzeba negocjować w oknie) */
+  contract?: number
+  /** żądanie po nieudanym targowaniu: kolejna próba zrywa rozmowy */
+  haggled?: number
+  /** zawodnik zerwał rozmowy o nowej umowie */
+  talksOver?: boolean
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -286,6 +292,9 @@ export interface GameState {
   winterWindowDone: boolean
   hiringNote?: string
   retireReason?: string
+  /** ostatnia prośba do prezesa o pieniądze */
+  lastAsk?: { season: number; round: number }
+  asksThisSeason?: number
   /** wybrany start kariery: od niego zależy mnożnik punktów */
   start?: StartInfo
 }

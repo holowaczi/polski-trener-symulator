@@ -169,6 +169,8 @@ export function newPlayer(
     wage: 0,
     ...p,
   }
+  // długość umowy bez losowania, żeby nie zmieniać przebiegu świata: 1–3 sezony
+  if (full.contract === undefined) full.contract = 1 + ((full.id * 7 + full.age) % 3)
   full.value = playerValue(full)
   full.wage = wageFor(full.skill)
   return full

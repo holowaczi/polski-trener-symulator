@@ -1,8 +1,9 @@
 import { licenseCovers, startMultiplier } from './score'
+import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { COACH_QUOTES, LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
-import { departureEffects, generateBids, makeBid, refreshTransferList, renewWages, wageLimitFor } from './market'
+import { departureEffects, generateBids, makeBid, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
 import type { Cup, CupTie, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
@@ -680,7 +681,28 @@ function resolveSeasonBid(s: GameState, playerId: number, fee: number, teamId: n
 
 // ---------- okno transferowe ----------
 
+/** za mało ludzi do gry: kierownik drużyny ściąga bezrobotnych z okolicy */
+function fillSquad(s: GameState): void {
+  const t = club(s)
+  if (!t || s.squad.length >= MIN_SQUAD + 2) return
+  const added: string[] = []
+  withRng(s, (rng) => {
+    const need: Position[] = ['BR', 'OBR', 'POM', 'NAP']
+    while (s.squad.length < MIN_SQUAD + 2) {
+      const pos = s.squad.filter((p) => p.pos === 'BR').length < 2 ? 'BR' : need[1 + (s.squad.length % 3)]
+      const p = generatePlayer(rng, s, t.level, pos, { skillOffset: -5 })
+      p.wage = Math.round((wageFor(p.skill) * 0.8) / 50) * 50
+      p.contract = 1
+      s.squad.push(p)
+      added.push(playerName(p))
+    }
+  })
+  news(s, `Brakowało ludzi do gry. Kierownik drużyny ściągnął wolnych zawodników: ${added.join(', ')}.`)
+}
+
 export function finishTransfers(s: GameState): void {
+  expireContracts(s)
+  fillSquad(s)
   s.bids = []
   s.phase = 'season'
   if (isSeasonOver(s)) endSeason(s)
@@ -771,6 +793,31 @@ const OFFER_NOTES = [
 // ---------- koniec sezonu ----------
 
 /** po sezonie: wiek, spadek formy fizycznej u starszych, emerytury, juniorzy */
+/** co robią po karierze piłkarze z niższych lig */
+const AFTER_CAREER_AMATEUR = [
+  'Otwiera warsztat samochodowy.',
+  'Przejmuje gospodarstwo po ojcu. Na mecze będzie przyjeżdżał ciągnikiem.',
+  'Zostaje trenerem trampkarzy. Już krzyczy na dzieci jak Ty na niego.',
+  'Zaczyna sędziować. Szatnia uznaje to za zdradę.',
+  'Wyjeżdża do Holandii na budowę. Obiecuje wrócić na mecz oldbojów.',
+  'Otwiera budkę z kebabem przy stadionie. Dla drużyny rabat 10%.',
+  'Startuje na sołtysa. Hasło wyborcze: „Gram do końca”.',
+  'Gra dalej w oldbojach. Mówi, że to zupełnie inna piłka.',
+  'Zostaje kierownikiem drużyny. Wreszcie ktoś będzie pamiętał o kluczach.',
+  'Prowadzi szkółkę piłkarską w gminie. Zapisało się 40 dzieci i jeden dziadek.',
+]
+const AFTER_CAREER_PRO = [
+  'Zostaje ekspertem w telewizji. Już krytykuje Twoją taktykę.',
+  'Dostaje pracę w akademii klubu.',
+  'Otwiera agencję menedżerską. Pierwszym klientem jest jego syn.',
+  'Zostaje dyrektorem sportowym w klubie z niższej ligi.',
+  'Robi kurs trenerski. Mówi, że chce iść Twoją drogą, tylko lepiej.',
+  'Zakłada kanał na YouTube o przygotowaniu fizycznym.',
+  'Wraca do rodzinnej miejscowości i gra jeszcze sezon w okręgówce, dla przyjemności.',
+  'Zostaje skautem. Twierdzi, że widzi talenty, których nikt nie widzi.',
+  'Zostaje asystentem trenera w reprezentacji młodzieżowej.',
+]
+
 function agePlayers(rng: Rng, s: GameState): string[] {
   const notes: string[] = []
   const level = club(s)?.level ?? 0
@@ -792,13 +839,17 @@ function agePlayers(rng: Rng, s: GameState): string[] {
     p.benchStreak = 0
     p.value = playerValue(p)
   }
-  const retiring = s.squad.filter((p) => (p.age >= 35 && rng.chance(0.5)) || p.age >= 39)
-  for (const p of retiring) notes.push(`${playerName(p)} (${p.age} l.) kończy karierę. Otwiera warsztat samochodowy.`)
+  // kończą głównie ci, którym wygasa umowa
+  const retiring = s.squad.filter(
+    (p) => p.age >= 39 || (p.age >= 35 && rng.chance((p.contract ?? 1) <= 1 ? 0.6 : 0.25)) || (p.age >= 33 && (p.contract ?? 1) <= 1 && rng.chance(0.2)),
+  )
+  for (const p of retiring) notes.push(`${playerName(p)} (${p.age} l.) kończy karierę. ${rng.pick(level >= 6 ? AFTER_CAREER_PRO : AFTER_CAREER_AMATEUR)}`)
   s.squad = s.squad.filter((p) => !retiring.includes(p))
   for (let i = 0; i < 2; i++) {
     const pos = rng.pick(['OBR', 'POM', 'NAP', 'POM', 'BR'] as Position[])
     const j = generatePlayer(rng, s, level, pos, { age: rng.int(16, 18), skillOffset: -2 })
     j.wage = Math.round(wageFor(j.skill) * 0.5)
+    j.contract = 3
     if (s.squad.length < 28) {
       s.squad.push(j)
       notes.push(`Z juniorów awansuje ${playerName(j)} (${j.age} l., ${j.pos}).`)
@@ -883,7 +934,7 @@ export function endSeason(s: GameState): void {
     }
     if (t) {
       summary.push(...agePlayers(rng, s))
-      summary.push(...renewWages(s))
+      summary.push(...seasonContracts(s))
       const last = s.history[s.history.length - 1]
       if (last?.position !== undefined && last.position <= 2) {
         const lg = clubLeague(s)!
@@ -926,6 +977,7 @@ export function endSeason(s: GameState): void {
 }
 
 function startNewSeasonWorld(s: GameState): void {
+  s.asksThisSeason = 0
   s.season++
   s.round = 0
   s.winterWindowDone = false
