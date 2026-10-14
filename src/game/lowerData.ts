@@ -139,7 +139,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,klasa-okregowa-kujawsko-pomorska-grupa-i-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "Klasa okręgowa",
-      group: "grupa I",
+      group: "gr. I",
       clubs: [
         { name: "Polonia Bydgoszcz", town: "Bydgoszcz" },
         { name: "Legia Chełmża", town: "Chełmża" },
@@ -379,7 +379,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://www.podkarpacielive.pl/iv-liga-mazowiecka
     {
       tier: "IV liga",
-      group: "IV liga mazowiecka",
+      group: "mazowiecka",
       clubs: [
         { name: "Broń Radom", town: "Radom" },
         { name: "Błonianka Błonie", town: "Błonie" },
@@ -404,7 +404,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Mazowieckie/5_Liga/mazowiecka_II/
     {
       tier: "V liga",
-      group: "V liga mazowiecka II",
+      group: "mazowiecka II",
       clubs: [
         { name: "Józefovia Józefów", town: "Józefów" },
         { name: "Wilga Garwolin", town: "Garwolin" },
@@ -473,7 +473,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Malopolskie/4_Liga/malopolska/
     {
       tier: "IV liga",
-      group: "IV liga małopolska",
+      group: "małopolska",
       clubs: [
         { name: "Beskid Andrychów", town: "Andrychów" },
         { name: "Bocheński KS", town: "Bocheński" },
@@ -498,7 +498,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Malopolskie/5_Liga/malopolska_zachod/
     {
       tier: "V liga",
-      group: "V liga małopolska – zachód",
+      group: "małopolska – zachód",
       clubs: [
         { name: "Michałowianka Michałowice", town: "Michałowice" },
         { name: "Wróblowianka Kraków", town: "Kraków" },
@@ -565,7 +565,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Opolskie/4_Liga/opolska/
     {
       tier: "IV liga",
-      group: "IV liga opolska",
+      group: "opolska",
       clubs: [
         { name: "Odra II Opole", town: "Opole", reserve: true },
         { name: "LZS Starowice Dolne", town: "Dolne" },
@@ -653,7 +653,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://nowiny24.pl/poznalismy-terminarz-rundy-jesiennej-4-ligi-podkarpackiej-w-sezonie-2026-2027/ar/c2p2-29160205
     {
       tier: "IV liga",
-      group: "IV liga podkarpacka",
+      group: "podkarpacka",
       clubs: [
         { name: "Błękitni Ropczyce", town: "Ropczyce" },
         { name: "Czarni 1910 Jasło", town: "Jasło" },
@@ -742,7 +742,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,iv-liga-podlaska-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "IV liga",
-      group: "IV liga podlaska",
+      group: "podlaska",
       clubs: [
         { name: "KS Wasilków", town: "Wasilków" },
         { name: "Warmia Grajewo", town: "Grajewo" },
@@ -765,7 +765,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,klasa-okregowa-podlaska-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "Klasa okręgowa",
-      group: "klasa okręgowa podlaska (single group)",
+      group: "podlaska",
       clubs: [
         { name: "MOSP Białystok", town: "Białystok" },
         { name: "KS II Wasilków", town: "Wasilków", reserve: true },
@@ -788,7 +788,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,klasa-a-grupa-podlaska-ii-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "Klasa A",
-      group: "grupa 2 (Białystok)",
+      group: "gr. 2 (Białystok)",
       clubs: [
         { name: "GKS Grabówka", town: "Grabówka" },
         { name: "Kora Korycin", town: "Korycin" },
@@ -809,7 +809,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://podlaskizpn.org/wp-content/uploads/2026/07/Kalendarz-rozgrywek-seniorskich-runda-jesienna-2026-27.pdf
     {
       tier: "Klasa B",
-      group: "none",
+      group: "podlaskie",
       clubs: [
 
       ],
@@ -819,7 +819,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,iv-liga-pomorska-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "IV liga",
-      group: "IV liga pomorska",
+      group: "pomorska",
       clubs: [
         { name: "Czarni Pruszcz Gdański", town: "Pruszcz Gdański" },
         { name: "Cartusia Kartuzy", town: "Kartuzy" },
@@ -910,7 +910,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Warminsko-Mazurskie/Superscore_IV_Liga/WMZPN/
     {
       tier: "IV liga",
-      group: "IV liga warmińsko-mazurska",
+      group: "warmińsko-mazurska",
       clubs: [
         { name: "Stomil Olsztyn", town: "Olsztyn" },
         { name: "Concordia Elbląg", town: "Elbląg" },
@@ -933,7 +933,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Warminsko-Mazurskie/Klasa_okregowa/warminsko-mazurska_I/
     {
       tier: "Klasa okręgowa",
-      group: "klasa okręgowa warmińsko-mazurska gr. I",
+      group: "warmińsko-mazurska gr. I",
       clubs: [
         { name: "Mrągowia Mrągowo", town: "Mrągowo" },
         { name: "SKS Gwardia Szczytno", town: "Szczytno" },
@@ -956,7 +956,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Warminsko-Mazurskie/Klasa_A/warminsko-mazurska_III/
     {
       tier: "Klasa A",
-      group: "klasa A warmińsko-mazurska gr. III",
+      group: "warmińsko-mazurska gr. III",
       clubs: [
         { name: "KS Łęgajny", town: "Łęgajny" },
         { name: "Fortuna Gągławki", town: "Gągławki" },
@@ -976,7 +976,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Warminsko-Mazurskie/Klasa_B/warminsko-mazurska_III/
     {
       tier: "Klasa B",
-      group: "klasa B warmińsko-mazurska gr. III",
+      group: "warmińsko-mazurska gr. III",
       clubs: [
         { name: "GLKS Jonkowo", town: "Jonkowo" },
         { name: "GKS Gietrzwałd/Unieszewo", town: "Gietrzwałd/Unieszewo" },
@@ -997,7 +997,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Wielkopolskie/4_Liga/wielkopolska/
     {
       tier: "IV liga",
-      group: "IV liga wielkopolska",
+      group: "wielkopolska",
       clubs: [
         { name: "Górnik Konin", town: "Konin" },
         { name: "Pogoń Nowe Skalmierzyce", town: "Nowe Skalmierzyce" },
@@ -1022,7 +1022,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Wielkopolskie/5_Liga/wielkopolska_II/
     {
       tier: "V liga",
-      group: "V liga wielkopolska gr. II",
+      group: "wielkopolska gr. II",
       clubs: [
         { name: "Stella Luboń", town: "Luboń" },
         { name: "Wiara Lecha Poznań", town: "Poznań" },
@@ -1045,7 +1045,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Wielkopolskie/Klasa_okregowa/wielkopolska_II/
     {
       tier: "Klasa okręgowa",
-      group: "klasa okręgowa wielkopolska gr. II (Poznań)",
+      group: "wielkopolska gr. II (Poznań)",
       clubs: [
         { name: "Clescevia Kleszczewo", town: "Kleszczewo" },
         { name: "Polonia Poznań", town: "Poznań" },
@@ -1068,7 +1068,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Wielkopolskie/Klasa_A/wielkopolska_IV/
     {
       tier: "Klasa A",
-      group: "klasa A wielkopolska gr. IV (Poznań)",
+      group: "wielkopolska gr. IV (Poznań)",
       clubs: [
         { name: "Kotwica II Kórnik", town: "Kórnik", reserve: true },
         { name: "Victoria II Września", town: "Września", reserve: true },
@@ -1091,7 +1091,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Zachodniopomorskie/4_Liga/zachodniopomorska/
     {
       tier: "IV liga",
-      group: "IV liga zachodniopomorska",
+      group: "zachodniopomorska",
       clubs: [
         { name: "Pogoń II Szczecin", town: "Szczecin", reserve: true },
         { name: "Wybrzeże Rewalskie Rewal", town: "Rewal" },
@@ -1114,7 +1114,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Zachodniopomorskie/Klasa_okregowa/zachodniopomorska_II/
     {
       tier: "Klasa okręgowa",
-      group: "klasa okręgowa zachodniopomorska gr. II (Szczecin)",
+      group: "zachodniopomorska gr. II (Szczecin)",
       clubs: [
         { name: "KS Wołczkowo-Bezrzecze", town: "Wołczkowo-Bezrzecze" },
         { name: "Rybak Trzebież", town: "Trzebież" },
@@ -1137,7 +1137,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Zachodniopomorskie/Klasa_A/zachodniopomorska_II/
     {
       tier: "Klasa A",
-      group: "klasa A zachodniopomorska gr. II (Szczecin)",
+      group: "zachodniopomorska gr. II (Szczecin)",
       clubs: [
         { name: "Grot Gardno", town: "Gardno" },
         { name: "Salos Szczecin", town: "Szczecin" },
@@ -1157,7 +1157,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/kalendarz/Pilka_Nozna/2026/2027/Zachodniopomorskie/Klasa_B/zachodniopomorska_II/
     {
       tier: "Klasa B",
-      group: "klasa B zachodniopomorska gr. II (Szczecin)",
+      group: "zachodniopomorska gr. II (Szczecin)",
       clubs: [
         { name: "Świt III Szczecin", town: "Szczecin", reserve: true },
         { name: "Okręt II Szczecin", town: "Szczecin", reserve: true },
@@ -1177,7 +1177,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://lzpn.org/aktualno%C5%9Bci/znamy-terminarz-iv-ligi-%C5%82%C3%B3dzkiej/
     {
       tier: "IV liga",
-      group: "IV liga łódzka",
+      group: "łódzka",
       clubs: [
         { name: "AKS SMS Łódź", town: "Łódź" },
         { name: "Boruta Zgierz", town: "Zgierz" },
@@ -1267,7 +1267,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,iv-liga-slaska-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "IV liga",
-      group: "IV liga śląska",
+      group: "śląska",
       clubs: [
         { name: "Unia Turza Śląska", town: "Turza Śląska" },
         { name: "Ruch Radzionków", town: "Radzionków" },
@@ -1292,7 +1292,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,v-liga-slaska-grupa-i-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "V liga",
-      group: "grupa I",
+      group: "gr. I",
       clubs: [
         { name: "Gwarek Ornontowice", town: "Ornontowice" },
         { name: "Pilica Koniecpol", town: "Koniecpol" },
@@ -1315,7 +1315,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regionalnyfutbol.pl/liga,klasa-okregowa-slaska-grupa-iv-sosnowiec-katowice-sezon-2026-2027,tabela-terminarz.html
     {
       tier: "Klasa okręgowa",
-      group: "grupa IV (Sosnowiec-Katowice)",
+      group: "gr. IV (Sosnowiec-Katowice)",
       clubs: [
         { name: "Górnik Wojkowice", town: "Wojkowice" },
         { name: "Ostoja Żelisławice", town: "Żelisławice" },
@@ -1359,7 +1359,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Swietokrzyskie/4_Liga/swietokrzyska/
     {
       tier: "IV liga",
-      group: "IV liga świętokrzyska",
+      group: "świętokrzyska",
       clubs: [
         { name: "Arka Pawłów", town: "Pawłów" },
         { name: "Orlęta Kielce", town: "Kielce" },
@@ -1384,7 +1384,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Swietokrzyskie/Klasa_okregowa/swietokrzyska/
     {
       tier: "Klasa okręgowa",
-      group: "klasa okręgowa świętokrzyska",
+      group: "świętokrzyska",
       clubs: [
         { name: "Partyzant Radoszyce", town: "Radoszyce" },
         { name: "Nida Pińczów", town: "Pińczów" },
@@ -1407,7 +1407,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Swietokrzyskie/Klasa_A/Kielce_I/
     {
       tier: "Klasa A",
-      group: "klasa A Kielce I",
+      group: "Kielce I",
       clubs: [
         { name: "GLKS Fałków", town: "Fałków" },
         { name: "Moravia II Morawica", town: "Morawica", reserve: true },
@@ -1426,7 +1426,7 @@ export const LOWER_LEAGUES: Record<string, LowerGroup[]> = {
     // https://regiowyniki.pl/wyniki/Pilka_Nozna/2026/2027/20261014/mecze/Swietokrzyskie/Klasa_B/Kielce_I/
     {
       tier: "Klasa B",
-      group: "klasa B Kielce I",
+      group: "Kielce I",
       clubs: [
         { name: "Orlicz II Suchedniów", town: "Suchedniów", reserve: true },
         { name: "Spartakus II Daleszyce", town: "Daleszyce", reserve: true },
