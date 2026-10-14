@@ -39,6 +39,7 @@ npm install
 npm run dev      # tryb deweloperski
 npm test         # testy logiki gry
 npm run build    # wersja produkcyjna w dist/
+BALANCE=1 npx vitest run src/game/balance.test.ts   # pomiar balansu na 16 karierach
 ```
 
 ## Struktura

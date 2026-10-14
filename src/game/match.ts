@@ -124,18 +124,18 @@ export function styleFit(s: GameState, xi: Player[], level: number): { value: nu
   const midAvg = avg(xi.filter((p) => p.pos === 'POM').map((p) => p.skill))
   switch (s.tactic.style) {
     case 'laga':
-      if (level <= 2) return { value: 2, note: 'Laga na tym poziomie to sztuka wojenna.' }
-      if (level <= 4) return { value: 1, note: 'Laga jeszcze działa, ale obrońcy zaczynają rozumieć.' }
-      return { value: -2, note: 'Na tym poziomie laga to podanie do rywala.' }
+      if (level <= 2) return { value: 1, note: 'Laga na tym poziomie to sztuka wojenna.' }
+      if (level <= 4) return { value: 0.5, note: 'Laga jeszcze działa, ale obrońcy zaczynają rozumieć.' }
+      return { value: -1.5, note: 'Na tym poziomie laga to podanie do rywala.' }
     case 'pressing':
-      if (age < 25) return { value: 2, note: 'Młoda kadra biega jak nakręcona.' }
-      if (age < 27.5) return { value: 1, note: 'Pressing jest, ale do 60. minuty.' }
-      return { value: -3, note: 'Weterani pressują głównie sędziego.' }
+      if (age < 25) return { value: 1, note: 'Młoda kadra biega jak nakręcona.' }
+      if (age < 27.5) return { value: 0.5, note: 'Pressing jest, ale do 60. minuty.' }
+      return { value: -2, note: 'Weterani pressują głównie sędziego.' }
     case 'posiadanie':
-      if (level <= 1) return { value: -2, note: 'Na tej murawie piłka sama zmienia kierunek.' }
-      if (midAvg - mean >= 2) return { value: 2, note: 'Pomocnicy klepią jak w Barcelonie.' }
-      if (midAvg - mean >= -1) return { value: 1, note: 'Posiadanie jest, strzałów mniej.' }
-      return { value: -2, note: 'Pomocnicy nie nadążają za własnym pomysłem.' }
+      if (level <= 1) return { value: -1.5, note: 'Na tej murawie piłka sama zmienia kierunek.' }
+      if (midAvg - mean >= 2) return { value: 1, note: 'Pomocnicy klepią jak w Barcelonie.' }
+      if (midAvg - mean >= -1) return { value: 0.5, note: 'Posiadanie jest, strzałów mniej.' }
+      return { value: -1.5, note: 'Pomocnicy nie nadążają za własnym pomysłem.' }
     case 'kontra':
       return { value: 0, note: 'Działa najlepiej przeciw silniejszym rywalom.' }
   }
@@ -153,7 +153,7 @@ export function teamBonus(s: GameState, xi: Player[]): { total: number; parts: {
   if (squad) parts.push({ label: 'Atmosfera w szatni', value: squad })
   if (s.coach.stress >= 70) parts.push({ label: 'Nerwowy trener', value: -1.5 })
   for (const m of s.modifiers) parts.push({ label: `${m.label} (${m.matches} m.)`, value: m.amount })
-  const total = parts.reduce((a, p) => a + p.value, 0) + s.coach.reputation / 100
+  const total = parts.reduce((a, p) => a + p.value, 0) + s.coach.reputation / 200
   return { total, parts }
 }
 
@@ -170,12 +170,24 @@ export function previewStrength(s: GameState): { att: number; def: number; overa
 // ---------- mecz AI ----------
 
 export function simulateScore(rng: Rng, hs: number, as: number, level: number): { hg: number; ag: number } {
-  const diff = hs + 2.5 - as
+  const diff = hs + HOME_ADV - as
   const goalsy = 1 + (7 - level) * 0.045
-  const lh = clamp(1.3 * Math.exp(diff / 16) * goalsy, 0.15, 6)
-  const la = clamp(1.05 * Math.exp(-diff / 16) * goalsy, 0.15, 6)
-  return { hg: rng.poisson(lh), ag: rng.poisson(la) }
+  const lh = clamp(1.3 * Math.exp(diff / 16) * goalsy, 0.15, 5)
+  const la = clamp(1.05 * Math.exp(-diff / 16) * goalsy, 0.15, 5)
+  let hg = rng.poisson(lh)
+  let ag = rng.poisson(la)
+  // przegrywający jednym golem rzuca wszystko do przodu i czasem wyrównuje (w prawdziwych ligach remisów jest więcej niż w czystym Poissonie)
+  if (Math.abs(hg - ag) === 1 && rng.chance(DRAW_PULL[level])) {
+    if (hg < ag) hg++
+    else ag++
+  }
+  return { hg, ag }
 }
+
+/** przewaga własnego boiska w punktach siły */
+export const HOME_ADV = 1.5
+/** szansa na wyrównanie przy jednobramkowej różnicy; na górze ligi grają ostrożniej */
+const DRAW_PULL = [0.06, 0.07, 0.07, 0.08, 0.09, 0.1, 0.1, 0.11]
 
 export function aiStrength(rng: Rng, s: GameState, teamId: number): number {
   return s.teams[teamId].strength + rng.normal(0, 2.5)
@@ -262,7 +274,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     const ls = lineStrength(active().map((x) => ({ p: x.p, v: effectiveSkill(x.p) + x.day * 2 })))
     let att = ls.att + bonus + ment.att
     const def = ls.def + bonus + ment.def
-    if (s.tactic.style === 'kontra' && oppStr > (att + def) / 2 + 2) att += 3
+    if (s.tactic.style === 'kontra' && oppStr > (att + def) / 2 + 2) att += 2
     return { att, def }
   }
   const startStr = strengthNow()
@@ -289,12 +301,16 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   for (let minute = 1; minute <= 90; minute++) {
     if ((minute - 1) % 15 === 0) {
       const { att, def } = strengthNow()
-      const home = isHome ? 2.5 : -2.5
+      const home = isHome ? HOME_ADV : -HOME_ADV
       const oppA = oppStr - oppRed * 3
-      lMe = clamp(((1.1 * Math.exp((att - oppA + home) / 14)) / 90) * goalsy, 0.0007, 0.08)
-      lOpp = clamp(((0.95 * Math.exp((oppA - def - home) / 14)) / 90) * goalsy, 0.0007, 0.08)
+      lMe = clamp(((1.1 * Math.exp((att - oppA + home) / 14)) / 90) * goalsy, 0.0007, 0.06)
+      lOpp = clamp(((0.95 * Math.exp((oppA - def - home) / 14)) / 90) * goalsy, 0.0007, 0.06)
     }
-    if (rng.chance(lMe)) {
+    // w końcówce przegrywający jednym golem atakuje całą drużyną
+    const late = minute > 70 ? Math.abs(myGoals - oppGoals) === 1 : false
+    const pushMe = late && myGoals < oppGoals ? 1.35 + level * 0.03 : 1
+    const pushOpp = late && oppGoals < myGoals ? 1.35 + level * 0.03 : 1
+    if (rng.chance(lMe * pushMe)) {
       const pool = active()
       if (pool.length) {
         const scorer = weightedPick(rng, pool, (x) => {
@@ -315,7 +331,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
         events.push({ minute, text: `${minute}' ⚽ ${shortName(scorer.p)}${assist}` })
       }
     }
-    if (rng.chance(lOpp)) {
+    if (rng.chance(lOpp * pushOpp)) {
       oppGoals++
       events.push({ minute, text: `${minute}' ⚽ ${randomSurname(rng)} (${s.teams[opp].name})` })
     }
@@ -334,7 +350,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
         x.to = minute
         events.push({ minute, text: `${minute}' 🟥 ${shortName(x.p)} – czerwona kartka bezpośrednio!` })
       }
-      if (!x.red && rng.chance(x.p.traits.includes('szklany') ? 0.0007 : 0.0002)) {
+      if (!x.red && rng.chance(x.p.traits.includes('szklany') ? 0.0005 : 0.00014)) {
         x.injured = true
         x.to = minute
         events.push({ minute, text: `${minute}' ✚ ${shortName(x.p)} schodzi z urazem` })
@@ -365,8 +381,8 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   for (const x of pitch) {
     const minutes = x.to - x.from
     if (minutes <= 0 && !x.sub) continue
-    let r = 6 + x.day + (effectiveSkill(x.p) - oppStr) / 20 + clamp(diff * 0.25, -1, 1)
-    r += x.goals * 0.9 + x.assists * 0.5
+    let r = 6.3 + x.day + (effectiveSkill(x.p) - oppStr) / 20 + clamp(diff * 0.25, -1, 1)
+    r += x.goals * 0.75 + x.assists * 0.4
     if (x.p.pos === 'BR' || x.p.pos === 'OBR') r += oppGoals === 0 ? 0.5 : -oppGoals * (x.p.pos === 'BR' ? 0.25 : 0.12)
     if (x.yellow === 1) r -= 0.2
     if (x.red) r -= 1.5
@@ -380,7 +396,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     if (played.has(p.id)) continue
     if (isAvailable(p)) {
       p.benchStreak++
-      if (p.age <= 23 && p.skill < p.potential) p.progress += 0.03
+      if (p.age <= 23 && p.skill < p.potential) p.progress += p.age <= 20 ? 0.06 : 0.03
       if (p.benchStreak >= 3 && p.skill >= myStr - 2) setMorale(p, -4)
       else setMorale(p, -1)
       if (p.traits.includes('syn_prezesa')) adjustTrust(s, { board: -1.5 })
@@ -416,7 +432,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     else if (pts === 1) s.totalStats.d++
     else s.totalStats.l++
   }
-  const expected = 1 / (1 + Math.exp(-(myStr - oppStr + (isHome ? 2.5 : -2.5)) / 6))
+  const expected = 1 / (1 + Math.exp(-(myStr - oppStr + (isHome ? HOME_ADV : -HOME_ADV)) / 6))
   const actual = pts === 3 ? 1 : pts === 1 ? 0.45 : 0
   const surprise = actual - expected
   adjustTrust(s, {
@@ -460,6 +476,8 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     lines.push(`${incident.text} Skutek: ${incident.effect}.`)
   }
   const best = [...ratings].sort((a, b) => b.rating - a.rating)[0]
+  // jedna pochwała w gazecie na mecz, i to tylko za naprawdę wielki występ
+  if (best && best.rating >= 8.5) news(s, `${best.name} z oceną ${best.rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)
   if (best) lines.unshift(`Zawodnik meczu: ${best.name} (${best.rating.toFixed(1)}).`)
 
   return {
@@ -495,7 +513,6 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
   setMorale(p, (rating - 6.3) * 4)
   developFromMatch(p, rating)
 
-  if (rating >= 8.5) news(s, `${shortName(p)} z oceną ${rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)
   const notes: string[] = []
   if (x.red) {
     const ban = x.yellow >= 2 ? 1 : rng.int(1, 3)
@@ -530,7 +547,7 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
  */
 export function developFromMatch(p: Player, rating: number): void {
   const ageFactor = p.age <= 20 ? 1 : p.age <= 23 ? 0.8 : p.age <= 26 ? 0.5 : p.age <= 29 ? 0.25 : 0
-  const training = p.age <= 20 ? 0.08 : p.age <= 23 ? 0.06 : p.age <= 26 ? 0.03 : p.age <= 29 ? 0.01 : 0
+  const training = p.age <= 19 ? 0.11 : p.age <= 20 ? 0.09 : p.age <= 23 ? 0.06 : p.age <= 26 ? 0.03 : p.age <= 29 ? 0.01 : 0
   let delta = (rating - 6.0) * ageFactor * 0.1 + training
   if (p.traits.includes('talent')) delta *= 1.4
   if (p.traits.includes('pracus')) delta += 0.015

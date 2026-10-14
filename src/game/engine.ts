@@ -42,7 +42,7 @@ export function goalMet(goal: GoalType, pos: number, size: number, level: number
   return pos <= size - (SWAPS[level - 1] ?? 2)
 }
 
-const REP_NEEDED = [0, 6, 14, 24, 34, 46, 58, 70]
+const REP_NEEDED = [0, 6, 14, 24, 35, 48, 62, 76]
 
 function licenseIndex(l: GameState['coach']['license']): number {
   return LICENSES.indexOf(l)
@@ -169,7 +169,7 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   s.bids = []
   const offset = team.strength - LEVELS[team.level].base
   s.squad = withRng(s, (rng) => {
-    const sq = generateSquad(rng, s, team.level, offset - 1)
+    const sq = generateSquad(rng, s, team.level, offset - 2)
     // syn prezesa to tradycja klubowa
     if (team.level <= 4 && !team.reserve && rng.chance(0.7)) {
       const p = rng.pick(sq.filter((x) => x.pos !== 'BR'))
@@ -372,8 +372,16 @@ function playCupRound(rng: Rng, s: GameState, idx: number): void {
 function afterWeek(s: GameState): void {
   if (s.clubId === null) return
   if (s.trust.board < 12) {
-    fire(s, 'Prezes zadzwonił w niedzielę o 7 rano. Dziękujemy za współpracę.')
-    return
+    // prezes może być wściekły, ale lidera tabeli zwolnić nie wypada
+    const pos = clubPosition(s)
+    const size = clubLeague(s)!.teamIds.length
+    if (pos !== undefined && pos <= Math.ceil(size / 3) && s.trust.board >= 5) {
+      s.trust.board = 15
+      news(s, 'Prezes chciał Cię zwolnić, ale ktoś pokazał mu tabelę. Na razie zostajesz.')
+    } else {
+      fire(s, 'Prezes zadzwonił w niedzielę o 7 rano. Dziękujemy za współpracę.')
+      return
+    }
   }
   if (s.trust.squad < 15 && !s.modifiers.some((m) => m.label === 'Bunt w szatni')) {
     s.modifiers.push({ label: 'Bunt w szatni', amount: -3, matches: 3 })
@@ -624,7 +632,8 @@ function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean,
     const offers: JobOffer[] = []
     const rep = s.coach.reputation
     const minL = Math.max(0, aroundLevel - (afterFiring ? 2 : 1))
-    const maxL = Math.min(7, aroundLevel + (afterFiring ? 0 : 2))
+    // najwyżej szczebel wyżej: prezesi z wyższych lig rzadko ryzykują trenera prosto z dołu
+    const maxL = Math.min(7, aroundLevel + (afterFiring ? 0 : 1))
     for (let level = maxL; level >= minL; level--) {
       if (!licenseAllows(s, level)) continue
       const lg = s.leagues[level]
@@ -731,14 +740,15 @@ export function endSeason(s: GameState): void {
           ? `odpadł: ${cupRoundName(s.cup.eliminatedAt)}`
           : 'nie grał'
     summary.push(`${t.name}: ${outcome} (${lg.name}). Cel: ${goalLabel(s.goal, lg.level).toLowerCase()}, ${met ? 'wykonany' : 'niewykonany'}.`)
-    const repGain = (met ? 6 : -4) + (promoted ? 6 + lg.level : 0) + (pos === 1 ? 4 + lg.level : 0) - (relegated ? 6 : 0)
+    const repGain = (met ? 4 : -4) + (promoted ? 3 + Math.round(lg.level / 2) : 0) + (pos === 1 ? 2 + Math.round(lg.level / 2) : 0) - (relegated ? 6 : 0)
     adjustCoach(s, { reputation: repGain, stress: met ? -15 : 10 })
     adjustTrust(s, { board: met ? 15 : -20, fans: promoted ? 20 : relegated ? -20 : 0 })
     if (wageBill(s) > s.wageLimit) {
       adjustTrust(s, { board: -8 })
       summary.push('Zarząd jest zły, że pensje przekraczają limit.')
     }
-    if (s.trust.board < 30) fired = true
+    // mistrza i beniaminka z awansem nikt nie zwalnia, chyba że relacje z prezesem są tragiczne
+    if ((s.trust.board < 30 && !met && !promoted && pos !== 1) || s.trust.board < 10) fired = true
     s.history.push({ season: s.season, clubName: t.name, level: lg.level, leagueName: lg.name, position: pos, outcome, cup: cupText, fired })
     for (const p of s.squad) if (!s.bestPlayer || p.skill > s.bestPlayer.skill) s.bestPlayer = { name: playerName(p), skill: p.skill }
     const top = [...s.squad].sort((a, b) => b.goals - a.goals)[0]
@@ -786,7 +796,10 @@ export function endSeason(s: GameState): void {
 
   s.coach.age++
   s.coach.savings += t ? s.salary : 2_000
-  if (s.coach.courseLeft > 0) {
+  if (s.coach.courseLeft > 1) {
+    s.coach.courseLeft--
+    summary.push('Kurs trenerski trwa. Jeszcze jeden sezon zjazdów w weekendy.')
+  } else if (s.coach.courseLeft > 0) {
     s.coach.courseLeft = 0
     const next = LICENSES[licenseIndex(s.coach.license) + 1]
     if (next) {
@@ -852,8 +865,9 @@ export function startLicenseCourse(s: GameState): string {
   if (s.coach.reputation < course.rep) return `Na kurs ${next} potrzebujesz reputacji ${course.rep}.`
   if (s.coach.savings < course.cost) return `Kurs ${next} kosztuje ${formatMoney(course.cost)}. Nie stać Cię.`
   s.coach.savings -= course.cost
-  s.coach.courseLeft = 1
-  return `Zapisałeś się na kurs ${next}. Dyplom po zakończeniu sezonu.`
+  // UEFA A i Pro trwają dwa sezony, jak w prawdziwej szkole trenerów
+  s.coach.courseLeft = next === 'UEFA A' || next === 'UEFA Pro' ? 2 : 1
+  return `Zapisałeś się na kurs ${next}. Dyplom po ${s.coach.courseLeft === 1 ? 'zakończeniu sezonu' : 'dwóch sezonach'}.`
 }
 
 export function retire(s: GameState, reason: string): void {

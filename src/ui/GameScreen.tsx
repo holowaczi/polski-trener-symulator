@@ -266,7 +266,7 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
 
       <h3>Licencja trenerska</h3>
       {s.coach.courseLeft > 0 ? (
-        <p className="small">Jesteś na kursie {next}. Dyplom po kolejnym sezonie.</p>
+        <p className="small">Jesteś na kursie {next}. Dyplom po {s.coach.courseLeft === 1 ? 'kolejnym sezonie' : `${s.coach.courseLeft} sezonach`}.</p>
       ) : next && course ? (
         <div className="row">
           <span className="small">

@@ -23,7 +23,7 @@ export function refreshTransferList(s: GameState): void {
     for (const pos of positions) {
       const free = rng.chance(0.3)
       const p = generatePlayer(rng, s, t.level, pos, {
-        skillOffset: free ? -4 : rng.int(-2, 6),
+        skillOffset: free ? -4 : rng.int(-3, 4),
         foreign: rng.chance(t.level >= 4 ? 0.25 : 0.05),
       })
       // gwiazdy z niższych lig chcą więcej
