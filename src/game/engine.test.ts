@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS } from './data'
+import { LOWER_LEAGUES } from './lowerData'
 import { acceptBid, buyPlayer } from './market'
 import {
   acceptOffer,
@@ -113,5 +114,21 @@ describe('prawdziwe ligi', () => {
     expect(names(7)).toContain('Legia Warszawa')
     expect(names(7)).toHaveLength(18)
     expect(names(4)).toContain('Wisłoka Dębica')
+  })
+
+  it('niższe ligi z prawdziwymi klubami regionu', () => {
+    for (const region of Object.keys(LOWER_LEAGUES)) {
+      const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region, seed: 3 })
+      for (let level = 0; level <= 3; level++) {
+        const g = LOWER_LEAGUES[region][3 - level]
+        const lg = s.leagues[level]
+        expect(lg.teamIds).toHaveLength(LEVELS[level].size)
+        expect(new Set(lg.teamIds.map((id) => s.teams[id].name)).size).toBe(LEVELS[level].size)
+        if (!g?.clubs.length) continue
+        expect(lg.name.startsWith(g.tier)).toBe(true)
+        const real = lg.teamIds.filter((id) => g.clubs.some((c) => c.name === s.teams[id].name)).length
+        expect(real).toBe(Math.min(LEVELS[level].size, g.clubs.length))
+      }
+    }
   })
 })

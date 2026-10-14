@@ -1,5 +1,6 @@
 import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, NICKNAMES, TOWNS } from './data'
 import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
+import { LOWER_LEAGUES } from './lowerData'
 import type { Rng } from './rng'
 import type { Cup, CupTie, Fixture, GameState, League, Player, Position, Team, TraitId } from './types'
 
@@ -7,8 +8,16 @@ export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
+/** prawdziwa grupa ligowa dla poziomów 0–3 (IV liga i niżej), jeśli ją mamy */
+function lowerGroup(level: number, region: string) {
+  const g = LOWER_LEAGUES[region]?.[3 - level]
+  return g && g.clubs.length ? g : undefined
+}
+
 export function leagueName(level: number, region: string): string {
   if (level === 4) return `III liga (gr. ${REGION_GROUP[region] ?? 'I'})`
+  const g = level <= 3 ? lowerGroup(level, region) : undefined
+  if (g) return g.group === g.tier ? `${g.tier} · ${region}` : `${g.tier} · ${g.group}`
   if (level <= 3) return `${LEVELS[level].name} · ${region}`
   return LEVELS[level].name
 }
@@ -17,7 +26,7 @@ function villageName(rng: Rng): string {
   return `${rng.pick(TOWNS.villageA)} ${rng.pick(TOWNS.villageB)}`
 }
 
-/** Świat gry: prawdziwe ligi centralne i III liga z grupy gracza, niżej fikcyjne kluby z prawdziwych miejscowości regionu. */
+/** Świat gry: prawdziwe ligi od Ekstraklasy do B-klasy w regionie gracza; brakujące miejsca dopełniają fikcyjne kluby z prawdziwych miejscowości. */
 export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'leagues' | 'nextId'>, region: string): void {
   const used = new Set<string>()
   const towns = rng.shuffle([...(REGION_TOWNS[region] ?? TOWNS.small)])
@@ -44,10 +53,16 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
     else if (level === 4) ids = addReal(level, III_LIGA[REGION_GROUP[region] ?? 'I'])
     else {
       ids = []
+      // prawdziwe kluby z grupy w regionie, w losowej kolejności; brakujące miejsca dopełniamy fikcyjnymi
+      const real = rng.shuffle([...(lowerGroup(level, region)?.clubs ?? [])]).filter((c) => !used.has(c.name))
       for (let i = 0; i < lv.size; i++) {
         let name = ''
         let town = ''
-        for (let tries = 0; tries < 50; tries++) {
+        const reserve = real[i]?.reserve
+        if (real[i]) {
+          name = real[i].name
+          town = real[i].town
+        } else for (let tries = 0; tries < 50; tries++) {
           town = level >= 2 ? nextTown() : villageName(rng)
           name = `${rng.pick(CLUB_PREFIXES)} ${town}`
           if (!used.has(name)) break
@@ -56,7 +71,7 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
         const id = state.nextId++
         // w każdej lidze jest kilku faworytów i kilku outsiderów
         const tier = i < 2 ? 5 : i >= lv.size - 3 ? -4 : 0
-        state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + tier, 3.5)) }
+        state.teams[id] = { id, name, town, level, strength: Math.round(rng.normal(lv.base + tier, 3.5)), real: real[i] ? true : undefined, reserve }
         ids.push(id)
       }
     }

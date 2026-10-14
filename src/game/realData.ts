@@ -141,7 +141,7 @@ export const REGION_GROUP: Record<string, 'I' | 'II' | 'III' | 'IV'> = {
   małopolskie: 'IV',
 }
 
-/** prawdziwe miejscowości województw do klubów z niższych lig (same kluby są fikcyjne) */
+/** prawdziwe miejscowości województw dla fikcyjnych klubów, którymi dopełniamy niepełne grupy */
 export const REGION_TOWNS: Record<string, string[]> = {
   dolnośląskie: [
     'Oleśnica', 'Trzebnica', 'Milicz', 'Strzelin', 'Oława', 'Brzeg Dolny', 'Wołów', 'Środa Śląska', 'Jawor',

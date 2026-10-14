@@ -118,7 +118,7 @@ export function newGame(input: NewGameInput): GameState {
   const bklasa = s.leagues[0]
   const picks = withRng(s, (rng) => rng.shuffle([...bklasa.teamIds]).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
-  s.hiringNote = `Masz ${input.age} lat, licencję UEFA C i kontakty w województwie ${input.region}. Trzy kluby z B-klasy dzwonią.`
+  s.hiringNote = `Masz ${input.age} lat, licencję UEFA C i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
   return s
 }
 
