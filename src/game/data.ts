@@ -33,30 +33,54 @@ export const REGIONS = [
 ]
 
 export const FIRST_NAMES = [
-  'Adam', 'Bartek', 'Damian', 'Dawid', 'Grzegorz', 'Hubert', 'Jakub', 'Janusz', 'Kamil', 'Karol',
-  'Krystian', 'Łukasz', 'Maciej', 'Marcin', 'Mariusz', 'Mateusz', 'Michał', 'Paweł', 'Patryk', 'Piotr',
-  'Przemek', 'Radek', 'Rafał', 'Robert', 'Sebastian', 'Seweryn', 'Szymon', 'Tomasz', 'Wiktor', 'Wojtek',
-  'Zbigniew', 'Arkadiusz', 'Dariusz', 'Emil', 'Filip', 'Igor', 'Jarek', 'Konrad', 'Norbert', 'Oskar',
+  'Adam', 'Adrian', 'Albert', 'Aleksander', 'Alan', 'Antoni', 'Arkadiusz', 'Artur', 'Bartłomiej', 'Bartosz',
+  'Bogdan', 'Bogusław', 'Borys', 'Cezary', 'Czesław', 'Damian', 'Daniel', 'Dariusz', 'Dawid', 'Dominik',
+  'Edward', 'Emil', 'Eryk', 'Fabian', 'Filip', 'Franciszek', 'Gabriel', 'Grzegorz', 'Henryk', 'Hubert',
+  'Igor', 'Ireneusz', 'Jacek', 'Jakub', 'Jan', 'Janusz', 'Jarosław', 'Jerzy', 'Józef', 'Julian',
+  'Kacper', 'Kamil', 'Karol', 'Kazimierz', 'Konrad', 'Kornel', 'Krystian', 'Krzysztof', 'Leon', 'Leszek',
+  'Łukasz', 'Maciej', 'Maksymilian', 'Marcel', 'Marcin', 'Marek', 'Mariusz', 'Mateusz', 'Michał', 'Mikołaj',
+  'Miłosz', 'Mirosław', 'Natan', 'Nikodem', 'Norbert', 'Olaf', 'Oliwer', 'Oskar', 'Patryk', 'Paweł',
+  'Piotr', 'Przemysław', 'Radosław', 'Rafał', 'Remigiusz', 'Robert', 'Roman', 'Ryszard', 'Sebastian', 'Seweryn',
+  'Sławomir', 'Stanisław', 'Stefan', 'Szymon', 'Tadeusz', 'Tobiasz', 'Tomasz', 'Tymon', 'Tymoteusz', 'Wiktor',
+  'Witold', 'Władysław', 'Wojciech', 'Zbigniew', 'Zdzisław', 'Ksawery', 'Ignacy', 'Brajan', 'Dorian',
 ]
 
 export const LAST_NAMES = [
-  'Nowak', 'Kowalski', 'Wiśniewski', 'Wójcik', 'Kowalczyk', 'Kamiński', 'Lewandowski', 'Zieliński',
-  'Szymański', 'Woźniak', 'Dąbrowski', 'Kozłowski', 'Jankowski', 'Mazur', 'Kwiatkowski', 'Krawczyk',
-  'Piotrowski', 'Grabowski', 'Pawłowski', 'Michalski', 'Król', 'Wieczorek', 'Jabłoński', 'Wróbel',
-  'Nowakowski', 'Majewski', 'Olszewski', 'Stępień', 'Malinowski', 'Jaworski', 'Adamczyk', 'Dudek',
-  'Nowicki', 'Pawlak', 'Górski', 'Witkowski', 'Walczak', 'Sikora', 'Baran', 'Rutkowski', 'Michalak',
-  'Szewczyk', 'Ostrowski', 'Tomaszewski', 'Pietrzak', 'Zalewski', 'Wróblewski', 'Jasiński', 'Bąk',
-  'Kaczmarek', 'Zając', 'Kubiak', 'Sowa', 'Pająk', 'Kogut', 'Kapusta', 'Gołąb', 'Ziemniak',
+  'Nowak', 'Kowalski', 'Wiśniewski', 'Wójcik', 'Kowalczyk', 'Kamiński', 'Lewandowski', 'Zieliński', 'Szymański', 'Woźniak',
+  'Dąbrowski', 'Kozłowski', 'Jankowski', 'Mazur', 'Kwiatkowski', 'Krawczyk', 'Piotrowski', 'Grabowski', 'Pawłowski', 'Michalski',
+  'Król', 'Wieczorek', 'Jabłoński', 'Wróbel', 'Nowakowski', 'Majewski', 'Olszewski', 'Stępień', 'Malinowski', 'Jaworski',
+  'Adamczyk', 'Dudek', 'Nowicki', 'Pawlak', 'Górski', 'Witkowski', 'Walczak', 'Sikora', 'Baran', 'Rutkowski',
+  'Michalak', 'Szewczyk', 'Ostrowski', 'Tomaszewski', 'Pietrzak', 'Zalewski', 'Wróblewski', 'Jasiński', 'Marciniak', 'Bąk',
+  'Kaczmarek', 'Zając', 'Kubiak', 'Sadowski', 'Duda', 'Wilk', 'Błaszczyk', 'Włodarczyk', 'Zawadzki', 'Chmielewski',
+  'Borkowski', 'Sokołowski', 'Szczepański', 'Sawicki', 'Lis', 'Kucharski', 'Kalinowski', 'Wysocki', 'Mazurek', 'Kubacki',
+  'Maciejewski', 'Czarnecki', 'Kołodziej', 'Głowacki', 'Urbański', 'Kaźmierczak', 'Sobczak', 'Konieczny', 'Czerwiński', 'Krajewski',
+  'Wasilewski', 'Zakrzewski', 'Szulc', 'Cieślak', 'Kowalewski', 'Baranowski', 'Laskowski', 'Makowski', 'Brzeziński', 'Przybylski',
+  'Szczepaniak', 'Ziółkowski', 'Kozieł', 'Wawrzyniak', 'Kaczmarczyk', 'Gajewski', 'Kurowski', 'Szymczak', 'Szewczuk', 'Dziedzic',
+  'Maj', 'Mroczek', 'Pietrzyk', 'Kasprzak', 'Kołodziejczyk', 'Bielecki', 'Kurek', 'Wójtowicz', 'Ryba', 'Rogalski',
+  'Witek', 'Banaś', 'Ciesielski', 'Frankowski', 'Kalisz', 'Jakubowski', 'Leśniak', 'Domański', 'Sowa', 'Pająk',
+  'Kogut', 'Gołąb', 'Bednarek', 'Bednarczyk', 'Kowal', 'Grzelak', 'Skowroński', 'Milczarek', 'Rybak', 'Fijałkowski',
+  'Bogusz', 'Tokarski', 'Cichocki', 'Sobolewski', 'Czajka', 'Murawski', 'Żak', 'Żurek', 'Chojnacki', 'Kuczyński',
+  'Szeląg', 'Pilarski', 'Krupa', 'Lipiński', 'Kozak', 'Wojciechowski', 'Wojtczak', 'Stachowiak', 'Grzybowski', 'Matuszewski',
+  'Jędrzejczak', 'Lewicki', 'Kubica', 'Gołębiowski', 'Świątek', 'Pawlik', 'Drozd', 'Ptak', 'Krzemiński', 'Polak',
+  'Kwiecień', 'Górecki', 'Rogowski', 'Sobczyk', 'Kaczor', 'Marczak', 'Dziuba', 'Banach', 'Wiatrak', 'Bielawski',
+  'Florczak', 'Gajda', 'Hajduk', 'Iwański', 'Jurek', 'Kmiecik', 'Ludwiczak', 'Madej', 'Nawrocki', 'Orzechowski',
+  'Piątek', 'Rzepka', 'Siwiec', 'Tarnowski', 'Ulatowski', 'Wierzbicki', 'Zygmunt', 'Żmuda', 'Socha', 'Grzesiak',
 ]
 
-export const NICKNAMES = [
-  'Bocian', 'Kafar', 'Młody', 'Profesor', 'Czołg', 'Zając', 'Szwagier', 'Dziadek', 'Sołtys', 'Rakieta',
-  'Ksiądz', 'Kuzyn', 'Pancerny', 'Wiewiór', 'Kotlet', 'Dyzio', 'Łysy', 'Bombowiec', 'Mecenas', 'Grajek',
-]
-
-export const FOREIGN_NAMES: [string, string][] = [
-  ['Joao', 'Silva'], ['Bogdan', 'Petrenko'], ['Ivan', 'Horvat'], ['Lukas', 'Novák'], ['Mamadou', 'Diallo'],
-  ['Sergio', 'Pereira'], ['Andriy', 'Kovalenko'], ['Marko', 'Jovanović'], ['Kwame', 'Mensah'], ['Darko', 'Ilić'],
+/** zagraniczni zawodnicy: imię i nazwisko losowane osobno w obrębie jednego kraju */
+export const FOREIGN_NAMES: { first: string[]; last: string[] }[] = [
+  { first: ['João', 'Pedro', 'Rafael', 'Tiago', 'Bruno', 'Diogo'], last: ['Silva', 'Pereira', 'Santos', 'Costa', 'Ferreira', 'Gomes'] },
+  { first: ['Bogdan', 'Andriy', 'Oleksandr', 'Mykola', 'Yaroslav', 'Denys'], last: ['Petrenko', 'Kovalenko', 'Shevchuk', 'Bondarenko', 'Tkachenko', 'Melnyk'] },
+  { first: ['Ivan', 'Luka', 'Mateo', 'Josip', 'Ante', 'Mario'], last: ['Horvat', 'Kovačić', 'Babić', 'Marić', 'Jurić', 'Perić'] },
+  { first: ['Lukáš', 'Tomáš', 'Jakub', 'Ondřej', 'Martin', 'Petr'], last: ['Novák', 'Svoboda', 'Dvořák', 'Černý', 'Procházka', 'Kučera'] },
+  { first: ['Mamadou', 'Ibrahima', 'Moussa', 'Cheikh', 'Abdoulaye', 'Ousmane'], last: ['Diallo', 'Ndiaye', 'Sow', 'Diop', 'Camara', 'Traoré'] },
+  { first: ['Sergio', 'Pablo', 'Álvaro', 'Iker', 'Jorge', 'Raúl'], last: ['García', 'Martínez', 'López', 'Sánchez', 'Romero', 'Navarro'] },
+  { first: ['Marko', 'Nikola', 'Stefan', 'Miloš', 'Darko', 'Vuk'], last: ['Jovanović', 'Petrović', 'Ilić', 'Nikolić', 'Marković', 'Đorđević'] },
+  { first: ['Kwame', 'Kofi', 'Emmanuel', 'Samuel', 'Daniel', 'Joseph'], last: ['Mensah', 'Owusu', 'Boateng', 'Asante', 'Appiah', 'Osei'] },
+  { first: ['Mindaugas', 'Lukas', 'Tomas', 'Darius', 'Paulius', 'Žygimantas'], last: ['Kazlauskas', 'Petrauskas', 'Jankauskas', 'Stankevičius', 'Vasiliauskas', 'Žukauskas'] },
+  { first: ['Ilia', 'Giorgi', 'Levan', 'Nika', 'Davit', 'Luka'], last: ['Beridze', 'Kapanadze', 'Gelashvili', 'Mamedashvili', 'Lomidze', 'Tsiklauri'] },
+  { first: ['Erik', 'Jonas', 'Lars', 'Oskar', 'Viktor', 'Emil'], last: ['Johansson', 'Lindqvist', 'Nilsson', 'Berg', 'Holm', 'Svensson'] },
+  { first: ['Kenji', 'Takumi', 'Daiki', 'Ryota', 'Shun', 'Yuto'], last: ['Tanaka', 'Suzuki', 'Watanabe', 'Kobayashi', 'Nakamura', 'Yamamoto'] },
 ]
 
 export const CLUB_PREFIXES = [

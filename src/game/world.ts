@@ -1,4 +1,4 @@
-import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, NICKNAMES, TOWNS } from './data'
+import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, TOWNS } from './data'
 import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
 import { LOWER_LEAGUES } from './lowerData'
 import type { Rng } from './rng'
@@ -173,11 +173,11 @@ export function generatePlayer(
     if (t === 'krol_strzalow' && pos === 'BR') t = 'lider'
     traits.push(t)
   }
-  const [firstName, lastName] = opts.foreign ? rng.pick(FOREIGN_NAMES) : [rng.pick(FIRST_NAMES), rng.pick(LAST_NAMES)]
+  const country = opts.foreign ? rng.pick(FOREIGN_NAMES) : undefined
+  const [firstName, lastName] = country ? [rng.pick(country.first), rng.pick(country.last)] : [rng.pick(FIRST_NAMES), rng.pick(LAST_NAMES)]
   return newPlayer(state, {
     firstName,
     lastName,
-    nickname: level <= 3 && rng.chance(0.15) ? rng.pick(NICKNAMES) : undefined,
     age,
     pos,
     skill,
@@ -198,14 +198,17 @@ export function generateSquad(rng: Rng, state: Pick<GameState, 'nextId'>, level:
     for (let i = 0; i < count; i++) {
       // pierwsza jedenastka trochę mocniejsza od zmienników
       const starterBonus = i < (pos === 'BR' ? 1 : pos === 'NAP' ? 2 : 4) ? 2 : -2
-      squad.push(generatePlayer(rng, state, level, pos, { skillOffset: skillOffset + starterBonus, foreign: level >= 5 && rng.chance(0.25) }))
+      const p = generatePlayer(rng, state, level, pos, { skillOffset: skillOffset + starterBonus, foreign: level >= 5 && rng.chance(0.25) })
+      // w jednej kadrze bez powtórzonych nazwisk, żeby relacja z meczu była czytelna
+      for (let tries = 0; tries < 8 && FIRST_NAMES.includes(p.firstName) && squad.some((x) => x.lastName === p.lastName); tries++) p.lastName = rng.pick(LAST_NAMES)
+      squad.push(p)
     }
   }
   return squad
 }
 
 export function playerName(p: Player): string {
-  return p.nickname ? `${p.firstName} „${p.nickname}” ${p.lastName}` : `${p.firstName} ${p.lastName}`
+  return `${p.firstName} ${p.lastName}`
 }
 
 export function shortName(p: Pick<Player, 'firstName' | 'lastName'>): string {
