@@ -4,7 +4,7 @@ import { FORMATIONS, STYLE_INFO, TRAITS } from '../game/data'
 import { club, clubLeague, computeTable, formatMoney, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
-import type { Formation, GameState, Mentality, Player, Style } from '../game/types'
+import type { Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill } from '../game/util'
 import { cupRoundName, playerName } from '../game/world'
 
@@ -106,6 +106,68 @@ const byPos = (a: Player, b: Player) => POS_ORDER[a.pos] - POS_ORDER[b.pos] || b
 
 // ---------- mecz ----------
 
+/** skala ocen jak w gazecie: od czerwieni przez szarość do zieleni */
+function ratingTone(r: number): string {
+  if (r >= 8) return 'rt-5'
+  if (r >= 7) return 'rt-4'
+  if (r >= 6) return 'rt-3'
+  if (r >= 5) return 'rt-2'
+  return 'rt-1'
+}
+
+function RatingRow({ x, best }: { x: PlayerRating; best: boolean }) {
+  const icons: string[] = []
+  for (let i = 0; i < (x.goals ?? 0); i++) icons.push('⚽')
+  for (let i = 0; i < (x.assists ?? 0); i++) icons.push('🅰️')
+  if (x.red) icons.push('🟥')
+  else if (x.yellow) icons.push('🟨')
+  return (
+    <li className={`rt-row ${best ? 'rt-best' : ''}`}>
+      <span className={`pos pos-${x.pos}`}>{x.pos}</span>
+      <span className="rt-name">
+        {x.name}
+        {best && <span className="rt-star" title="Zawodnik meczu"> ★</span>}
+        {icons.length > 0 && <span className="rt-icons"> {icons.join('')}</span>}
+        {x.injured && <span className="injury-cross" title="kontuzja"> ✚</span>}
+      </span>
+      <span className="rt-min">{x.minutes !== undefined ? `${x.minutes}'` : ''}</span>
+      <span className={`rt-badge ${ratingTone(x.rating)}`}>{x.rating.toFixed(1)}</span>
+    </li>
+  )
+}
+
+function RatingsTable({ ratings }: { ratings: PlayerRating[] }) {
+  if (!ratings.length) return null
+  const best = Math.max(...ratings.map((x) => x.rating))
+  const bestId = ratings.find((x) => x.rating === best)?.id
+  const starters = ratings.filter((x) => !x.sub)
+  const subs = ratings.filter((x) => x.sub)
+  const avg = ratings.reduce((a, x) => a + x.rating, 0) / ratings.length
+  return (
+    <section className="rt" aria-label="Oceny zawodników">
+      <div className="rt-head">
+        <h4>Oceny</h4>
+        <span className="small muted">średnia drużyny {avg.toFixed(1)}</span>
+      </div>
+      <ul className="rt-list">
+        {starters.map((x) => (
+          <RatingRow key={x.id} x={x} best={x.id === bestId} />
+        ))}
+      </ul>
+      {subs.length > 0 && (
+        <>
+          <div className="rt-sub-label small muted">Z ławki</div>
+          <ul className="rt-list">
+            {subs.map((x) => (
+              <RatingRow key={x.id} x={x} best={x.id === bestId} />
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )
+}
+
 export function MatchView({ s }: { s: GameState; act: Act }) {
   const reports = s.reports.slice(0, 8)
   const bonus = teamBonus(s, previewStrength(s).xi)
@@ -163,22 +225,12 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
                     <li key={j}>{withInjuryCross(e)}</li>
                   ))}
                 </ul>
-                <ul className="lines">
+                {r.lines.length > 0 && <ul className="lines">
                   {r.lines.map((l, j) => (
                     <li key={j}>{l}</li>
                   ))}
-                </ul>
-                <div className="ratings-grid" aria-label="Oceny zawodników">
-                  {r.ratings.map((x) => (
-                    <div key={x.id}>
-                      <span>
-                        <span className={`pos pos-${x.pos}`}>{x.pos}</span> {x.name}
-                        {x.sub ? ' ↑' : ''}
-                      </span>
-                      <Rating r={x.rating} />
-                    </div>
-                  ))}
-                </div>
+                </ul>}
+                <RatingsTable ratings={r.ratings} />
               </>
             )}
           </article>

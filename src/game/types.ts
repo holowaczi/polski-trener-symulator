@@ -150,6 +150,13 @@ export interface PlayerRating {
   pos: Position
   rating: number
   sub?: boolean
+  /** szczegóły występu (brak w starych zapisach) */
+  minutes?: number
+  goals?: number
+  assists?: number
+  yellow?: number
+  red?: boolean
+  injured?: boolean
 }
 
 export interface MatchReport {

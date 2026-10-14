@@ -388,7 +388,19 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     if (x.red) r -= 1.5
     if (minutes < 30) r = 6 + (r - 6) * 0.6
     r = clamp(Math.round(r * 10) / 10, 3, 10)
-    ratings.push({ id: x.p.id, name: shortName(x.p), pos: x.p.pos, rating: r, sub: x.sub })
+    ratings.push({
+      id: x.p.id,
+      name: shortName(x.p),
+      pos: x.p.pos,
+      rating: r,
+      sub: x.sub,
+      minutes: Math.max(1, minutes),
+      goals: x.goals,
+      assists: x.assists,
+      yellow: x.yellow,
+      red: x.red,
+      injured: x.injured,
+    })
     afterNotes.push(...applyMatchToPlayer(rng, s, x, r))
   }
   const played = new Set(pitch.map((x) => x.p.id))
@@ -478,7 +490,6 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   const best = [...ratings].sort((a, b) => b.rating - a.rating)[0]
   // jedna pochwała w gazecie na mecz, i to tylko za naprawdę wielki występ
   if (best && best.rating >= 8.5) news(s, `${best.name} z oceną ${best.rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)
-  if (best) lines.unshift(`Zawodnik meczu: ${best.name} (${best.rating.toFixed(1)}).`)
 
   return {
     round: s.round,

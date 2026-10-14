@@ -783,17 +783,98 @@ blockquote {
   display: grid;
   gap: 2px;
 }
-.ratings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 4px 12px;
-  font-size: 0.85rem;
-  margin-top: 6px;
+.rt {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
 }
-.ratings-grid div {
+.rt-head {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 6px;
+  margin-bottom: 4px;
+}
+.rt-head h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.rt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rt-row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.rt-list .rt-row:last-child {
+  border-bottom: 0;
+}
+.rt-row .pos {
+  text-align: center;
+}
+.rt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt-best .rt-name {
+  font-weight: 700;
+}
+.rt-star {
+  color: var(--warn);
+}
+.rt-icons {
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+.rt-min {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.rt-badge {
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: 5px;
+  padding: 2px 0;
+}
+.rt-5 {
+  background: #1b6e3f;
+  color: #fff;
+}
+.rt-4 {
+  background: #3f9a62;
+  color: #fff;
+}
+.rt-3 {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.rt-2 {
+  background: #e0a33a;
+  color: #1d2420;
+}
+.rt-1 {
+  background: var(--bad);
+  color: #fff;
+}
+.rt-sub-label {
+  margin: 8px 0 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .bids {
   display: grid;
