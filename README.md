@@ -4,6 +4,8 @@
 
 Przeglądarkowa gra o karierze trenera piłkarskiego, od B-klasy do Ekstraklasy. Inspiracja: Polski Piłkarz Simulator i okręgówka.pl, ale grasz trenerem.
 
+Zagraj w przeglądarce: https://holowaczi.github.io/polski-trener-symulator/
+
 ## Jak grać
 
 1. Tworzysz trenera (imię, wiek, województwo) i wybierasz jedną z trzech ofert z B-klasy.
