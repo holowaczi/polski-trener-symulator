@@ -810,3 +810,8 @@ blockquote {
   align-items: center;
   justify-content: space-between;
 }
+
+.injury-cross {
+  color: #d32f2f;
+  font-weight: 800;
+}

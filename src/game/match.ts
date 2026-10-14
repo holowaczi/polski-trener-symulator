@@ -337,7 +337,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
       if (!x.red && rng.chance(x.p.traits.includes('szklany') ? 0.0007 : 0.0002)) {
         x.injured = true
         x.to = minute
-        events.push({ minute, text: `${minute}' 🩹 ${shortName(x.p)} schodzi z urazem` })
+        events.push({ minute, text: `${minute}' ✚ ${shortName(x.p)} schodzi z urazem` })
         substitute(x, minute, ' wymuszona')
       }
     }
@@ -519,7 +519,7 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
     if (p.age >= 32) len += 1
     p.injuredFor = len
     news(s, `${shortName(p)} kontuzjowany. Przerwa: ${len} ${len === 1 ? 'mecz' : len < 5 ? 'mecze' : 'meczów'}.`)
-    notes.push(`🩹 ${shortName(p)} nie zagra przez ${len} ${len === 1 ? 'mecz' : len < 5 ? 'mecze' : 'meczów'}`)
+    notes.push(`✚ ${shortName(p)} nie zagra przez ${len} ${len === 1 ? 'mecz' : len < 5 ? 'mecze' : 'meczów'}`)
   }
   return notes
 }

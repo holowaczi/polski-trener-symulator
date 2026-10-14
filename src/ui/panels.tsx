@@ -53,12 +53,24 @@ export function Rating({ r }: { r?: number }) {
   return <span className={`rating ${tone}`}>{r.toFixed(1)}</span>
 }
 
+/** czerwony krzyżyk zamiast emoji przy kontuzjach */
+function withInjuryCross(text: string) {
+  const parts = text.split('✚')
+  if (parts.length === 1) return text
+  return parts.map((t, i) => (
+    <span key={i}>
+      {i > 0 && <span className="injury-cross">✚</span>}
+      {t}
+    </span>
+  ))
+}
+
 function Status({ p }: { p: Player }) {
   const chips = []
   if (p.injuredFor > 0)
     chips.push(
       <span key="i" className="chip bad" title={`kontuzja: nie zagra w ${p.injuredFor} m.`}>
-        🩹 {p.injuredFor} m.
+        <span className="injury-cross">✚</span> {p.injuredFor} m.
       </span>,
     )
   if (p.suspendedFor > 0)
@@ -148,7 +160,7 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
                 </div>
                 <ul className="match-events">
                   {r.events.map((e, j) => (
-                    <li key={j}>{e}</li>
+                    <li key={j}>{withInjuryCross(e)}</li>
                   ))}
                 </ul>
                 <ul className="lines">
