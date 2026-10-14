@@ -1,4 +1,5 @@
 import { it } from 'vitest'
+import { careerScore } from './score'
 import { acceptBid, buyPlayer } from './market'
 import { acceptOffer, finishTransfers, newGame, playNext, resolveEvent, retire, stayAtClub, startLicenseCourse } from './engine'
 import type { GameState } from './types'
@@ -81,7 +82,7 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
         }
       }
     }
-    careers.push(s.history.map((h) => `${h.level}${h.fired ? 'F' : ''}:${h.position ?? '-'}`).join(' '))
+    careers.push(`[${careerScore(s)} pkt] ` + s.history.map((h) => `${h.level}${h.fired ? 'F' : ''}:${h.position ?? '-'}`).join(' '))
     if (s.phase !== 'retired') retire(s, 'x')
   }
   const out: string[] = []

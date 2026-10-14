@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import { LEVELS } from '../game/data'
 import { careerCard } from '../game/engine'
+import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
+import { saveRecord } from './save'
 import type { GameState } from '../game/types'
 
 function PathChart({ path }: { path: number[] }) {
@@ -39,6 +41,22 @@ function PathChart({ path }: { path: number[] }) {
 
 export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
   const card = careerCard(s)
+  const score = careerScore(s)
+  const mult = multiplierOf(s)
+  const lines = scoreBreakdown(s)
+
+  useEffect(() => {
+    if (!s.history.length) return
+    saveRecord({
+      id: `${s.seed}-${card.name}-${s.season}`,
+      name: card.name,
+      score,
+      multiplier: mult,
+      peak: card.peak,
+      daily: s.start?.daily,
+      date: new Date().toISOString().slice(0, 10),
+    })
+  }, [s, card.name, card.peak, score, mult])
   const ref = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const [image, setImage] = useState<string | null>(null)
@@ -61,7 +79,7 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
     }
   }
 
-  const shareText = `${card.name}: ${card.seasons} sezonów, ${card.clubs.length} klubów, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}. #PolskiTrenerSymulator`
+  const shareText = `${card.name}: ${score} pkt kariery, ${card.seasons} sezonów, ${card.clubs.length} klubów, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}. #PolskiTrenerSymulator`
 
   return (
     <main className="retired">
@@ -91,6 +109,21 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
             <div className="cc-num">{card.fired}</div>
             <div className="cc-lbl">zwolnień</div>
           </div>
+        </div>
+
+        <div className="cc-score">
+          <div className="cc-score-num">{score.toLocaleString('pl-PL')}</div>
+          <div className="cc-lbl">
+            punktów kariery{mult !== 1 ? ` · mnożnik ×${mult} za start (${s.start?.license})` : s.start?.daily ? ' · wyzwanie dnia' : ''}
+          </div>
+          <ul className="cc-score-lines">
+            {lines.map((l) => (
+              <li key={l.label}>
+                <span>{l.label}</span>
+                <b>{l.points > 0 ? '+' : ''}{l.points}</b>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <PathChart path={card.path} />

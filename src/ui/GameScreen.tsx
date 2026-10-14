@@ -20,6 +20,7 @@ import {
   waitForOffers,
 } from '../game/engine'
 import { previewStrength } from '../game/match'
+import { careerScore, multiplierOf } from '../game/score'
 import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
@@ -130,6 +131,10 @@ function Header({ s }: { s: GameState }) {
           <span>Sezon {s.season}</span>
           {team && <span>Cel: {goalLabel(s.goal, team.level)}</span>}
           <span>Reputacja {s.coach.reputation}</span>
+          <span title="Punkty kariery po mnożniku za start">
+            Punkty {careerScore(s).toLocaleString('pl-PL')}
+            {multiplierOf(s) !== 1 ? ` (×${multiplierOf(s)})` : ''}
+          </span>
           <span>Oszczędności {formatMoney(s.coach.savings)}</span>
           {team && (
             <span className={wageBill(s) > s.wageLimit ? 'warn-text' : ''}>

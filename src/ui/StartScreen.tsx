@@ -1,8 +1,11 @@
-import { useState } from 'react'
-import { REGIONS } from '../game/data'
+import { useMemo, useState } from 'react'
+import { LEVELS, REGIONS } from '../game/data'
 import { newGame } from '../game/engine'
 import { seedFromString } from '../game/rng'
-import type { GameState } from '../game/types'
+import { licenseCovers, START_LICENSES, startMultiplier } from '../game/score'
+import type { GameState, License } from '../game/types'
+import { bottomLevel, leagueOf } from '../game/world'
+import { loadRecords } from './save'
 
 interface Props {
   saved: GameState | null
@@ -16,15 +19,55 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
   const [age, setAge] = useState(32)
   const [region, setRegion] = useState('mazowieckie')
   const [seed, setSeed] = useState('')
+  const [randomSeed] = useState(() => (Math.random() * 2 ** 32) >>> 0)
+  const [license, setLicense] = useState<License>('UEFA C')
+  /** -1 = zwykły start z ofertami z najniższej klasy */
+  const [level, setLevel] = useState(-1)
+  const [teamId, setTeamId] = useState<number | undefined>(undefined)
+
+  const today = new Date().toISOString().slice(0, 10)
+  const daily = seed.trim().startsWith('wyzwanie-')
+  const seedNum = seed.trim() ? seedFromString(seed.trim()) : randomSeed
+  // podgląd świata z tym samym ziarnem: te same kluby pojawią się po starcie
+  const preview = useMemo(() => newGame({ firstName: 'x', lastName: 'x', age: 30, region, seed: seedNum }), [region, seedNum])
+  const levels = useMemo(() => {
+    const out: { level: number; name: string }[] = []
+    for (let lv = LEVELS.length - 1; lv >= bottomLevel(preview); lv--) {
+      const lg = preview.leagues.find((l) => l.level === lv)
+      if (lg) out.push({ level: lv, name: lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '') })
+    }
+    return out
+  }, [preview])
+  const clubs = useMemo(() => {
+    if (level < 0) return []
+    return preview.leagues
+      .filter((l) => l.level === level)
+      .flatMap((l) => l.teamIds)
+      .sort((a, b) => preview.teams[b].strength - preview.teams[a].strength)
+  }, [preview, level])
+
+  const pickedTeam = !daily && level >= 0 && teamId !== undefined && clubs.includes(teamId) ? teamId : undefined
+  const pickedLicense: License = daily ? 'UEFA C' : license
+  const multiplier = startMultiplier(preview, pickedLicense, pickedTeam)
+  const records = useMemo(() => loadRecords(), [])
+
+  const changeLicense = (l: License) => {
+    setLicense(l)
+    if (level >= 0 && !licenseCovers(l, level)) {
+      setLevel(-1)
+      setTeamId(undefined)
+    }
+  }
+  const changeLevel = (lv: number) => {
+    setLevel(lv)
+    setTeamId(undefined)
+  }
 
   const start = () => {
     const fn = firstName.trim() || 'Janusz'
     const ln = lastName.trim() || 'Trenerski'
-    const seedNum = seed.trim() ? seedFromString(seed.trim()) : (Math.random() * 2 ** 32) >>> 0
-    onStart(newGame({ firstName: fn, lastName: ln, age, region, seed: seedNum }))
+    onStart(newGame({ firstName: fn, lastName: ln, age, region, seed: seedNum, license: pickedLicense, teamId: pickedTeam, daily }))
   }
-
-  const today = new Date().toISOString().slice(0, 10)
 
   return (
     <main className="start">
@@ -35,7 +78,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         <p className="muted small">Prawdziwe kluby sezonu 2026/27, od Ekstraklasy po B-klasę. Województwo decyduje o grupie III ligi i o lokalnych ligach.</p>
       </header>
 
-      {saved && (
+      {saved && saved.phase !== 'retired' && (
         <section className="card">
           <h2>Kontynuuj karierę</h2>
           <p>
@@ -77,21 +120,84 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
               ))}
             </select>
           </label>
+          <label>
+            Licencja na start
+            <select value={pickedLicense} disabled={daily} onChange={(e) => changeLicense(e.target.value as License)}>
+              {START_LICENSES.map((l) => (
+                <option key={l.license} value={l.license}>
+                  {l.license} (×{l.factor})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Poziom startu
+            <select value={daily ? -1 : level} disabled={daily} onChange={(e) => changeLevel(Number(e.target.value))}>
+              <option value={-1}>Oferty z najniższej klasy</option>
+              {levels.map((l) => (
+                <option key={l.level} value={l.level} disabled={!licenseCovers(pickedLicense, l.level)}>
+                  {l.name}
+                  {licenseCovers(pickedLicense, l.level) ? '' : ` (wymaga ${LEVELS[l.level].license})`}
+                </option>
+              ))}
+            </select>
+          </label>
+          {!daily && level >= 0 && (
+            <label className="full">
+              Klub
+              <select value={pickedTeam ?? ''} onChange={(e) => setTeamId(e.target.value === '' ? undefined : Number(e.target.value))}>
+                <option value="">Wybierz klub</option>
+                {clubs.map((id) => {
+                  const lg = leagueOf(preview, id)
+                  return (
+                    <option key={id} value={id}>
+                      {preview.teams[id].name}
+                      {lg?.group ? ` · ${lg.group}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            </label>
+          )}
           <label className="full">
             Ziarno świata (opcjonalnie)
             <input value={seed} placeholder="puste = losowy świat" onChange={(e) => setSeed(e.target.value)} />
           </label>
         </div>
+        <p className="multiplier">
+          Mnożnik punktów kariery: <b>×{multiplier}</b>
+          {daily
+            ? ' · wyzwanie dnia: zwykły start dla wszystkich'
+            : level >= 0 && pickedTeam === undefined
+              ? ' · wybierz klub'
+              : multiplier === 1
+                ? ' · klasyczny start'
+                : ' · łatwiejszy start, mniej punktów'}
+        </p>
         <div className="row">
-          <button className="primary" onClick={start}>
+          <button className="primary" onClick={start} disabled={!daily && level >= 0 && pickedTeam === undefined}>
             Zaczynamy karierę
           </button>
           <button onClick={() => setSeed(`wyzwanie-${today}`)}>Wyzwanie dnia</button>
         </div>
         <p className="muted small">
-          To samo ziarno daje ten sam świat i te same zdarzenia. „Wyzwanie dnia” to wspólny start dla wszystkich.
+          To samo ziarno daje ten sam świat i te same zdarzenia. „Wyzwanie dnia” to wspólny start dla wszystkich. Przy wybranym klubie liczy się też jego pozycja: faworyt ligi daje mniej punktów, outsider trochę więcej.
         </p>
       </section>
+
+      {records.length > 0 && (
+        <section className="card">
+          <h2>Twoje rekordy</h2>
+          <ol className="records">
+            {records.map((r, i) => (
+              <li key={i}>
+                <b>{r.score.toLocaleString('pl-PL')} pkt</b> · {r.name} · {r.peak} · ×{r.multiplier}
+                {r.daily ? ' · wyzwanie dnia' : ''} <span className="muted small">{r.date}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </main>
   )
 }

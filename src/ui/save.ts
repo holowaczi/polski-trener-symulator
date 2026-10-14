@@ -29,3 +29,36 @@ export function clearSave(): void {
     // jw.
   }
 }
+
+const RECORDS_KEY = 'pts-records'
+
+export interface CareerRecord {
+  id: string
+  name: string
+  score: number
+  multiplier: number
+  peak: string
+  daily?: boolean
+  date: string
+}
+
+/** najlepsze kariery na tym urządzeniu, od najlepszej */
+export function loadRecords(): CareerRecord[] {
+  try {
+    const raw = localStorage.getItem(RECORDS_KEY)
+    return raw ? (JSON.parse(raw) as CareerRecord[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveRecord(r: CareerRecord): void {
+  try {
+    const list = loadRecords().filter((x) => x.id !== r.id)
+    list.push(r)
+    list.sort((a, b) => b.score - a.score)
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(list.slice(0, 10)))
+  } catch {
+    // jw.
+  }
+}

@@ -274,4 +274,14 @@ export interface GameState {
   winterWindowDone: boolean
   hiringNote?: string
   retireReason?: string
+  /** wybrany start kariery: od niego zależy mnożnik punktów */
+  start?: StartInfo
+}
+
+export interface StartInfo {
+  license: License
+  /** klub wybrany na start; brak = zwykłe oferty z najniższej klasy */
+  teamId?: number
+  daily?: boolean
+  multiplier: number
 }

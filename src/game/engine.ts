@@ -1,9 +1,10 @@
+import { licenseCovers, startMultiplier } from './score'
 import { COACH_QUOTES, LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
 import { departureEffects, generateBids, makeBid, refreshTransferList, renewWages, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { CupTie, Fixture, GameState, GoalType, JobOffer, League, Player, Position, TableRow } from './types'
+import type { CupTie, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import {
   clamp,
@@ -112,6 +113,12 @@ export interface NewGameInput {
   age: number
   region: string
   seed: number
+  /** licencja na start (domyślnie UEFA C) */
+  license?: License
+  /** klub wybrany na start zamiast ofert z najniższej klasy */
+  teamId?: number
+  /** wyzwanie dnia: zawsze zwykły start */
+  daily?: boolean
 }
 
 export function newGame(input: NewGameInput): GameState {
@@ -125,7 +132,7 @@ export function newGame(input: NewGameInput): GameState {
       lastName: input.lastName,
       age: input.age,
       region: input.region,
-      license: 'UEFA C',
+      license: input.daily ? 'UEFA C' : (input.license ?? 'UEFA C'),
       reputation: 2,
       stress: 20,
       savings: 5_000,
@@ -169,7 +176,17 @@ export function newGame(input: NewGameInput): GameState {
   s.cup = withRng(s, (rng) => drawCup(rng, s, SEASON_WEEKS))
   const picks = withRng(s, (rng) => rng.shuffle(teamsAtLevel(s, bottomLevel(s))).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
-  s.hiringNote = `Masz ${input.age} lat, licencję UEFA C i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
+  s.hiringNote = `Masz ${input.age} lat, licencję ${s.coach.license} i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
+  const teamId = input.daily ? undefined : input.teamId
+  s.start = { license: s.coach.license, teamId, daily: input.daily || undefined, multiplier: startMultiplier(s, s.coach.license, teamId) }
+  if (teamId !== undefined && s.teams[teamId] && licenseCovers(s.coach.license, s.teams[teamId].level)) {
+    // wybrany klub: reputacja na miarę ligi, żeby zarząd i rynek pracy traktowały trenera poważnie
+    s.coach.reputation = Math.max(2, REP_NEEDED[s.teams[teamId].level])
+    s.offers = [makeOffer(s, teamId, 'Sam wybrałeś ten klub. Prezes już żałuje, że się zgodził.')]
+    takeJob(s, s.offers[0])
+  } else if (s.start.teamId !== undefined) {
+    s.start = { ...s.start, teamId: undefined, multiplier: startMultiplier(s, s.coach.license) }
+  }
   return s
 }
 
