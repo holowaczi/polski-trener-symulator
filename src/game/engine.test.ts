@@ -13,6 +13,7 @@ import {
   resolveEvent,
   retire,
   simulateToBreak,
+  licenseStatus,
   stayAtClub,
   startLicenseCourse,
 } from './engine'
@@ -50,7 +51,8 @@ function botCareer(seed: number, seasons: number): GameState {
         const better = s.offers.filter((o) => o.level > (s.clubId ? s.teams[s.clubId].level : -1))
         if (better.length) acceptOffer(s, better[0].teamId)
         else if (s.clubId !== null) stayAtClub(s)
-        else acceptOffer(s, s.offers[0].teamId)
+        // bez wymaganej licencji nie da się zostać: bierzemy pierwszą ofertę
+        if ((s.phase as string) === 'seasonEnd') acceptOffer(s, s.offers[0].teamId)
         break
       }
     }
@@ -168,7 +170,7 @@ describe('szybka symulacja', () => {
     acceptOffer(s, s.offers[0].teamId)
     for (let i = 0; i < 6; i++) {
       if (s.phase === 'transfer') finishTransfers(s)
-      else if (s.phase === 'seasonEnd') stayAtClub(s)
+      else if (s.phase === 'seasonEnd') { stayAtClub(s); if ((s.phase as string) === 'seasonEnd') acceptOffer(s, s.offers[0].teamId) }
       else if (s.phase === 'hiring') acceptOffer(s, s.offers[0].teamId)
       const msg = simulateToBreak(s)
       expect(msg).toMatch(/^Przesymulowano/)
@@ -200,5 +202,34 @@ describe('mecz po meczu', () => {
       }
     }
     expect(cupsSeen).toBeGreaterThan(0)
+  })
+})
+
+describe('licencja po awansie', () => {
+  it('bez licencji: jeden sezon z trenerem na papierze, potem trzeba się zapisać na kurs', () => {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'mazowieckie', seed: 5 })
+    acceptOffer(s, s.offers[0].teamId)
+    const t = s.teams[s.clubId!]
+    // udajemy awans do IV ligi, która wymaga UEFA B
+    t.level = 5
+    s.phase = 'seasonEnd'
+    const lic = licenseStatus(s)!
+    expect(lic.ok).toBe(false)
+    expect(lic.figurant).toBe(true)
+    expect(lic.canStay).toBe(true)
+    const budget = s.budget
+    stayAtClub(s)
+    expect(s.phase).toBe('transfer')
+    expect(s.figurant).toBe(1)
+    expect(s.budget).toBeLessThan(budget + 50_000)
+    // drugi sezon bez kursu: zostać się nie da
+    s.phase = 'seasonEnd'
+    expect(licenseStatus(s)!.canStay).toBe(false)
+    stayAtClub(s)
+    expect(s.phase).toBe('seasonEnd')
+    // na kursie związek daje zgodę warunkową
+    s.coach.courseLeft = 1
+    expect(licenseStatus(s)!.canStay).toBe(true)
+    expect(licenseStatus(s)!.studying).toBe(true)
   })
 })

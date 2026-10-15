@@ -1,7 +1,7 @@
 import type { Act } from '../App'
 import { askBoard, askOutlook } from '../game/board'
 import { LICENSE_COURSES, LICENSES } from '../game/data'
-import { club, clubLeague, clubPosition, formatMoney, goalLabel } from '../game/engine'
+import { club, clubLeague, clubPosition, formatMoney, goalLabel, licenseStatus } from '../game/engine'
 import { careerScore, multiplierOf } from '../game/score'
 import type { GameState } from '../game/types'
 import { wageBill, withRng } from '../game/util'
@@ -100,6 +100,7 @@ export function CoachCard({ s }: { s: GameState }) {
   const next = LICENSES[LICENSES.indexOf(s.coach.license) + 1]
   const course = next ? LICENSE_COURSES[next] : undefined
   const mult = multiplierOf(s)
+  const lic = licenseStatus(s)
   return (
     <div className="profile">
       <h2>
@@ -128,6 +129,14 @@ export function CoachCard({ s }: { s: GameState }) {
           {s.totalStats.w}Z {s.totalStats.d}R {s.totalStats.l}P · zwolnienia: {s.totalStats.firedCount}
         </dd>
       </dl>
+      {lic && !lic.ok && (
+        <p className="small warn-text">
+          Liga wymaga licencji {lic.need}.{' '}
+          {lic.studying
+            ? 'Masz zgodę warunkową, bo jesteś na kursie.'
+            : 'Klub zgłosił do rozgrywek trenera z licencją „na papierze”. Zapisz się na kurs po sezonie, bo drugi raz związek się nie zgodzi.'}
+        </p>
+      )}
       {next && course && s.coach.courseLeft === 0 && (
         <p className="small muted">
           Następna licencja: {next}. Kurs kosztuje {formatMoney(course.cost)} i wymaga reputacji {course.rep}. Zapisy po zakończeniu sezonu.

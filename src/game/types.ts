@@ -297,6 +297,8 @@ export interface GameState {
   /** ostatnia prośba do prezesa o pieniądze */
   lastAsk?: { season: number; round: number }
   asksThisSeason?: number
+  /** sezony, w których klub zgłaszał do rozgrywek „trenera na papierze”, bo trener nie miał wymaganej licencji */
+  figurant?: number
   /** wybrany start kariery: od niego zależy mnożnik punktów */
   start?: StartInfo
 }

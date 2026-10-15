@@ -1,5 +1,13 @@
 # Zmiany
 
+## 0.3.3 (alfa) · 15 października 2026
+
+- **Licencja liczy się też po awansie.** Kiedy klub awansuje do ligi, która wymaga wyższej licencji:
+  - jeśli jesteś na kursie, związek wydaje zgodę warunkową;
+  - jeśli nie, klub przez jeden sezon zgłasza do rozgrywek trenera z licencją „na papierze”. Płaci za to 15% budżetu ligi, a zarząd traci cierpliwość. Ty oficjalnie zostajesz asystentem;
+  - drugi taki sezon nie przejdzie: żeby zostać, trzeba zapisać się na kurs albo przyjąć ofertę z innego klubu.
+- Na koniec sezonu widać, czego wymaga nowa liga i co się stanie. W nagłówku i w zakładce Trener licencja świeci na czerwono, dopóki nie spełniasz wymagań.
+
 ## 0.3.2 (alfa) · 15 października 2026
 
 - **Mecz po meczu.** Gdy w jednym tygodniu klub gra i w lidze, i w pucharze, to są dwa osobne mecze: najpierw liga, potem puchar, każdy po swoim kliknięciu. Pasek na dole zawsze pokazuje tylko najbliższy mecz.

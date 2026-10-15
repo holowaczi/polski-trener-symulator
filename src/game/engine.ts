@@ -104,6 +104,37 @@ export function licenseAllows(s: GameState, level: number): boolean {
   return licenseIndex(s.coach.license) >= licenseIndex(LEVELS[level].license)
 }
 
+export interface LicenseStatus {
+  /** licencja wymagana w lidze klubu */
+  need: License
+  ok: boolean
+  /** trener jest na kursie, który da wymaganą licencję: związek wydaje zgodę warunkową */
+  studying: boolean
+  /** klub musi zgłosić „trenera na papierze” */
+  figurant: boolean
+  /** czy można zostać w klubie na kolejny sezon */
+  canStay: boolean
+  /** koszt trenera na papierze za sezon, płaci klub z budżetu transferowego */
+  cost: number
+}
+
+/**
+ * Licencja po awansie: liga wyżej może wymagać wyższej licencji.
+ * Jeśli trener jest na kursie, związek wydaje zgodę warunkową. Jeśli nie, klub przez jeden sezon
+ * zgłasza do rozgrywek trenera z licencją „na papierze” (płaci za to z budżetu). Drugi taki sezon nie przejdzie.
+ */
+export function licenseStatus(s: GameState): LicenseStatus | undefined {
+  const t = club(s)
+  if (!t) return undefined
+  const need = LEVELS[t.level].license
+  const cost = Math.round((LEVELS[t.level].budget * 0.15) / 100) * 100
+  if (licenseAllows(s, t.level)) return { need, ok: true, studying: false, figurant: false, canStay: true, cost }
+  const next = LICENSES[licenseIndex(s.coach.license) + 1]
+  const studying = s.coach.courseLeft > 0 && !!next && licenseIndex(next) >= licenseIndex(need)
+  const used = s.figurant ?? 0
+  return { need, ok: false, studying, figurant: !studying, canStay: studying || used < 1, cost }
+}
+
 // ---------- nowa gra ----------
 
 export interface NewGameInput {
@@ -233,6 +264,7 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   s.goal = offer.goal
   s.trust = { board: 60, squad: 55, fans: 50 }
   s.seasonsUnemployed = 0
+  s.figurant = 0
   s.modifiers = []
   s.streak = []
   s.bids = []
@@ -1060,6 +1092,7 @@ function startNewSeasonWorld(s: GameState): void {
 export function stayAtClub(s: GameState): void {
   const t = club(s)
   if (!t) return
+  if (!licenseStatus(s)!.canStay) return
   const lg = clubLeague(s)!
   s.goal = goalFromRank(rankByStrength(s, lg, t.id), lg.teamIds.length)
   s.budget = Math.round(LEVELS[t.level].budget * (0.8 + s.trust.board / 250)) + Math.round(Math.max(0, s.budget) * 0.3)
@@ -1067,6 +1100,18 @@ export function stayAtClub(s: GameState): void {
   s.wageLimit = Math.max(s.wageLimit, wageLimitFor(t))
   s.trust.board = clamp(s.trust.board, 45, 80)
   s.offers = []
+  const lic = licenseStatus(s)!
+  if (lic.ok) s.figurant = 0
+  else if (lic.studying) news(s, `Ta liga wymaga licencji ${lic.need}. Związek wydaje zgodę warunkową, bo jesteś na kursie. Byle zdać.`)
+  else {
+    s.figurant = (s.figurant ?? 0) + 1
+    s.budget -= lic.cost
+    adjustTrust(s, { board: -6 })
+    news(
+      s,
+      `Ta liga wymaga licencji ${lic.need}. Klub zgłasza do rozgrywek trenera z licencją „na papierze” (${formatMoney(lic.cost)} z budżetu), a Ty oficjalnie jesteś asystentem. Zapisz się na kurs, bo drugi taki sezon związek nie przepuści.`,
+    )
+  }
   openWindow(s)
   news(s, `Sezon ${s.season}: zostajesz w ${t.name}. Cel: ${goalLabel(s.goal, t.level).toLowerCase()}.`)
 }

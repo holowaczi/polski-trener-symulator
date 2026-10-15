@@ -11,6 +11,7 @@ import {
   formatMoney,
   goalLabel,
   licenseAllows,
+  licenseStatus,
   nextMatchInfo,
   playNext,
   resolveEvent,
@@ -147,6 +148,7 @@ function Header({ s }: { s: GameState }) {
   const pos = s.round > 0 ? clubPosition(s) : undefined
   const mult = multiplierOf(s)
   const overWages = wageBill(s) > s.wageLimit
+  const lic = licenseStatus(s)
   return (
     <header className="hud">
       <div className="hud-top">
@@ -166,7 +168,14 @@ function Header({ s }: { s: GameState }) {
             {s.coach.firstName} {s.coach.lastName}
           </div>
           <div className="small muted">
-            {s.coach.license} · rep. {s.coach.reputation} ·{' '}
+            {lic && !lic.ok ? (
+              <span className="warn-text" title={lic.studying ? 'Zgoda warunkowa: jesteś na kursie' : 'Klub zgłosił trenera z licencją na papierze'}>
+                {s.coach.license} (liga wymaga {lic.need})
+              </span>
+            ) : (
+              s.coach.license
+            )}{' '}
+            · rep. {s.coach.reputation} ·{' '}
             <span title="Punkty kariery po mnożniku za start">
               {careerScore(s).toLocaleString('pl-PL')} pkt{mult !== 1 ? ` (×${mult})` : ''}
             </span>
@@ -342,6 +351,7 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
   const team = club(s)
   const next = LICENSES[LICENSES.indexOf(s.coach.license) + 1]
   const course = next ? LICENSE_COURSES[next] : undefined
+  const lic = licenseStatus(s)
   return (
     <section className="panel">
       <h2>Koniec sezonu {s.season - 1}</h2>
@@ -366,6 +376,24 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
       ) : (
         <p className="small">Masz najwyższą licencję. Możesz prowadzić każdy klub.</p>
       )}
+      {lic && !lic.ok && (
+        <div className={`callout ${lic.canStay ? '' : 'callout-bad'}`}>
+          {lic.studying ? (
+            <>
+              Nowa liga wymaga licencji <b>{lic.need}</b>. Jesteś na kursie, więc związek da zgodę warunkową.
+            </>
+          ) : lic.canStay ? (
+            <>
+              Nowa liga wymaga licencji <b>{lic.need}</b>, a Ty masz {s.coach.license}. Zapisz się na kurs albo klub zgłosi trenera z licencją „na papierze”
+              za {formatMoney(lic.cost)} z budżetu, a zarząd będzie niezadowolony. Taki numer przejdzie tylko raz.
+            </>
+          ) : (
+            <>
+              Związek nie zgodzi się na kolejny sezon z trenerem „na papierze”. Żeby zostać, zapisz się na kurs {next}. Możesz też przyjąć ofertę z innego klubu.
+            </>
+          )}
+        </div>
+      )}
 
       <h3>{team ? 'Oferty z innych klubów' : 'Oferty pracy'}</h3>
       <div className="offers">
@@ -375,7 +403,7 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
       </div>
       <div className="row">
         {team && (
-          <button className="primary" onClick={() => act((g) => stayAtClub(g))}>
+          <button className="primary" disabled={lic && !lic.canStay} onClick={() => act((g) => stayAtClub(g))}>
             Zostaję w {team.name}
           </button>
         )}

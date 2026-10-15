@@ -78,7 +78,8 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
           const better = s.offers.filter((o) => o.level > (s.clubId ? s.teams[s.clubId].level : -1))
           if (better.length) acceptOffer(s, better[0].teamId)
           else if (s.clubId !== null) stayAtClub(s)
-          else acceptOffer(s, s.offers[0].teamId)
+          // bez wymaganej licencji nie da się zostać: bierzemy pierwszą ofertę
+          if ((s.phase as string) === 'seasonEnd') acceptOffer(s, s.offers[0].teamId)
           calib(s, A)
           for (const p of s.squad) skillAt.set(p.id, { age: p.age, skill: p.skill, pot: p.potential })
           break

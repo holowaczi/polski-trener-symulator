@@ -1356,3 +1356,6 @@ blockquote {
 .report.cup .score b {
   color: var(--cup);
 }
+.callout-bad {
+  border-left: 4px solid var(--bad);
+}
