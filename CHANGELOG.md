@@ -1,9 +1,13 @@
 # Zmiany
 
+## 0.3.2 (alfa) · 15 października 2026
+
+- **Mecz po meczu.** Gdy w jednym tygodniu klub gra i w lidze, i w pucharze, to są dwa osobne mecze: najpierw liga, potem puchar, każdy po swoim kliknięciu. Pasek na dole zawsze pokazuje tylko najbliższy mecz.
+
 ## 0.3.1 (alfa) · 15 października 2026
 
 - **Mecze pucharowe od razu widać.** Mają złotą ramkę i tło oraz etykietę z nazwą rozgrywek i rundy, np. „🏆 Puchar wojewódzki · runda wstępna”. Mecze ligowe mają szarą etykietę „Liga · kolejka N”.
-- **Pasek „Następny mecz”** pokazuje, czy grasz w lidze, czy w pucharze, a przy pucharze także rundę. Gdy w jednym tygodniu są oba mecze, widać obu rywali.
+- **Pasek „Następny mecz”** pokazuje, czy grasz w lidze, czy w pucharze, a przy pucharze także rundę.
 - Remis w pucharze pokazuje w raporcie wynik rzutów karnych.
 
 ## 0.3.0 (alfa) · 15 października 2026

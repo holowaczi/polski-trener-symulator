@@ -388,9 +388,26 @@ function playCupsForWeek(rng: Rng, s: GameState, week: number): void {
   }
 }
 
+/** mecz ligowy klubu w danym tygodniu, jeszcze nierozegrany */
+function pendingLeagueFixture(s: GameState, week: number): Fixture | undefined {
+  if (s.clubId === null) return undefined
+  return clubLeague(s)?.rounds[week]?.find((f) => (f.home === s.clubId || f.away === s.clubId) && f.hg === undefined)
+}
+
+/** mecz pucharowy klubu w danym tygodniu, jeszcze nierozegrany */
+function pendingCupTie(s: GameState, week: number): CupTie | undefined {
+  const t = cupTieForWeek(s, week)
+  return t && t.winner === undefined ? t : undefined
+}
+
+/**
+ * Tydzień gra się w dwóch krokach, jeśli klub ma w nim i ligę, i puchar:
+ * najpierw kolejka ligowa, przy następnym kliknięciu mecz pucharowy. Każdy mecz osobno.
+ */
 export function playWeek(s: GameState): void {
   if (s.phase !== 'season') return
   const week = s.round
+  const splitCup = !!pendingLeagueFixture(s, week) && !!pendingCupTie(s, week)
   withRng(s, (rng) => {
     for (const lg of s.leagues) {
       const round = lg.rounds[week]
@@ -405,9 +422,14 @@ export function playWeek(s: GameState): void {
         } else playAiFixture(rng, s, f)
       }
     }
-    playCupsForWeek(rng, s, week)
+    if (!splitCup) playCupsForWeek(rng, s, week)
   })
   if (s.reports.length > 40) s.reports.length = 40
+  if (splitCup) {
+    // puchar w tym samym tygodniu czeka na osobne kliknięcie
+    maybeEvent(s)
+    return
+  }
   s.round++
   afterWeek(s)
 }
@@ -538,9 +560,11 @@ export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; c
   if (s.clubId === null) return undefined
   const lg = clubLeague(s)!
   for (let w = s.round; w < SEASON_WEEKS; w++) {
-    const league = lg.rounds[w]?.find((f) => f.home === s.clubId || f.away === s.clubId)
-    const cup = cupTieForWeek(s, w)
-    if (league || cup) return { week: w, league, cup }
+    // najpierw liga, potem puchar z tego samego tygodnia: zawsze jeden najbliższy mecz
+    const league = lg.rounds[w]?.find((f) => (f.home === s.clubId || f.away === s.clubId) && f.hg === undefined)
+    if (league) return { week: w, league }
+    const cup = pendingCupTie(s, w)
+    if (cup) return { week: w, cup }
   }
   return undefined
 }

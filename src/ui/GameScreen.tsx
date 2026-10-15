@@ -206,9 +206,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   let label = 'Koniec sezonu'
   let oppStr: number | undefined
   const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
-  // w jednym tygodniu może być i liga, i puchar; jeden przycisk rozgrywa oba mecze
-  const isCup = !!info && !info.league
-  const cupExtra = info?.league && info.cup ? info.cup : undefined
+  const isCup = !!info?.cup
   if (info) {
     const f = info.league ?? info.cup!
     oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
@@ -224,11 +222,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
         <span className="playbar-next">
           {comp && <span className={`comp-tag ${isCup ? 'cup' : ''}`}>{isCup ? `🏆 ${comp}` : comp}</span>} <b>{label}</b>
         </span>
-        {cupExtra && (
-          <span className="playbar-next">
-            <span className="comp-tag cup">🏆 {cupName}</span> <b>{vs(cupExtra)}</b>
-          </span>
-        )}
+
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>
           {oppStr !== undefined ? (
             <>

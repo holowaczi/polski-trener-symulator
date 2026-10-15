@@ -177,3 +177,28 @@ describe('szybka symulacja', () => {
     }
   })
 })
+
+describe('mecz po meczu', () => {
+  it('każde kliknięcie rozgrywa dokładnie jeden mecz klubu, także w tygodniu z ligą i pucharem', () => {
+    let cupsSeen = 0
+    for (const seed of [3, 11, 21]) {
+      const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'śląskie', seed })
+      acceptOffer(s, s.offers[0].teamId)
+      finishTransfers(s)
+      let guard = 0
+      while (s.season === 1 && guard++ < 200) {
+        if (s.phase === 'event') resolveEvent(s, 0)
+        else if (s.phase === 'transfer') finishTransfers(s)
+        else if (s.phase === 'season') {
+          const before = s.reports.length
+          const first = s.reports[0]
+          playNext(s)
+          const added = s.reports[0] === first ? 0 : s.reports.length === 40 ? 1 : s.reports.length - before
+          expect(added).toBeLessThanOrEqual(1)
+          if (s.reports[0] !== first && s.reports[0]?.cup) cupsSeen++
+        } else break
+      }
+    }
+    expect(cupsSeen).toBeGreaterThan(0)
+  })
+})
