@@ -425,6 +425,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
     const mine = s.clubId !== null && (t.home === s.clubId || t.away === s.clubId)
     if (mine) {
       const rep = playClubMatch(rng, s, t, true)
+      rep.cupName = `${cupName} · ${roundName(cup, idx)}`
       t.hg = rep.hg
       t.ag = rep.ag
       s.reports.unshift(rep)
@@ -437,6 +438,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
       const b = Math.max(0, a - 1 - (rng.chance(0.3) ? 1 : 0))
       t.pens = homeWins ? `${a}:${b}` : `${b}:${a}`
       t.winner = homeWins ? t.home : t.away
+      if (mine && s.reports[0]?.cup) s.reports[0].cupName += ` · karne ${t.pens}`
     }
     winners.push(t.winner)
     if (mine) {
@@ -520,6 +522,16 @@ function openWindow(s: GameState): void {
 export function isSeasonOver(s: GameState): boolean {
   for (let w = s.round; w < SEASON_WEEKS; w++) if (hasClubMatch(s, w)) return false
   return true
+}
+
+/** nazwa pucharu i rundy dla meczu pucharowego klubu w danym tygodniu */
+export function cupRoundLabel(s: GameState, week: number): string | undefined {
+  for (const cup of cupsOf(s)) {
+    const idx = cup.schedule.indexOf(week)
+    if (idx < 0 || !cup.rounds[idx]?.some((t) => t.home === s.clubId || t.away === s.clubId)) continue
+    return `${cup === s.cup ? 'Puchar Polski' : 'Puchar wojewódzki'} · ${roundName(cup, idx)}`
+  }
+  return undefined
 }
 
 export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; cup?: CupTie } | undefined {

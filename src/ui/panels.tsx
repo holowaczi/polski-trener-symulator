@@ -208,9 +208,13 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
         const mine = r.home === s.clubId ? r.hg - r.ag : r.ag - r.hg
         const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
         return (
-          <article key={i} className={`report ${tone} ${i === 0 ? 'latest' : ''}`}>
+          <article key={i} className={`report ${tone} ${i === 0 ? 'latest' : ''} ${r.cup ? 'cup' : ''}`}>
             <div className="report-head">
-              <span className="small muted">{r.cup ? 'Puchar Polski' : `Kolejka ${r.round + 1}`}</span>
+              {r.cup ? (
+                <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
+              ) : (
+                <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
+              )}
               <div className="score">
                 <span>{teamName(s, r.home)}</span>
                 <b>

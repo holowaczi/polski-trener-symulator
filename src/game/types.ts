@@ -177,6 +177,8 @@ export interface PlayerRating {
 export interface MatchReport {
   round: number
   cup?: boolean
+  /** np. „Puchar wojewódzki · 1/8 finału” */
+  cupName?: string
   home: number
   away: number
   hg: number

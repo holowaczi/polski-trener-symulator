@@ -1096,7 +1096,9 @@ blockquote {
 }
 .playbar-info {
   display: flex;
-  gap: 4px 12px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   justify-content: center;
   flex-wrap: wrap;
   max-width: 720px;
@@ -1105,9 +1107,11 @@ blockquote {
 }
 .playbar-next {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 6px;
 }
 .playbar-controls {
   display: flex;
@@ -1317,4 +1321,38 @@ blockquote {
 .app:has(.modal-bg) .toast {
   top: calc(16px + env(safe-area-inset-top, 0px));
   bottom: auto;
+}
+
+/* rozróżnienie ligi i pucharu */
+:root {
+  --cup: #b8860b;
+  --cup-bg: rgba(212, 160, 23, 0.14);
+}
+.comp-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  vertical-align: 1px;
+}
+.comp-tag.cup {
+  background: var(--cup);
+  color: #fff;
+}
+.report.cup {
+  border-top-color: var(--cup);
+  border-right-color: var(--cup);
+  border-bottom-color: var(--cup);
+  background: var(--cup-bg);
+}
+.report.cup.latest {
+  background: var(--cup-bg);
+}
+.report.cup .score b {
+  color: var(--cup);
 }

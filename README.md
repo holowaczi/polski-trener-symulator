@@ -1,6 +1,6 @@
 # Polski Trener Symulator (alpha)
 
-> Wersja 0.3.0 (alfa). Małe poprawki podbijają trzecią cyfrę (0.2.1), większe zmiany drugą (0.3.0). Lista zmian jest w [CHANGELOG.md](CHANGELOG.md).
+> Wersja 0.3.1 (alfa). Małe poprawki podbijają trzecią cyfrę (0.2.1), większe zmiany drugą (0.3.0). Lista zmian jest w [CHANGELOG.md](CHANGELOG.md).
 
 Przeglądarkowa gra o karierze trenera piłkarskiego, od B-klasy do Ekstraklasy. Inspiracja: Polski Piłkarz Simulator i okręgówka.pl, ale grasz trenerem.
 

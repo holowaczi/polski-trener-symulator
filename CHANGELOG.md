@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.3.1 (alfa) · 15 października 2026
+
+- **Mecze pucharowe od razu widać.** Mają złotą ramkę i tło oraz etykietę z nazwą rozgrywek i rundy, np. „🏆 Puchar wojewódzki · runda wstępna”. Mecze ligowe mają szarą etykietę „Liga · kolejka N”.
+- **Pasek „Następny mecz”** pokazuje, czy grasz w lidze, czy w pucharze, a przy pucharze także rundę. Gdy w jednym tygodniu są oba mecze, widać obu rywali.
+- Remis w pucharze pokazuje w raporcie wynik rzutów karnych.
+
 ## 0.3.0 (alfa) · 15 października 2026
 
 Odświeżony wygląd. Gra wreszcie mieści się w telefonie, zamiast wylewać się za ekran jak kibic z autobusu.

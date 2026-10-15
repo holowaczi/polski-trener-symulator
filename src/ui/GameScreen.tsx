@@ -6,6 +6,7 @@ import {
   club,
   clubLeague,
   clubPosition,
+  cupRoundLabel,
   finishTransfers,
   formatMoney,
   goalLabel,
@@ -204,21 +205,30 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   const mine = previewStrength(s)
   let label = 'Koniec sezonu'
   let oppStr: number | undefined
+  const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
+  // w jednym tygodniu może być i liga, i puchar; jeden przycisk rozgrywa oba mecze
+  const isCup = !!info && !info.league
+  const cupExtra = info?.league && info.cup ? info.cup : undefined
   if (info) {
     const f = info.league ?? info.cup!
-    const home = f.home === s.clubId
-    const opp = s.teams[home ? f.away : f.home]
-    oppStr = opp.strength
-    label = `${info.cup && !info.league ? '🏆 ' : ''}${home ? 'u siebie' : 'wyjazd'}: ${opp.name}`
+    oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
+    label = vs(f)
   }
+  const cupName = info?.cup ? cupRoundLabel(s, info.week) ?? 'Puchar' : undefined
+  const comp = info ? (isCup ? cupName : 'Liga') : undefined
   const myStr = Math.round(((mine.att + mine.def) / 2) * 10) / 10
   const speed = SPEEDS[auto.speed]
   return (
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          <span className="muted">Następny:</span> <b>{label}</b>
+          {comp && <span className={`comp-tag ${isCup ? 'cup' : ''}`}>{isCup ? `🏆 ${comp}` : comp}</span>} <b>{label}</b>
         </span>
+        {cupExtra && (
+          <span className="playbar-next">
+            <span className="comp-tag cup">🏆 {cupName}</span> <b>{vs(cupExtra)}</b>
+          </span>
+        )}
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>
           {oppStr !== undefined ? (
             <>
