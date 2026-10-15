@@ -24,20 +24,20 @@ import { careerScore, multiplierOf } from '../game/score'
 import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { ConfirmButton, CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
-import { Bar, ClubView, CoachCard } from './profiles'
+import { ClubView, CoachCard } from './profiles'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'mecz', label: 'Mecz' },
-  { id: 'tabela', label: 'Tabela' },
-  { id: 'kadra', label: 'Kadra' },
-  { id: 'taktyka', label: 'Taktyka' },
-  { id: 'transfery', label: 'Transfery' },
-  { id: 'puchar', label: 'Puchar' },
-  { id: 'klub', label: 'Klub' },
-  { id: 'kariera', label: 'Trener' },
-  { id: 'wiesci', label: 'Wieści' },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'transfery', label: 'Transfery', icon: '💸' },
+  { id: 'mecz', label: 'Mecz', icon: '⚽' },
+  { id: 'tabela', label: 'Tabela', icon: '📊' },
+  { id: 'kadra', label: 'Kadra', icon: '👥' },
+  { id: 'taktyka', label: 'Taktyka', icon: '📋' },
+  { id: 'puchar', label: 'Puchar', icon: '🏆' },
+  { id: 'klub', label: 'Klub', icon: '🏟️' },
+  { id: 'kariera', label: 'Trener', icon: '🧢' },
+  { id: 'wiesci', label: 'Wieści', icon: '📰' },
 ]
 
 export function GameScreen({ s, act }: { s: GameState; act: Act }) {
@@ -71,8 +71,20 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
         <>
           <nav className="tabs" aria-label="Sekcje">
             {TABS.filter((t) => t.id !== 'transfery' || s.phase === 'transfer').map((t) => (
-              <button key={t.id} className={tab === t.id ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
-                {t.label}
+              <button
+                key={t.id}
+                className={tab === t.id ? 'tab active' : 'tab'}
+                aria-current={tab === t.id ? 'page' : undefined}
+                onClick={(e) => {
+                  setTab(t.id)
+                  // po zmianie zakładki zaczynamy od góry treści, a nie w połowie poprzedniej listy
+                  const nav = e.currentTarget.parentElement!
+                  const top = nav.getBoundingClientRect().top + window.scrollY - 4
+                  if (window.scrollY > top) window.scrollTo({ top })
+                  e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+                }}
+              >
+                <span aria-hidden="true">{t.icon}</span> {t.label}
               </button>
             ))}
           </nav>
@@ -110,60 +122,70 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   )
 }
 
+/** mały licznik 0–100: nazwa i wartość nad cienkim paskiem */
+function Meter({ label, value, invert }: { label: string; value: number; invert?: boolean }) {
+  const v = invert ? 100 - value : value
+  const tone = v < 25 ? 'bad' : v < 50 ? 'warn' : 'good'
+  return (
+    <div className="meter" title={`${label}: ${value}/100`}>
+      <div className="meter-top">
+        <span>{label}</span>
+        <b className={tone === 'good' ? '' : `${tone}-text`}>{value}</b>
+      </div>
+      <span className="bar-track">
+        <span className={`bar-fill ${tone}`} style={{ width: `${value}%` }} />
+      </span>
+    </div>
+  )
+}
+
 function Header({ s }: { s: GameState }) {
   const team = club(s)
   const lg = clubLeague(s)
   // przed pierwszym meczem miejsce w tabeli nic nie znaczy
   const pos = s.round > 0 ? clubPosition(s) : undefined
   const mult = multiplierOf(s)
+  const overWages = wageBill(s) > s.wageLimit
   return (
     <header className="hud">
-      <div className="hud-cards">
-        <div className="hud-card">
-          <div className="hud-kicker">Trener · sezon {s.season}</div>
-          <div className="coach">
-            {s.coach.firstName} {s.coach.lastName}
-            <span className="muted"> · {s.coach.age} l. · {s.coach.license}</span>
+      <div className="hud-top">
+        <div className="hud-club">
+          <div className="hud-kicker">
+            Sezon {s.season}
+            {team && s.round > 0 ? ` · kolejka ${s.round}` : ''}
           </div>
-          <div className="hud-stats">
-            <span>Reputacja {s.coach.reputation}</span>
-            <span title="Punkty kariery po mnożniku za start">
-              Punkty {careerScore(s).toLocaleString('pl-PL')}
-              {mult !== 1 ? ` (×${mult})` : ''}
-            </span>
-            <span>Oszczędności {formatMoney(s.coach.savings)}</span>
-          </div>
-          <Bar label="Stres" value={s.coach.stress} invert />
-        </div>
-        <div className="hud-card">
-          <div className="hud-kicker">Klub</div>
           <div className="club">
             {team ? team.name : 'Bez klubu'}
-            {lg && (
-              <span className="muted">
-                {' '}
-                · {lg.name}
-                {pos ? ` · ${pos}. miejsce` : ''}
-              </span>
-            )}
+            {pos && <span className="pos-badge">{pos}.</span>}
           </div>
-          {team && (
-            <>
-              <div className="hud-stats">
-                <span>Cel: {goalLabel(s.goal, team.level)}</span>
-                <span>Budżet {formatMoney(s.budget)}</span>
-                <span className={wageBill(s) > s.wageLimit ? 'warn-text' : ''}>
-                  Pensje {formatMoney(wageBill(s))} / {formatMoney(s.wageLimit)}
-                </span>
-              </div>
-              <div className="bars">
-                <Bar label="Zarząd" value={s.trust.board} />
-                <Bar label="Szatnia" value={s.trust.squad} />
-                <Bar label="Kibice" value={s.trust.fans} />
-              </div>
-            </>
-          )}
+          {lg && <div className="small muted">{lg.name}{team ? ` · cel: ${goalLabel(s.goal, team.level).toLowerCase()}` : ''}</div>}
         </div>
+        <div className="hud-coach">
+          <div className="coach">
+            {s.coach.firstName} {s.coach.lastName}
+          </div>
+          <div className="small muted">
+            {s.coach.license} · rep. {s.coach.reputation} ·{' '}
+            <span title="Punkty kariery po mnożniku za start">
+              {careerScore(s).toLocaleString('pl-PL')} pkt{mult !== 1 ? ` (×${mult})` : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+      {team && (
+        <div className="hud-money small">
+          <span>💰 {formatMoney(s.budget)}</span>
+          <span className={overWages ? 'warn-text' : ''}>
+            Pensje {formatMoney(wageBill(s))} / {formatMoney(s.wageLimit)}
+          </span>
+          <span className="muted">Oszczędności {formatMoney(s.coach.savings)}</span>
+        </div>
+      )}
+      <div className="meters">
+        {team && <Meter label="Zarząd" value={s.trust.board} />}
+        {team && <Meter label="Szatnia" value={s.trust.squad} />}
+        {team && <Meter label="Kibice" value={s.trust.fans} />}
+        <Meter label="Stres" value={s.coach.stress} invert />
       </div>
     </header>
   )
@@ -172,59 +194,77 @@ function Header({ s }: { s: GameState }) {
 type AutoState = { speed: number; running: boolean }
 
 const SPEEDS = [
-  { label: 'Wolno', ms: 3000 },
-  { label: 'Normalnie', ms: 1500 },
-  { label: 'Szybko', ms: 500 },
+  { label: 'Wolno', short: '1×', ms: 3000 },
+  { label: 'Normalnie', short: '2×', ms: 1500 },
+  { label: 'Szybko', short: '3×', ms: 500 },
 ]
 
 function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: AutoState; setAuto: (a: AutoState) => void }) {
   const info = nextMatchInfo(s)
   const mine = previewStrength(s)
-  let label = 'Zakończ sezon'
+  let label = 'Koniec sezonu'
   let oppStr: number | undefined
   if (info) {
     const f = info.league ?? info.cup!
     const home = f.home === s.clubId
     const opp = s.teams[home ? f.away : f.home]
     oppStr = opp.strength
-    label = `${info.cup && !info.league ? 'Puchar: ' : ''}${home ? 'u siebie' : 'na wyjeździe'} z ${opp.name}`
+    label = `${info.cup && !info.league ? '🏆 ' : ''}${home ? 'u siebie' : 'wyjazd'}: ${opp.name}`
   }
+  const myStr = Math.round(((mine.att + mine.def) / 2) * 10) / 10
+  const speed = SPEEDS[auto.speed]
   return (
     <div className="playbar">
-      <div className="small muted playbar-info">
-        <span>
-          Następny mecz: <b>{label}</b>
+      <div className="playbar-info small">
+        <span className="playbar-next">
+          <span className="muted">Następny:</span> <b>{label}</b>
         </span>
-        <span>
-          Ty: atak {mine.att} · obrona {mine.def}
-          {oppStr !== undefined && <> · rywal {oppStr}</>}
+        <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>
+          {oppStr !== undefined ? (
+            <>
+              siła <b className={myStr >= oppStr ? 'good-text' : 'warn-text'}>{myStr}</b> vs {oppStr}
+            </>
+          ) : null}
           {mine.xi.length < 11 && <b className="warn-text"> · tylko {mine.xi.length} w składzie!</b>}
         </span>
       </div>
-      <div className="row">
-        <button className="primary" disabled={auto.running} onClick={() => act((g) => playNext(g))}>
-          Rozegraj mecz
+      <div className="playbar-controls">
+        {auto.running ? (
+          <button className="primary play" onClick={() => setAuto({ ...auto, running: false })}>
+            ⏸ Pauza
+          </button>
+        ) : (
+          <button className="primary play" onClick={() => act((g) => playNext(g))}>
+            Rozegraj mecz
+          </button>
+        )}
+        <button
+          className={auto.running ? 'active' : ''}
+          aria-pressed={auto.running}
+          title="Graj automatycznie: zatrzyma się przy zdarzeniu, oknie transferowym, końcu sezonu albo zwolnieniu"
+          onClick={() => setAuto({ ...auto, running: !auto.running })}
+        >
+          {auto.running ? '⏸' : '▶'}
+          <span className="lbl"> Auto</span>
         </button>
-        <button className={auto.running ? 'active' : ''} onClick={() => setAuto({ ...auto, running: !auto.running })}>
-          {auto.running ? '⏸ Pauza' : '▶ Graj automatycznie'}
+        <button
+          title={`Tempo trybu automatycznego: ${speed.label.toLowerCase()} (kliknij, żeby zmienić)`}
+          aria-label={`Tempo: ${speed.label}`}
+          onClick={() => setAuto({ ...auto, speed: (auto.speed + 1) % SPEEDS.length })}
+        >
+          <span className="lbl">Tempo </span>
+          {speed.short}
         </button>
-        <span className="speeds" role="group" aria-label="Szybkość">
-          {SPEEDS.map((sp, i) => (
-            <button key={sp.label} className={auto.speed === i ? 'speed active' : 'speed'} onClick={() => setAuto({ ...auto, speed: i })}>
-              {sp.label}
-            </button>
-          ))}
-        </span>
         <ConfirmButton
-          label="⏩ Symuluj do okna"
-          confirmLabel="Na pewno? Asystent sam rozstrzygnie zdarzenia"
+          label="⏩ Do okna"
+          confirmLabel="Na pewno?"
+          title="Symuluj do okna transferowego, końca sezonu albo zwolnienia. Zdarzenia rozstrzygnie asystent."
           onConfirm={() => {
             setAuto({ ...auto, running: false })
             act((g) => simulateToBreak(g))
           }}
         />
       </div>
-      {auto.running && <p className="small muted">Tryb automatyczny: zatrzyma się przy zdarzeniu, oknie transferowym, końcu sezonu albo zwolnieniu.</p>}
     </div>
   )
 }

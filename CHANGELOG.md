@@ -1,5 +1,26 @@
 # Zmiany
 
+## 0.3.0 (alfa) · 15 października 2026
+
+Odświeżony wygląd. Gra wreszcie mieści się w telefonie, zamiast wylewać się za ekran jak kibic z autobusu.
+
+### Telefon
+- **Mniejszy nagłówek.** Klub, miejsce w tabeli, pieniądze i cztery liczniki (Zarząd, Szatnia, Kibice, Stres) zajmują teraz mniej niż połowę dawnego miejsca.
+- **Zakładki z ikonami.** Zawsze są pod ręką, bo przyklejają się do góry ekranu. Gdy jest ich więcej, niż się mieści, przewijają się w bok. Po zmianie zakładki treść zaczyna się od góry.
+- **Pasek meczu w jednym rzędzie:** duży przycisk „Rozegraj mecz”, ▶ (tryb automatyczny), tempo 1×/2×/3× i ⏩ „Do okna”. W trybie automatycznym główny przycisk zmienia się w „Pauza”.
+- **Kadra, rynek i sprzedaż jako karty** zamiast tabel, których prawa połowa chowała się za krawędzią ekranu. W tabeli ligowej zostały same najważniejsze kolumny.
+- **Zdarzenia wysuwają się od dołu** jak arkusz, z dużymi przyciskami. Komunikaty nie zasłaniają już odpowiedzi.
+
+### Okno transferowe
+- Okno ma cztery części: Umowy, Oferty, Kupno i Sprzedaż. Liczniki pokazują, ile spraw czeka.
+- **„Podpisz wszystkich”** przedłuża umowy wszystkim chętnym naraz, bez targowania i w granicach limitu pensji.
+- Prośby zawodników są czytelniejsze: obecna pensja → żądanie, na ile sezonów.
+
+### Inne
+- Pasek meczu porównuje siłę Twojej drużyny z rywalem i koloruje wynik.
+- Zastrzeżenie na stronie startowej jest teraz krótkie, a pełna treść rozwija się po kliknięciu.
+- Poprawiony podpis na starcie: od C-klasy do Ekstraklasy.
+
 ## 0.2.0 (alfa) · 14 października 2026
 
 Największa aktualizacja od otwarcia pierwszego baraku klubowego. Prezes już wie, ile kosztuje piłkarz, a piłkarze wiedzą, ile kosztuje warsztat samochodowy.

@@ -6,7 +6,7 @@ import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, rele
 import { formationOf, previewStrength, teamBonus } from '../game/match'
 import type { Cup, CupTie, Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
-import { acceptDemand, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
+import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 
@@ -17,6 +17,7 @@ export function ConfirmButton(props: {
   onConfirm: () => void
   className?: string
   disabled?: boolean
+  title?: string
 }) {
   const [armed, setArmed] = useState(false)
   useEffect(() => {
@@ -28,6 +29,7 @@ export function ConfirmButton(props: {
     <button
       className={`${props.className ?? ''}${armed ? ' danger' : ''}`}
       disabled={props.disabled}
+      title={props.title}
       onClick={() => (armed ? props.onConfirm() : setArmed(true))}
     >
       {armed ? props.confirmLabel : props.label}
@@ -43,7 +45,7 @@ function Form({ v }: { v: number }) {
   const arrows = ['⇊', '↓', '↘', '→', '↗', '↑', '⇈']
   const tone = v > 0 ? 'good' : v < 0 ? 'bad' : ''
   return (
-    <span className={`form ${tone}`} title={`Forma ${v > 0 ? '+' : ''}${v}`}>
+    <span className={`form-arrow ${tone}`} title={`Forma ${v > 0 ? '+' : ''}${v}`}>
       {arrows[v + 3]}
     </span>
   )
@@ -296,9 +298,9 @@ export function TableView({ s }: { s: GameState }) {
             <th>#</th>
             <th className="left">Drużyna</th>
             <th>M</th>
-            <th>Z</th>
-            <th>R</th>
-            <th>P</th>
+            <th className="hide-sm">Z</th>
+            <th className="hide-sm">R</th>
+            <th className="hide-sm">P</th>
             <th>Bramki</th>
             <th>Pkt</th>
           </tr>
@@ -314,11 +316,11 @@ export function TableView({ s }: { s: GameState }) {
               ].join(' ')}
             >
               <td>{i + 1}</td>
-              <td className="left">{teamName(s, r.teamId)}</td>
+              <td className="left team-cell">{teamName(s, r.teamId)}</td>
               <td>{r.p}</td>
-              <td>{r.w}</td>
-              <td>{r.d}</td>
-              <td>{r.l}</td>
+              <td className="hide-sm">{r.w}</td>
+              <td className="hide-sm">{r.d}</td>
+              <td className="hide-sm">{r.l}</td>
               <td>
                 {r.gf}:{r.ga}
               </td>
@@ -401,7 +403,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
           : 'Ręczny skład. Jeśli ktoś wypadnie przez kontuzję lub kartkę, jego miejsce zajmie zmiennik z ławki.'}
       </p>
       <div className="scroll-x">
-        <table className="table">
+        <table className="table stack">
           <thead>
             <tr>
               <th>Miejsce</th>
@@ -422,38 +424,38 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
           <tbody>
             {sorted.map((p) => (
               <tr key={p.id} className={xiIds.has(p.id) ? 'xi' : benchIds.has(p.id) ? 'bench' : ''}>
-                <td>
+                <td className="cell-slot">
                   <SlotPicker s={s} p={p} act={act} />
                 </td>
-                <td>
+                <td className="cell-pos">
                   <span className={`pos pos-${p.pos}`}>{p.pos}</span>
                 </td>
-                <td className="left">
+                <td className="left cell-name">
                   <div>
                     {playerName(p)} <Status p={p} />
                   </div>
                   <Traits p={p} />
                 </td>
-                <td>{p.age}</td>
-                <td>
+                <td data-label="Wiek">{p.age}</td>
+                <td data-label="Um.">
                   <b>{p.skill}</b>
                 </td>
-                <td className="muted">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
-                <td>
+                <td className="muted hide-sm" data-label="Pot.">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
+                <td data-label="Umowa">
                   <Contract p={p} />
                 </td>
-                <td>
+                <td data-label="Forma">
                   <Form v={p.form} />
                 </td>
-                <td>
+                <td data-label="Śr.">
                   <Rating r={avgRating(p)} />
                 </td>
-                <td>{p.morale}</td>
-                <td>
+                <td className="hide-sm" data-label="Morale">{p.morale}</td>
+                <td className="hide-sm" data-label="G/A/M">
                   {p.goals}/{p.assists}/{p.apps}
                 </td>
-                <td className="muted">{formatMoney(p.wage)}</td>
-                <td>
+                <td className="muted hide-sm" data-label="Pensja">{formatMoney(p.wage)}</td>
+                <td className="cell-action">
                   <ConfirmButton
                     className="tiny ghost"
                     disabled={s.squad.length <= MIN_SQUAD}
@@ -536,12 +538,31 @@ function ContractTalks({ s, act }: { s: GameState; act: Act }) {
   const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1).sort((a, b) => (a.contract ?? 1) - (b.contract ?? 1) || b.skill - a.skill)
   if (!talks.length) return null
   const bill = wageBill(s)
+  const open = talks.filter((p) => !p.talksOver)
+  const extra = open.reduce((a, p) => a + (p.haggled ?? wageDemand(s, p)) - p.wage, 0)
   return (
     <>
-      <h2>Umowy do przedłużenia</h2>
+      <div className="section-head">
+        <h2>Umowy do przedłużenia</h2>
+        {open.length > 1 && (
+          <ConfirmButton
+            className="tiny"
+            label={`Podpisz wszystkich (+${formatMoney(extra)}/mies.)`}
+            confirmLabel="Na pewno? Bez targowania"
+            onConfirm={() =>
+              act((g) => {
+                let n = 0
+                for (const p of [...g.squad].sort((a, b) => b.skill - a.skill))
+                  if (canNegotiate(p) && acceptDemand(g, p.id).includes('podpisuje')) n++
+                return n ? `Podpisano ${n} ${n === 1 ? 'umowę' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'umowy' : 'umów'}. Księgowa łapie się za głowę.` : 'Nikogo nie da się podpisać w limicie pensji.'
+              })
+            }
+          />
+        )}
+      </div>
       <p className="small muted">
-        Zawodnicy z wygasłą umową odejdą za darmo, jeśli nie podpiszą nowej przed zamknięciem okna. Tym w ostatnim roku umowy możesz ją przedłużyć już
-        teraz. Targowanie się może zbić pensję o 15%, ale drugie podejście kończy rozmowy.
+        <span className="warn-text">Wygasa</span>: odejdzie za darmo po zamknięciu okna. <span className="warn-text">1 sez.</span>: można przedłużyć już teraz.
+        Targowanie zbija pensję o 15%, ale drugie podejście kończy rozmowy.
       </p>
       <div className="bids">
         {talks.map((p) => {
@@ -551,10 +572,14 @@ function ContractTalks({ s, act }: { s: GameState; act: Act }) {
           return (
             <div key={p.id} className="bid">
               <div>
-                <span className={`pos pos-${p.pos}`}>{p.pos}</span> <b>{playerName(p)}</b> ({p.age} l., um. {p.skill}) · <Contract p={p} />
+                <div className="bid-title">
+                  <span className={`pos pos-${p.pos}`}>{p.pos}</span> <b>{playerName(p)}</b> <Contract p={p} />
+                </div>
+                <div className="small">
+                  {formatMoney(p.wage)} → <b>{formatMoney(demand)}</b>/mies. na {years} {years === 1 ? 'sezon' : 'sezony'}
+                </div>
                 <div className="small muted">
-                  Teraz {formatMoney(p.wage)}/mies. · chce <b>{formatMoney(demand)}</b> na {years} {years === 1 ? 'sezon' : 'sezony'} · średnia ocen{' '}
-                  {avgRating(p)?.toFixed(2) ?? '–'} · morale {p.morale}
+                  {p.age} l. · um. {p.skill} · śr. ocen {avgRating(p)?.toFixed(2) ?? '–'} · morale {p.morale}
                   {p.talksOver ? ' · zerwał rozmowy' : p.haggled ? ' · nie zejdzie niżej' : ''}
                   {over ? ' · przekroczy limit pensji' : ''}
                 </div>
@@ -576,23 +601,43 @@ function ContractTalks({ s, act }: { s: GameState; act: Act }) {
   )
 }
 
+type TransferSection = 'umowy' | 'oferty' | 'kupno' | 'sprzedaz'
+
 export function TransferView({ s, act }: { s: GameState; act: Act }) {
   const bill = wageBill(s)
+  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1).length
+  const sections: { id: TransferSection; label: string; count?: number }[] = [
+    ...(talks ? [{ id: 'umowy' as const, label: 'Umowy', count: talks }] : []),
+    ...(s.bids.length ? [{ id: 'oferty' as const, label: 'Oferty', count: s.bids.length }] : []),
+    { id: 'kupno', label: 'Kupno', count: s.transferList.length },
+    { id: 'sprzedaz', label: 'Sprzedaż' },
+  ]
+  const [want, setSec] = useState<TransferSection | null>(null)
+  const sec = sections.some((x) => x.id === want) ? want! : sections[0].id
   return (
     <div>
       <div className="chips">
-        <span className="chip">Budżet transferowy {formatMoney(s.budget)}</span>
-        <span className={`chip ${bill > s.wageLimit ? 'bad' : ''}`}>
-          Pensje {formatMoney(bill)} / limit {formatMoney(s.wageLimit)} miesięcznie
+        <span className="chip">💰 {formatMoney(s.budget)}</span>
+        <span className={`chip ${bill > s.wageLimit ? 'bad' : ''}`} title="Pensje zawodników miesięcznie / limit">
+          Pensje {formatMoney(bill)} / {formatMoney(s.wageLimit)}
         </span>
-        <span className="chip">
-          Kadra {s.squad.length} (min. {MIN_SQUAD}, maks. {MAX_SQUAD})
+        <span className="chip" title={`Minimum ${MIN_SQUAD}, maksimum ${MAX_SQUAD}`}>
+          Kadra {s.squad.length}/{MAX_SQUAD}
         </span>
       </div>
 
-      <ContractTalks s={s} act={act} />
+      <div className="segmented" role="tablist" aria-label="Okno transferowe">
+        {sections.map((x) => (
+          <button key={x.id} role="tab" aria-selected={sec === x.id} className={sec === x.id ? 'active' : ''} onClick={() => setSec(x.id)}>
+            {x.label}
+            {x.count ? <span className="count">{x.count}</span> : null}
+          </button>
+        ))}
+      </div>
 
-      {s.bids.length > 0 && (
+      {sec === 'umowy' && <ContractTalks s={s} act={act} />}
+
+      {sec === 'oferty' && (
         <>
           <h2>Oferty za Twoich zawodników</h2>
           <div className="bids">
@@ -626,9 +671,11 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
         </>
       )}
 
+      {sec === 'kupno' && (
+        <>
       <h2>Do kupienia</h2>
       <div className="scroll-x">
-        <table className="table">
+        <table className="table stack">
           <thead>
             <tr>
               <th>Poz.</th>
@@ -648,25 +695,27 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
               const overWage = bill + p.wage > s.wageLimit
               return (
                 <tr key={p.id}>
-                  <td>
+                  <td className="cell-pos">
                     <span className={`pos pos-${p.pos}`}>{p.pos}</span>
                   </td>
-                  <td className="left">
+                  <td className="left cell-name">
                     {playerName(p)}
                     <Traits p={p} />
                   </td>
-                  <td>{p.age}</td>
-                  <td>
+                  <td data-label="Wiek">{p.age}</td>
+                  <td data-label="Um.">
                     <b>{p.skill}</b>
                   </td>
-                  <td className="muted">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
-                  <td>
+                  <td className="muted " data-label="Pot.">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
+                  <td data-label="Umowa">
                     <Contract p={p} />
                   </td>
-                  <td className="left small">{from}</td>
-                  <td>{fee ? formatMoney(fee) : 'za darmo'}</td>
-                  <td className={overWage ? 'warn-text' : ''}>{formatMoney(p.wage)}</td>
-                  <td>
+                  <td className="left small" data-label="Skąd">{from}</td>
+                  <td data-label="Cena">
+                    <b>{fee ? formatMoney(fee) : 'za darmo'}</b>
+                  </td>
+                  <td className={overWage ? 'warn-text' : ''} data-label="Pensja">{formatMoney(p.wage)}</td>
+                  <td className="cell-action">
                     <button
                       className="tiny primary"
                       disabled={fee > s.budget || overWage || s.squad.length >= MAX_SQUAD}
@@ -683,13 +732,17 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
         </table>
       </div>
       {!s.transferList.length && <p className="muted">Rynek pusty. Wszyscy dobrzy poszli do rywala.</p>}
+        </>
+      )}
 
+      {sec === 'sprzedaz' && (
+        <>
       <h2>Sprzedaż</h2>
       <p className="small muted">
         Szybka sprzedaż daje 70% wartości, a zawodnik w ostatnim roku umowy tylko 45%. Lepsze pieniądze dają oferty innych klubów.
       </p>
       <div className="scroll-x">
-        <table className="table">
+        <table className="table stack">
           <thead>
             <tr>
               <th>Poz.</th>
@@ -706,26 +759,26 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
           <tbody>
             {[...s.squad].sort(byPos).map((p) => (
               <tr key={p.id}>
-                <td>
+                <td className="cell-pos">
                   <span className={`pos pos-${p.pos}`}>{p.pos}</span>
                 </td>
-                <td className="left">
+                <td className="left cell-name">
                   {playerName(p)} <Status p={p} />
                   <Traits p={p} />
                 </td>
-                <td>{p.age}</td>
-                <td>
+                <td data-label="Wiek">{p.age}</td>
+                <td data-label="Um.">
                   <b>{p.skill}</b>
                 </td>
-                <td>
+                <td data-label="Umowa">
                   <Contract p={p} />
                 </td>
-                <td>
+                <td data-label="Śr.">
                   <Rating r={avgRating(p)} />
                 </td>
-                <td className="muted">{formatMoney(p.value)}</td>
-                <td className="muted">{formatMoney(p.wage)}</td>
-                <td>
+                <td className="muted" data-label="Wartość">{formatMoney(p.value)}</td>
+                <td className="muted" data-label="Pensja">{formatMoney(p.wage)}</td>
+                <td className="cell-action">
                   <ConfirmButton
                     className="tiny"
                     disabled={s.squad.length <= MIN_SQUAD}
@@ -739,6 +792,8 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   )
 }

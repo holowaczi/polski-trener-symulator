@@ -74,7 +74,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
       <header className="start-head">
         <div className="logo">⚽</div>
         <h1>Polski Trener Symulator</h1>
-        <p className="muted">Od B-klasy do Ekstraklasy. Albo do zwolnienia w trzeciej kolejce.</p>
+        <p className="muted">Od C-klasy do Ekstraklasy. Albo do zwolnienia w trzeciej kolejce.</p>
         <p className="muted small">Prawdziwe kluby sezonu 2026/27, od Ekstraklasy po B-klasę. Województwo decyduje o grupie III ligi i o lokalnych ligach.</p>
       </header>
 
@@ -199,7 +199,12 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         </section>
       )}
       <footer className="card disclaimer muted">
-        <h2>Zastrzeżenie</h2>
+        <p>
+          <b>Gra fanowska.</b> Wszyscy zawodnicy i działacze są fikcyjni, a zbieżność nazwisk jest przypadkowa. Wersja{' '}
+          {__APP_VERSION__.replace('-alpha', ' (alfa)')}.
+        </p>
+        <details>
+          <summary>Pełne zastrzeżenie</summary>
         <p>
           Polski Trener Symulator to niekomercyjna gra fanowska, stworzona dla rozrywki. Nie jest powiązana z PZPN, wojewódzkimi związkami piłki nożnej,
           Ekstraklasą S.A. ani żadnym klubem, nie jest też przez nie autoryzowana ani wspierana.
@@ -216,7 +221,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         <p>
           Gra działa w całości w przeglądarce. Zapis kariery trzymamy tylko w pamięci Twojej przeglądarki (localStorage) i nie wysyłamy go nigdzie.
         </p>
-        <p>Wersja {__APP_VERSION__.replace('-alpha', ' (alfa)')}.</p>
+        </details>
       </footer>
     </main>
   )
