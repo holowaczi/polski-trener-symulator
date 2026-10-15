@@ -14,6 +14,7 @@ import {
   retire,
   simulateToBreak,
   licenseStatus,
+  boardPaysCourse,
   stayAtClub,
   startLicenseCourse,
 } from './engine'
@@ -230,6 +231,24 @@ describe('licencja po awansie', () => {
     // na kursie związek daje zgodę warunkową
     s.coach.courseLeft = 1
     expect(licenseStatus(s)!.canStay).toBe(true)
+    expect(licenseStatus(s)!.studying).toBe(true)
+  })
+})
+
+describe('kurs na koszt klubu', () => {
+  it('przy dobrych relacjach zarząd płaci za kurs po awansie, bez sprawdzania reputacji', () => {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'mazowieckie', seed: 9 })
+    acceptOffer(s, s.offers[0].teamId)
+    s.teams[s.clubId!].level = 5
+    s.coach.reputation = 0
+    const savings = s.coach.savings
+    s.trust.board = 40
+    expect(boardPaysCourse(s)).toBe(false)
+    s.trust.board = 70
+    expect(boardPaysCourse(s)).toBe(true)
+    startLicenseCourse(s, true)
+    expect(s.coach.courseLeft).toBe(1)
+    expect(s.coach.savings).toBe(savings)
     expect(licenseStatus(s)!.studying).toBe(true)
   })
 })

@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.3.4 (alfa) · 15 października 2026
+
+- **Kurs na koszt klubu.** Gdy po awansie liga wymaga wyższej licencji, a relacje z zarządem wynoszą co najmniej 60, prezes płaci za kurs i załatwia na nim miejsce, więc reputacja nie gra roli. Kosztuje to odrobinę zaufania zarządu. Przy słabszych relacjach ekran końca sezonu podpowiada, ile brakuje.
+
 ## 0.3.3 (alfa) · 15 października 2026
 
 - **Licencja liczy się też po awansie.** Kiedy klub awansuje do ligi, która wymaga wyższej licencji:

@@ -3,6 +3,8 @@ import type { Act } from '../App'
 import { LEVELS, LICENSES, LICENSE_COURSES } from '../game/data'
 import {
   acceptOffer,
+  BOARD_PAYS_COURSE,
+  boardPaysCourse,
   club,
   clubLeague,
   clubPosition,
@@ -371,7 +373,13 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
           <span className="small">
             Kurs {next}: {formatMoney(course.cost)}, wymagana reputacja {course.rep}.
           </span>
-          <button onClick={() => act((g) => startLicenseCourse(g))}>Zapisz się</button>
+          {boardPaysCourse(s) ? (
+            <button className="primary" onClick={() => act((g) => startLicenseCourse(g, true))}>
+              Zapisz się na koszt klubu
+            </button>
+          ) : (
+            <button onClick={() => act((g) => startLicenseCourse(g))}>Zapisz się</button>
+          )}
         </div>
       ) : (
         <p className="small">Masz najwyższą licencję. Możesz prowadzić każdy klub.</p>
@@ -385,11 +393,15 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
           ) : lic.canStay ? (
             <>
               Nowa liga wymaga licencji <b>{lic.need}</b>, a Ty masz {s.coach.license}. Zapisz się na kurs albo klub zgłosi trenera z licencją „na papierze”
-              za {formatMoney(lic.cost)} z budżetu, a zarząd będzie niezadowolony. Taki numer przejdzie tylko raz.
+              za {formatMoney(lic.cost)} z budżetu, a zarząd będzie niezadowolony. Taki numer przejdzie tylko raz.{' '}
+              {boardPaysCourse(s)
+                ? 'Prezes jest zadowolony z awansu i zapłaci za Twój kurs.'
+                : `Przy lepszych relacjach z zarządem (${BOARD_PAYS_COURSE}+, teraz ${s.trust.board}) klub zapłaciłby za kurs.`}
             </>
           ) : (
             <>
               Związek nie zgodzi się na kolejny sezon z trenerem „na papierze”. Żeby zostać, zapisz się na kurs {next}. Możesz też przyjąć ofertę z innego klubu.
+              {boardPaysCourse(s) ? ' Prezes zapłaci za kurs.' : ''}
             </>
           )}
         </div>

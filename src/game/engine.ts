@@ -1121,11 +1121,27 @@ export function acceptOffer(s: GameState, teamId: number): void {
   if (offer) takeJob(s, offer)
 }
 
-export function startLicenseCourse(s: GameState): string {
+/** zarząd przy dobrych relacjach opłaca kurs, gdy po awansie liga wymaga wyższej licencji */
+export const BOARD_PAYS_COURSE = 60
+
+export function boardPaysCourse(s: GameState): boolean {
+  const lic = licenseStatus(s)
+  return !!lic && !lic.ok && !lic.studying && s.coach.courseLeft === 0 && s.trust.board >= BOARD_PAYS_COURSE && !!LICENSES[licenseIndex(s.coach.license) + 1]
+}
+
+export function startLicenseCourse(s: GameState, sponsored = false): string {
   const next = LICENSES[licenseIndex(s.coach.license) + 1]
   if (!next) return 'Masz już najwyższą licencję.'
   const course = LICENSE_COURSES[next]!
   if (s.coach.courseLeft > 0) return 'Już jesteś na kursie.'
+  if (sponsored && boardPaysCourse(s)) {
+    // klub płaci i załatwia miejsce na kursie, więc reputacja nie gra roli
+    adjustTrust(s, { board: -3 })
+    s.coach.courseLeft = next === 'UEFA A' || next === 'UEFA Pro' ? 2 : 1
+    const msg = `Prezes płaci za kurs ${next} (${formatMoney(course.cost)}). „Awansowaliśmy razem, to i papiery zrobimy razem”. Dyplom po ${s.coach.courseLeft === 1 ? 'zakończeniu sezonu' : 'dwóch sezonach'}.`
+    news(s, msg)
+    return msg
+  }
   if (s.coach.reputation < course.rep) return `Na kurs ${next} potrzebujesz reputacji ${course.rep}.`
   if (s.coach.savings < course.cost) return `Kurs ${next} kosztuje ${formatMoney(course.cost)}. Nie stać Cię.`
   s.coach.savings -= course.cost
