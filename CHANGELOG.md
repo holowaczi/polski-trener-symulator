@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.5.1 (alfa) · 16 października 2026
+
+- **Czytelniejszy wykres kariery na karcie trenera.** Najedź na sezon albo go stuknij, a zobaczysz klub, ligę, miejsce, awans lub spadek, wynik w pucharze i informację o zmianie klubu.
+- Awanse to zielone trójkąty i zielone odcinki, spadki czerwone, mistrzostwa złote kółka, a zwolnienia czerwone krzyżyki. Każdy klub ma na wykresie swój pas, a zmianę klubu zaznacza przerywana linia. Oś pokazuje wszystkie poziomy lig.
+- Pod wykresem jest przebieg kariery klub po klubie: sezony, liga na początku i na końcu oraz awanse, spadki, mistrzostwa i zwolnienia.
+
 ## 0.5.0 (alfa) · 16 października 2026
 
 Cała Polska w grze. Dotąd świat kończył się na granicy Twojego województwa, przez co warszawski klub potrafił spaść do grupy III ligi ze Śląska.

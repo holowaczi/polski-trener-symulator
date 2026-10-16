@@ -4,38 +4,180 @@ import { LEVELS } from '../game/data'
 import { careerCard } from '../game/engine'
 import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
 import { saveRecord } from './save'
-import type { GameState } from '../game/types'
+import type { GameState, SeasonRecord } from '../game/types'
 
-function PathChart({ path }: { path: number[] }) {
-  const w = 320
-  const h = 120
-  const pad = 14
-  if (path.length === 0) return null
-  // skala od najniższego poziomu w grze (klasa C) do Ekstraklasy
-  const top = LEVELS.length - 1
-  const pts = path.map((lv, i) => {
-    const x = path.length === 1 ? w / 2 : pad + (i * (w - pad * 2)) / (path.length - 1)
-    const y = h - pad - (lv * (h - pad * 2)) / top
-    return [x, y] as const
+/** krótkie nazwy poziomów na oś wykresu */
+const SHORT = ['C', 'B', 'B', 'A', 'Okręg.', 'IV', 'III', 'II', 'I', 'Ekstra']
+
+type Mark = 'up' | 'down' | 'title' | 'fired' | 'none'
+
+function markOf(h: SeasonRecord): Mark {
+  if (h.fired) return 'fired'
+  if (h.outcome.includes('mistrzostwo')) return 'title'
+  if (h.outcome.includes('awans')) return 'up'
+  if (h.outcome.includes('spadek')) return 'down'
+  return 'none'
+}
+
+const MARK_LABEL: Record<Mark, string> = { up: '▲ awans', down: '▼ spadek', title: '🏆 mistrzostwo', fired: '✕ zwolnienie', none: '' }
+
+/** okresy w jednym klubie */
+function stintsOf(history: SeasonRecord[]) {
+  const out: { club: string; from: number; to: number; seasons: SeasonRecord[] }[] = []
+  history.forEach((h, i) => {
+    const last = out[out.length - 1]
+    if (last && last.club === h.clubName && last.to === i - 1) {
+      last.to = i
+      last.seasons.push(h)
+    } else out.push({ club: h.clubName, from: i, to: i, seasons: [h] })
   })
+  return out
+}
+
+function PathChart({ history }: { history: SeasonRecord[] }) {
+  const [active, setActive] = useState<number | null>(null)
+  if (history.length === 0) return null
+  const w = 400
+  const h = 210
+  const left = 44
+  const right = 12
+  const topPad = 22
+  const bottom = 22
+  const lo = Math.max(0, Math.min(...history.map((x) => x.level)) - 1)
+  const hi = LEVELS.length - 1
+  const n = history.length
+  const xOf = (i: number) => (n === 1 ? (left + w - right) / 2 : left + (i * (w - left - right)) / (n - 1))
+  const yOf = (lv: number) => topPad + ((hi - lv) * (h - topPad - bottom)) / Math.max(1, hi - lo)
+  const half = n === 1 ? (w - left - right) / 2 : (w - left - right) / (n - 1) / 2
+  const stints = stintsOf(history)
+  const cur = active !== null ? history[active] : undefined
+  const prev = active !== null && active > 0 ? history[active - 1] : undefined
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="path-chart" role="img" aria-label="Ścieżka kariery według poziomu ligi">
-      {[0, top].map((lv) => {
-        const y = h - pad - (lv * (h - pad * 2)) / top
-        return (
+    <div className="path-wrap" onMouseLeave={() => setActive(null)}>
+      <div className="path-title">Droga przez ligi</div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="path-chart" role="img" aria-label="Ścieżka kariery według poziomu ligi">
+        {/* tło: każdy klub ma swój pas */}
+        {stints.map((st, k) => {
+          const x1 = Math.max(left - 4, xOf(st.from) - half)
+          const x2 = Math.min(w - right + 4, xOf(st.to) + half)
+          return (
+            <g key={k}>
+              <rect x={x1} y={topPad - 14} width={x2 - x1} height={h - topPad - bottom + 18} className={k % 2 ? 'band alt' : 'band'} />
+              {k > 0 && <line x1={x1} x2={x1} y1={topPad - 14} y2={h - bottom + 4} className="club-change" />}
+              {x2 - x1 > 44 && (
+                <text x={(x1 + x2) / 2} y={topPad - 4} className="band-label" textAnchor="middle">
+                  {st.club.length > 16 ? `${st.club.slice(0, 15)}…` : st.club}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        {Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).map((lv) => (
           <g key={lv}>
-            <line x1={pad} x2={w - pad} y1={y} y2={y} className="grid" />
-            <text x={pad} y={y - 3} className="axis">
-              {lv === top ? LEVELS[lv].name : 'Najniższa klasa'}
+            <line x1={left} x2={w - right} y1={yOf(lv)} y2={yOf(lv)} className="grid" />
+            <text x={left - 6} y={yOf(lv) + 3} className="axis" textAnchor="end">
+              {SHORT[lv]}
             </text>
           </g>
+        ))}
+        {history.slice(1).map((x, i) => {
+          const a = history[i]
+          const cls = x.level > a.level ? 'seg up' : x.level < a.level ? 'seg down' : 'seg'
+          return <line key={i} x1={xOf(i)} y1={yOf(a.level)} x2={xOf(i + 1)} y2={yOf(x.level)} className={cls} />
+        })}
+        {history.map((x, i) => {
+          const m = markOf(x)
+          const cx = xOf(i)
+          const cy = yOf(x.level)
+          const on = active === i
+          return (
+            <g key={i} className={`pt ${m}${on ? ' on' : ''}`}>
+              {m === 'up' && <polygon points={`${cx},${cy - 6} ${cx - 5},${cy + 3} ${cx + 5},${cy + 3}`} />}
+              {m === 'down' && <polygon points={`${cx},${cy + 6} ${cx - 5},${cy - 3} ${cx + 5},${cy - 3}`} />}
+              {m === 'title' && <circle cx={cx} cy={cy} r={5.5} />}
+              {m === 'fired' && <path d={`M${cx - 4} ${cy - 4} L${cx + 4} ${cy + 4} M${cx + 4} ${cy - 4} L${cx - 4} ${cy + 4}`} />}
+              {m === 'none' && <circle cx={cx} cy={cy} r={3.5} />}
+              {on && <circle cx={cx} cy={cy} r={9} className="halo" />}
+              <rect
+                x={cx - half}
+                y={topPad - 14}
+                width={half * 2}
+                height={h - topPad - bottom + 18}
+                className="hit"
+                onMouseEnter={() => setActive(i)}
+                onClick={() => setActive(active === i ? null : i)}
+              />
+            </g>
+          )
+        })}
+        <text x={left} y={h - 6} className="axis">
+          sezon {history[0].season}
+        </text>
+        <text x={w - right} y={h - 6} className="axis" textAnchor="end">
+          sezon {history[n - 1].season}
+        </text>
+      </svg>
+      {cur ? (
+        <div className="path-tip">
+          <div className="tip-head">
+            Sezon {cur.season} · <b>{cur.clubName}</b>
+          </div>
+          <div>{cur.leagueName}</div>
+          <div>
+            {cur.position ? `${cur.position}. miejsce` : ''}
+            {markOf(cur) !== 'none' && <span className={`tip-mark ${markOf(cur)}`}> {MARK_LABEL[markOf(cur)]}</span>}
+          </div>
+          {cur.outcome.includes('baraże') && <div className="muted">{cur.outcome.includes('wygrane') ? 'Baraże wygrane' : 'Baraże przegrane'}</div>}
+          <div className="muted">Puchar: {cur.cup}</div>
+          {prev && prev.clubName !== cur.clubName && <div className="muted">Nowy klub, wcześniej {prev.clubName}</div>}
+        </div>
+      ) : (
+        <div className="path-tip hint small muted">Najedź albo stuknij w sezon, żeby zobaczyć szczegóły.</div>
+      )}
+      <div className="path-legend small">
+        <span className="pt up">▲ awans</span>
+        <span className="pt down">▼ spadek</span>
+        <span className="pt title">● mistrzostwo</span>
+        <span className="pt fired">✕ zwolnienie</span>
+        <span className="muted">pasy: kolejne kluby</span>
+      </div>
+    </div>
+  )
+}
+
+/** przebieg kariery klub po klubie */
+function Stints({ history }: { history: SeasonRecord[] }) {
+  const stints = stintsOf(history)
+  if (!stints.length) return null
+  return (
+    <ol className="stints">
+      {stints.map((st, k) => {
+        const first = st.seasons[0]
+        const last = st.seasons[st.seasons.length - 1]
+        const ups = st.seasons.filter((x) => x.outcome.includes('awans')).length
+        const downs = st.seasons.filter((x) => x.outcome.includes('spadek')).length
+        const titles = st.seasons.filter((x) => x.outcome.includes('mistrzostwo')).length
+        const shortLeague = (x: SeasonRecord) => x.leagueName.split(' · ')[0].replace(/ \(.*\)$/, '')
+        return (
+          <li key={k}>
+            <div className="stint-head">
+              <b>{st.club}</b>
+              <span className="muted small">
+                {first.season === last.season ? `sezon ${first.season}` : `sezony ${first.season}–${last.season}`}
+              </span>
+            </div>
+            <div className="small">
+              {shortLeague(first)}
+              {shortLeague(last) !== shortLeague(first) ? ` → ${shortLeague(last)}` : ''}
+              {ups > 0 && <span className="stint-chip up">▲ {ups > 1 ? `${ups}× ` : ''}awans</span>}
+              {downs > 0 && <span className="stint-chip down">▼ {downs > 1 ? `${downs}× ` : ''}spadek</span>}
+              {titles > 0 && <span className="stint-chip title">🏆 {titles > 1 ? `${titles}× ` : ''}mistrzostwo</span>}
+              {last.fired && <span className="stint-chip fired">✕ zwolniony</span>}
+            </div>
+          </li>
         )
       })}
-      <polyline points={pts.map((p) => p.join(',')).join(' ')} className="path-line" />
-      {pts.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={3} className="path-dot" />
-      ))}
-    </svg>
+    </ol>
   )
 }
 
@@ -126,15 +268,14 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
           </ul>
         </div>
 
-        <PathChart path={card.path} />
+        <PathChart history={s.history} />
+        <Stints history={s.history} />
 
         <dl className="cc-facts">
           <dt>Bilans</dt>
           <dd>{card.record}</dd>
           <dt>Szczyt kariery</dt>
           <dd>{card.peak}</dd>
-          <dt>Kluby</dt>
-          <dd>{card.clubs.join(' → ') || 'brak'}</dd>
           {card.bestPlayer && (
             <>
               <dt>Najlepszy podopieczny</dt>
