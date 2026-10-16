@@ -9,6 +9,7 @@ import type { Rng } from './rng'
 import type { Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
+import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
 import {
   clamp,
   generatePlayer,
@@ -21,6 +22,7 @@ import {
   teamsAtLevel,
   bottomLevel,
   wageFor,
+  newcomerTeams,
 } from './world'
 
 export { club, clubLeague, formatMoney } from './util'
@@ -78,48 +80,130 @@ function canGoUp(s: GameState, teamId: number, level: number): boolean {
   return !parent || level + 1 < parent.level
 }
 
-/** ilu spada z danej grupy: tylu, ilu awansuje z poziomu niżej, rozłożonych po grupach */
+/** ilu spada z danej grupy przy obecnych tabelach (zależy też od tego, kto spada z ligi wyżej) */
 export function relegationSlots(s: GameState, lg: League): number {
-  if (!groupsAt(s, lg.level - 1).length) return 0
-  const total = promotionSlots(s, lg.level - 1) * groupsAt(s, lg.level - 1).length
-  const uppers = groupsAt(s, lg.level)
-  const i = uppers.indexOf(lg)
-  return Math.floor(total / uppers.length) + (i < total % uppers.length ? 1 : 0)
+  const tables = new Map(s.leagues.map((l) => [l, computeTable(l)] as const))
+  return promotionPlan(s, tables).downCount.get(lg) ?? 0
 }
 
-/** awanse i spadki między wszystkimi grupami; drużyny, które spadają, trafiają do grup, z których ktoś awansował */
-function promotionPlan(rng: Rng, s: GameState, tables: Map<League, TableRow[]>) {
+/** IV liga województwa bez niższych lig w grze: beniaminkowie przychodzą z okręgówki spoza świata gry */
+export const NEWCOMERS_FROM_BELOW = 3
+
+export interface PromotionPlan {
+  up: Set<number>
+  down: Set<number>
+  /** drużyny, które wypadają ze świata gry (spadek do okręgówki innego województwa albo wycofanie z najniższej klasy) */
+  gone: Set<number>
+  moves: { lg: League; out: number[]; in: number[] }[]
+  /** ile nowych drużyn dołącza do grupy spoza świata gry */
+  newcomers: { lg: League; count: number }[]
+  downCount: Map<League, number>
+}
+
+/**
+ * Awanse i spadki między wszystkimi grupami.
+ * Beniaminek z IV ligi trafia do grupy III ligi swojego województwa, spadkowicz z II ligi tak samo,
+ * a spadkowicz z III ligi do IV ligi swojego województwa. Każda grupa spuszcza tylu, ilu przyjmuje,
+ * więc liczba drużyn się nie zmienia.
+ */
+export function promotionPlan(s: GameState, tables: Map<League, TableRow[]>): PromotionPlan {
   const up = new Set<number>()
   const down = new Set<number>()
-  const moves: { lg: League; out: number[]; in: number[] }[] = []
+  const gone = new Set<number>()
+  const inbox = new Map<League, number[]>(s.leagues.map((l) => [l, []]))
+  const outs = new Map<League, number[]>(s.leagues.map((l) => [l, []]))
+  const upOut = new Map<League, number[]>()
+  const extra = new Map<League, number>()
+  const downCount = new Map<League, number>()
+
+  /** grupa na danym poziomie, do której trafia drużyna; undefined = poza światem gry */
+  const target = (level: number, id: number, mode: 'up' | 'down', from: League): League | undefined => {
+    const all = groupsAt(s, level)
+    if (level >= 7 || all.length === 1 && level === 6) return all[0]
+    // województwo: z IV ligi i niżej bierzemy województwo ligi, z III ligi i wyżej województwo klubu
+    const region = (from.level <= 5 ? leagueRegion(s, from) : undefined) ?? teamRegion(s, id)
+    if (level === 6) {
+      const g = thirdGroupOf(region)
+      return all.find((l) => l.group === g) ?? all[0]
+    }
+    let cands = all.filter((l) => leagueRegion(s, l) === region)
+    // spadek z III ligi: stare zapisy mają IV ligę tylko jednego województwa
+    if (!cands.length && level === 5) cands = all
+    if (!cands.length) return undefined
+    // beniaminków rozkładamy równo, spadkowiczów tam, skąd najwięcej ubyło
+    const score = (l: League) => (mode === 'up' ? -inbox.get(l)!.length : (upOut.get(l)?.length ?? 0) - inbox.get(l)!.length)
+    return cands.reduce((best, l) => (score(l) > score(best) ? l : best))
+  }
+
+  // awanse: wyniki z tabel i baraży
   for (let level = 0; level < 9; level++) {
-    const lowers = groupsAt(s, level)
-    const uppers = groupsAt(s, level + 1)
     const k = promotionSlots(s, level)
-    const lowerOut = lowers.map((lg) => {
+    for (const lg of groupsAt(s, level)) {
       const eligible = tables
         .get(lg)!
         .filter((r) => canGoUp(s, r.teamId, level))
         .map((r) => r.teamId)
-      if (!hasPlayoffs(s, level)) return eligible.slice(0, k)
-      // ostatnie miejsce awansu bierze zwycięzca baraży
-      const direct = eligible.slice(0, k - 1)
-      const po = s.playoffs?.find((x) => x.level === level)?.winner
-      return [...direct, po ?? eligible[k - 1]].filter((id) => id !== undefined)
-    })
-    const upperOut = uppers.map((lg) => {
-      const n = relegationSlots(s, lg)
-      return n ? tables.get(lg)!.slice(-n).map((r) => r.teamId) : []
-    })
-    lowerOut.flat().forEach((id) => up.add(id))
-    upperOut.flat().forEach((id) => down.add(id))
-    // spadkowicze do grup niżej, beniaminkowie do grup wyżej, tak żeby każda grupa zachowała liczbę drużyn
-    const goingDown = rng.shuffle(upperOut.flat())
-    const goingUp = rng.shuffle(lowerOut.flat())
-    lowers.forEach((lg, i) => moves.push({ lg, out: lowerOut[i], in: goingDown.splice(0, lowerOut[i].length) }))
-    uppers.forEach((lg, i) => moves.push({ lg, out: upperOut[i], in: goingUp.splice(0, upperOut[i].length) }))
+      let ids: number[]
+      if (!hasPlayoffs(s, level)) ids = eligible.slice(0, k)
+      else {
+        // ostatnie miejsce awansu bierze zwycięzca baraży
+        const po = s.playoffs?.find((x) => x.level === level)?.winner
+        ids = [...eligible.slice(0, k - 1), po ?? eligible[k - 1]].filter((id) => id !== undefined)
+      }
+      upOut.set(lg, ids)
+    }
+    for (const lg of groupsAt(s, level))
+      for (const id of upOut.get(lg)!) {
+        const t = target(level + 1, id, 'up', lg)
+        if (!t) continue
+        up.add(id)
+        outs.get(lg)!.push(id)
+        inbox.get(t)!.push(id)
+      }
   }
-  return { up, down, moves }
+  // IV ligi województw, których niższych lig nie ma w grze
+  for (const lg of groupsAt(s, 5)) {
+    const r = leagueRegion(s, lg)
+    if (!groupsAt(s, 4).some((l) => leagueRegion(s, l) === r)) extra.set(lg, NEWCOMERS_FROM_BELOW)
+  }
+
+  // spadki od góry: każda grupa oddaje tylu, ilu dostała, minus tych, co awansowali
+  for (let level = 9; level >= 0; level--) {
+    for (const lg of groupsAt(s, level)) {
+      const nUp = outs.get(lg)!.length
+      const below = level > 0 && groupsAt(s, level - 1).some((l) => level - 1 >= 5 || leagueRegion(s, l) === leagueRegion(s, lg))
+      // najniższa klasa: braki uzupełniają nowe kluby, nadmiar się wycofuje
+      if (!below && !extra.has(lg)) extra.set(lg, Math.max(0, nUp - inbox.get(lg)!.length))
+      const n = Math.max(0, inbox.get(lg)!.length + (extra.get(lg) ?? 0) - nUp)
+      downCount.set(lg, n)
+      if (!n) continue
+      const rel = tables
+        .get(lg)!
+        .map((r) => r.teamId)
+        .filter((id) => !up.has(id))
+        .slice(-n)
+      for (const id of rel) {
+        outs.get(lg)!.push(id)
+        const t = level > 0 ? target(level - 1, id, 'down', lg) : undefined
+        if (t) {
+          down.add(id)
+          inbox.get(t)!.push(id)
+        } else {
+          gone.add(id)
+          // spadek do okręgówki innego województwa: drużyna dalej istnieje, tylko poza grą
+          if (below || level === 5) down.add(id)
+        }
+      }
+    }
+  }
+  return {
+    up,
+    down,
+    gone,
+    moves: s.leagues.map((lg) => ({ lg, out: outs.get(lg)!, in: inbox.get(lg)! })),
+    newcomers: [...extra].filter(([, c]) => c > 0).map(([lg, count]) => ({ lg, count })),
+    downCount,
+  }
 }
 
 const REP_NEEDED = [0, 0, 0, 6, 14, 24, 35, 48, 62, 76]
@@ -232,7 +316,7 @@ export function newGame(input: NewGameInput): GameState {
     for (const lg of s.leagues) lg.rounds = makeFixtures(rng, lg.teamIds)
   })
   // zwycięzca zeszłorocznego pucharu wojewódzkiego: zwykle mocny klub IV ligi
-  s.cupQualifier = withRng(s, (rng) => rng.pick([...teamsAtLevel(s, 5)].sort((a, b) => s.teams[b].strength - s.teams[a].strength).slice(0, 6)))
+  s.cupQualifier = withRng(s, (rng) => rng.pick([...teamsAtLevel(s, 5).filter((id) => teamRegion(s, id) === input.region)].sort((a, b) => s.teams[b].strength - s.teams[a].strength).slice(0, 6)))
   drawCups(s)
   const picks = withRng(s, (rng) => rng.shuffle(teamsAtLevel(s, bottomLevel(s))).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
@@ -322,6 +406,10 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   s.interim = undefined
   s.reserveSquad = undefined
   refreshReserves(s)
+  // nowy klub z innego województwa: przed sezonem losujemy puchar jego województwa
+  const rc = s.regionalCup
+  if (s.round === 0 && rc && team.level <= 6 && !rc.rounds[0]?.some((x) => x.home === team.id || x.away === team.id) && !rc.byes?.includes(team.id))
+    s.regionalCup = withRng(s, (rng) => drawRegionalCup(rng, s))
   news(s, `${s.coach.firstName} ${s.coach.lastName} nowym trenerem ${team.name}! Cel: ${goalLabel(s.goal, team.level).toLowerCase()}.`)
   s.phase = s.round === 0 ? 'transfer' : 'season'
 }
@@ -1160,7 +1248,7 @@ export function endSeason(s: GameState): void {
   if (s.regionalCup) s.cupQualifier = s.regionalCup.winner
   const t = club(s)
   const tables = new Map(s.leagues.map((lg) => [lg, computeTable(lg)] as const))
-  const plan = withRng(s, (rng) => promotionPlan(rng, s, tables))
+  const plan = promotionPlan(s, tables)
   let fired = false
   if (t) {
     const lg = clubLeague(s)!
@@ -1225,6 +1313,9 @@ export function endSeason(s: GameState): void {
 
   // awanse i spadki we wszystkich ligach i grupach
   for (const m of plan.moves) m.lg.teamIds = m.lg.teamIds.filter((id) => !m.out.includes(id)).concat(m.in)
+  withRng(s, (rng) => {
+    for (const n of plan.newcomers) n.lg.teamIds.push(...newcomerTeams(rng, s, n.lg, n.count))
+  })
   for (const id of plan.up) {
     s.teams[id].level++
     s.teams[id].strength += 2
@@ -1243,8 +1334,8 @@ export function endSeason(s: GameState): void {
       summary.push(...agePlayers(rng, s))
       summary.push(...seasonContracts(s))
       const last = s.history[s.history.length - 1]
-      if (last?.position !== undefined && last.position <= 2) {
-        const lg = clubLeague(s)!
+      const lg = clubLeague(s)
+      if (lg && last?.position !== undefined && last.position <= 2) {
         const rivals = lg.teamIds.filter((id) => id !== t.id).sort((a, b) => s.teams[b].strength - s.teams[a].strength).slice(0, 3)
         for (const id of rivals) s.teams[id].strength += rng.int(1, 3)
         summary.push(`${s.teams[rivals[0]].name} ogłasza wielkie zakupy. „Nie oddamy wam tej ligi” – mówi ich prezes.`)
@@ -1271,7 +1362,15 @@ export function endSeason(s: GameState): void {
     retire(s, 'Siedemdziesiątka na karku. Czas na działkę i komentowanie meczów z pilotem w ręku.')
     return
   }
-  if (t && fired) {
+  if (t && !fired && backTo === undefined && plan.gone.has(t.id)) {
+    // klub spadł do okręgówki, której nie ma w grze
+    s.clubId = null
+    s.squad = []
+    s.reserveSquad = undefined
+    s.interim = undefined
+    s.hiringNote = `${t.name} spada do okręgówki. Prezes mówi, że na tym szczeblu wystarczy im trener z sąsiedztwa, i oddaje Ci kluczyki do szatni.`
+    s.offers = generateOffers(s, t.level + 1, false, t.id)
+  } else if (t && fired) {
     s.totalStats.firedCount++
     adjustCoach(s, { reputation: -5 })
     s.clubId = null

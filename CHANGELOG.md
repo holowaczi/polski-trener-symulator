@@ -1,5 +1,19 @@
 # Zmiany
 
+## 0.5.0 (alfa) · 16 października 2026
+
+Cała Polska w grze. Dotąd świat kończył się na granicy Twojego województwa, przez co warszawski klub potrafił spaść do grupy III ligi ze Śląska.
+
+- **Wszystkie cztery grupy III ligi i IV ligi wszystkich 16 województw.** Okręgówka i klasy A, B i C są tylko w województwie, które wybierasz na starcie. Ono też wyznacza kluby, którymi możesz zacząć.
+- **Każdy klub ma swoje województwo.** Spadkowicz z II ligi trafia do grupy III ligi swojego regionu, spadkowicz z III ligi do IV ligi swojego województwa, a mistrz IV ligi do właściwej grupy III ligi.
+- **Liczba spadkowiczów zależy od tego, kto spada z góry.** Jeśli z II ligi spadają dwa kluby z Mazowsza, z grupy I III ligi spada więcej drużyn. Czerwona strefa w tabeli zmienia się razem z tabelą ligi wyżej. Każda grupa zachowuje swoją liczbę drużyn.
+- Do IV lig innych województw co roku awansują kluby z ich okręgówek, a spadkowicze znikają w okręgówce poza grą.
+- Oferty pracy od IV ligi w górę przychodzą z całej Polski. Kiedy przejmiesz klub z innego województwa, grasz w jego pucharze wojewódzkim.
+- W etapie centralnym Pucharu Polski grają prawdziwe drużyny z IV lig innych województw i z pozostałych grup III ligi, a nie goście dopisani na jeden sezon.
+- W zakładce Tabela wybierasz grupę III ligi i IV ligę dowolnego województwa.
+- Poprawione województwa kilku klubów III ligi, np. Chełmianka Chełm nie gra już w pucharze dolnośląskim.
+- Gra zapisana przed tą wersją ma jeszcze stary, okrojony świat. Pełną Polskę dostaniesz w nowej karierze.
+
 ## 0.4.1 (alfa) · 16 października 2026
 
 - **Rezerwy zawsze grają niżej niż pierwsza drużyna.** „Śląsk Wrocław II” może awansować najwyżej do ligi tuż pod „Śląskiem Wrocław”. Gdy rezerwy wygrają ligę, a wyżej nie mogą, awans dostaje następna drużyna w tabeli. Dotąd blokowała je tylko granica II ligi.

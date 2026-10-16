@@ -1,9 +1,10 @@
 import { LEVELS, REGIONS } from './data'
 import { LOWER_LEAGUES } from './lowerData'
-import { III_LIGA, REGION_GROUP, REGION_TOWNS } from './realData'
+import { III_LIGA, REGION_TOWNS } from './realData'
 import type { Rng } from './rng'
 import type { Cup, CupTie, GameState, Team } from './types'
 import { teamsAtLevel } from './world'
+import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
 
 /**
  * Puchar Polski jak w rzeczywistości:
@@ -20,15 +21,7 @@ const VOLUNTARY_SHARE = 0.5
 /** ilu zawodników z III ligi spoza województwa trafia do rundy wstępnej etapu centralnego */
 const PRELIM_III_LIGA = 6
 
-const townRegion = new Map<string, string>()
-for (const [region, towns] of Object.entries(REGION_TOWNS)) for (const t of towns) townRegion.set(t, region)
-for (const [region, tiers] of Object.entries(LOWER_LEAGUES))
-  for (const tier of tiers) for (const g of tier.groups) for (const c of g.clubs) if (!townRegion.has(c.town)) townRegion.set(c.town, region)
 
-/** województwo klubu po miejscowości; undefined, gdy nie wiemy */
-export function regionOfTown(town: string): string | undefined {
-  return townRegion.get(town)
-}
 
 export function pairUp(rng: Rng, teams: Record<number, Team>, ids: number[]): CupTie[] {
   const pool = rng.shuffle([...ids])
@@ -61,14 +54,22 @@ function regionalWeeks(rounds: number): number[] {
 }
 
 /** etap wojewódzki: najsłabsze drużyny grają rundę wstępną, reszta wchodzi do drabinki od I rundy */
+/** województwo, w którym gracz gra puchar: klubu (do III ligi) albo trenera */
+export function cupRegion(s: GameState): string {
+  const t = s.clubId !== null ? s.teams[s.clubId] : undefined
+  return t && t.level <= 6 ? teamRegion(s, t.id) : s.coach.region
+}
+
 export function drawRegionalCup(rng: Rng, s: GameState): Cup {
-  const region = s.coach.region
+  const region = cupRegion(s)
   const entrants: number[] = []
   for (const lg of s.leagues) {
     if (lg.level > 6) continue
+    // IV liga i niżej: tylko ligi województwa gracza
+    const lr = leagueRegion(s, lg)
+    if (lr !== undefined && lr !== region) continue
     for (const id of lg.teamIds) {
-      const t = s.teams[id]
-      if (t.level === 6 && regionOfTown(t.town) !== region && id !== s.clubId) continue
+      if (lg.level === 6 && teamRegion(s, id) !== region && id !== s.clubId) continue
       // III liga, IV liga, V liga i okręgówka obowiązkowo, klasy A, B i C z własnej woli
       const mandatory = !/klasa [ABC]\b|^[ABC]-klasa/i.test(lg.name)
       if (mandatory || id === s.clubId || rng.chance(VOLUNTARY_SHARE)) entrants.push(id)
@@ -103,8 +104,8 @@ function addGuest(s: GameState, name: string, town: string, level: number, stren
 export function drawCentralCup(rng: Rng, s: GameState): Cup {
   // goście z poprzedniego sezonu znikają
   for (const t of Object.values(s.teams)) if (t.guest && t.id !== s.cupQualifier) delete s.teams[t.id]
-  const region = s.coach.region
-  const myGroup = REGION_GROUP[region] ?? 'I'
+  const region = cupRegion(s)
+  const myGroup = thirdGroupOf(region)
   const used = new Set(Object.values(s.teams).map((t) => t.name))
 
   // zwycięzcy pucharów wojewódzkich z poprzedniego sezonu
@@ -112,6 +113,13 @@ export function drawCentralCup(rng: Rng, s: GameState): Cup {
   if (s.cupQualifier !== undefined && s.teams[s.cupQualifier]) regional.push(s.cupQualifier)
   for (const r of REGIONS) {
     if (r === region) continue
+    // w świecie ze wszystkimi województwami puchar regionu wygrywa jeden z klubów jego IV ligi
+    const ivLeague = s.leagues.find((l) => l.level === 5 && l.region === r)
+    if (ivLeague) {
+      const strong = [...ivLeague.teamIds].filter((id) => id !== s.clubId).sort((a, b) => s.teams[b].strength - s.teams[a].strength)
+      regional.push(rng.pick(strong.slice(0, Math.max(3, Math.ceil(strong.length / 2)))))
+      continue
+    }
     const iv = LOWER_LEAGUES[r]?.[0]?.groups.flatMap((g) => g.clubs).filter((c) => !c.reserve && !used.has(c.name)) ?? []
     // zwykle wygrywa mocny klub IV ligi
     const c = iv.length ? rng.pick(iv.slice(0, Math.max(3, Math.ceil(iv.length / 2)))) : undefined
@@ -121,11 +129,20 @@ export function drawCentralCup(rng: Rng, s: GameState): Cup {
   }
 
   // III liga z innych grup do rundy wstępnej
-  const others = (Object.keys(III_LIGA) as (keyof typeof III_LIGA)[]).filter((g) => g !== myGroup).flatMap((g) => III_LIGA[g])
-  const thirds = rng
-    .shuffle(others.filter((c) => !c.reserve && !used.has(c.name)))
-    .slice(0, PRELIM_III_LIGA)
-    .map((c) => addGuest(s, c.name, c.town, 6, c.strength, `III liga · inna grupa`))
+  const otherGroups = s.leagues.filter((l) => l.level === 6 && l.group && l.group !== myGroup)
+  const thirds = otherGroups.length
+    ? rng
+        .shuffle(otherGroups.flatMap((l) => l.teamIds).filter((id) => !s.teams[id].reserve && !regional.includes(id)))
+        .slice(0, PRELIM_III_LIGA)
+    : rng
+        .shuffle(
+          (Object.keys(III_LIGA) as (keyof typeof III_LIGA)[])
+            .filter((g) => g !== myGroup)
+            .flatMap((g) => III_LIGA[g])
+            .filter((c) => !c.reserve && !used.has(c.name)),
+        )
+        .slice(0, PRELIM_III_LIGA)
+        .map((c) => addGuest(s, c.name, c.town, 6, c.strength, `III liga · inna grupa`))
   const prelim = [...teamsAtLevel(s, 7).filter((id) => !regional.includes(id)), ...thirds]
   const direct = [...teamsAtLevel(s, 9), ...teamsAtLevel(s, 8), ...regional]
   return {

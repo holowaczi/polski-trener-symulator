@@ -86,6 +86,8 @@ export interface Team {
   real?: boolean
   /** drużyna rezerw, nie awansuje wyżej niż II liga */
   reserve?: boolean
+  /** województwo klubu */
+  region?: string
   /** gość etapu centralnego Pucharu Polski spoza województwa gracza (opis do drabinki) */
   guest?: string
 }
@@ -102,6 +104,8 @@ export interface League {
   name: string
   /** nazwa grupy, gdy na poziomie jest kilka lig */
   group?: string
+  /** województwo (IV liga i niżej) */
+  region?: string
   teamIds: number[]
   rounds: Fixture[][]
 }

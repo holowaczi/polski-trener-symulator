@@ -268,6 +268,7 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
 function levelLabel(s: GameState, level: number): string {
   const lg = s.leagues.find((l) => l.level === level)
   if (!lg) return LEVELS[level].name
+  if (level === 6) return 'III liga'
   return lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '')
 }
 
@@ -304,7 +305,7 @@ export function TableView({ s }: { s: GameState }) {
                 l.level === lv ? (
                   <option key={i} value={i}>
                     {l === mine ? '★ ' : ''}
-                    {l.group ?? l.name}
+                    {l.level === 6 && l.group ? `grupa ${l.group}` : l.level === 5 && l.region ? l.region : (l.group ?? l.name)}
                   </option>
                 ) : null,
               )}

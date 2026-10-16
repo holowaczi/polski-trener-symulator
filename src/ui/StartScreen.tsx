@@ -5,6 +5,7 @@ import { seedFromString } from '../game/rng'
 import { licenseCovers, START_LICENSES, startMultiplier } from '../game/score'
 import type { GameState, License } from '../game/types'
 import { bottomLevel, leagueOf } from '../game/world'
+import { teamRegion } from '../game/regions'
 import { loadRecords } from './save'
 
 interface Props {
@@ -34,15 +35,17 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
     const out: { level: number; name: string }[] = []
     for (let lv = LEVELS.length - 1; lv >= bottomLevel(preview); lv--) {
       const lg = preview.leagues.find((l) => l.level === lv)
-      if (lg) out.push({ level: lv, name: lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '') })
+      if (lg) out.push({ level: lv, name: lv === 6 ? lg.name : lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '') })
     }
     return out
   }, [preview])
   const clubs = useMemo(() => {
     if (level < 0) return []
+    // województwo wyznacza kluby na start: od III ligi w dół tylko te z regionu
     return preview.leagues
-      .filter((l) => l.level === level)
+      .filter((l) => l.level === level && (l.level > 5 || l.region === region))
       .flatMap((l) => l.teamIds)
+      .filter((id) => level !== 6 || teamRegion(preview, id) === region)
       .sort((a, b) => preview.teams[b].strength - preview.teams[a].strength)
   }, [preview, level])
 

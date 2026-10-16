@@ -21,6 +21,7 @@ import {
 } from './engine'
 import { callUp, parentTeam, returnSentDown, sendDown } from './reserves'
 import { wageBill } from './util'
+import { teamRegion, thirdGroupOf } from './regions'
 import { makeFixtures } from './world'
 import { Rng } from './rng'
 import type { GameState } from './types'
@@ -132,6 +133,10 @@ describe('prawdziwe ligi', () => {
     expect(names(9)).toContain('Legia Warszawa')
     expect(names(9)).toHaveLength(18)
     expect(names(6)).toContain('Wisłoka Dębica')
+    // wszystkie grupy III ligi i IV ligi wszystkich województw
+    expect(s.leagues.filter((l) => l.level === 6)).toHaveLength(4)
+    expect(new Set(s.leagues.filter((l) => l.level === 5).map((l) => l.region)).size).toBe(16)
+    expect(s.leagues.filter((l) => l.level <= 4).every((l) => l.region === 'małopolskie')).toBe(true)
   })
 
   it('niższe ligi: wszystkie grupy z prawdziwymi klubami regionu', () => {
@@ -140,7 +145,7 @@ describe('prawdziwe ligi', () => {
       const all = new Set<string>()
       for (let level = 0; level <= 5; level++) {
         const tier = LOWER_LEAGUES[region][5 - level]
-        const groups = s.leagues.filter((l) => l.level === level)
+        const groups = s.leagues.filter((l) => l.level === level && l.region === region)
         if (!tier && level < 2) {
           expect(groups).toHaveLength(0)
           continue
@@ -337,5 +342,25 @@ describe('rezerwy', () => {
     if (last.outcome.includes('spad')) expect(s.clubId).toBe(res.id)
     else expect(s.clubId).toBe(parent.id)
     expect(s.interim).toBeUndefined()
+  })
+})
+
+describe('województwa', () => {
+  it('przez kilka sezonów spadkowicze i beniaminkowie trafiają do grup swojego województwa, a grupy nie zmieniają rozmiaru', () => {
+    const s = botCareer(7, 6)
+    const sizes = new Map(newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'mazowieckie', seed: 7 }).leagues.map((l) => [l.name, l.teamIds.length]))
+    const seen = new Set<number>()
+    for (const lg of s.leagues) {
+      expect(lg.teamIds.length).toBe(sizes.get(lg.name))
+      for (const id of lg.teamIds) {
+        expect(seen.has(id)).toBe(false)
+        seen.add(id)
+        expect(s.teams[id].level).toBe(lg.level)
+        if (lg.level === 6) expect(thirdGroupOf(teamRegion(s, id))).toBe(lg.group)
+        if (lg.level <= 5) expect(teamRegion(s, id)).toBe(lg.region)
+      }
+    }
+    // Legia Warszawa II, gdyby spadła, gra w grupie I III ligi, a nie w grupie województwa gracza
+    expect(s.leagues.filter((l) => l.level === 6)).toHaveLength(4)
   })
 })

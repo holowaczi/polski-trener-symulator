@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptOffer, cupsOf, finishTransfers, newGame, playNext, resolveEvent, stayAtClub } from './engine'
 import { roundName } from './cup'
-import { teamsAtLevel } from './world'
 
 describe('Puchar Polski', () => {
   for (const region of ['śląskie', 'podlaskie', 'mazowieckie']) {
@@ -10,7 +9,8 @@ describe('Puchar Polski', () => {
       const reg = s.regionalCup!
       const entrants = new Set([...reg.rounds[0].flatMap((t) => [t.home, t.away]), ...(reg.byes ?? [])])
       // IV liga cała, drużyny tylko z województwa (najwyżej III liga)
-      for (const id of teamsAtLevel(s, 5)) expect(entrants.has(id)).toBe(true)
+      for (const id of s.leagues.filter((l) => l.level === 5 && l.region === region).flatMap((l) => l.teamIds)) expect(entrants.has(id)).toBe(true)
+      for (const id of entrants) if (s.teams[id].level <= 5) expect(s.teams[id].region).toBe(region)
       for (const id of entrants) expect(s.teams[id].level).toBeLessThanOrEqual(6)
       // liczba drużyn w drugiej rundzie to potęga dwójki
       const second = reg.rounds[0].length + (reg.byes?.length ?? 0)

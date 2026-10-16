@@ -74,10 +74,47 @@ export const II_LIGA: RealClub[] = [
   { name: 'Śląsk Wrocław II', town: 'Wrocław', strength: 54, reserve: true },
 ]
 
+/** miejscowości, których nie da się odczytać z nazwy klubu */
+const TOWN_FIX: Record<string, string> = {
+  'KS CK Troszyn': 'Troszyn',
+  'KTS Weszło': 'Warszawa',
+  'KKS 1925 Kalisz': 'Kalisz',
+  'ROW 1964 Rybnik': 'Rybnik',
+  'AKS 1947 Busko-Zdrój': 'Busko-Zdrój',
+  'KS Goczałkowice-Zdrój': 'Goczałkowice-Zdrój',
+  'MKS Kluczbork': 'Kluczbork',
+  'KSZO Ostrowiec Świętokrzyski': 'Ostrowiec Świętokrzyski',
+}
+
+/** województwa miejscowości klubów z lig centralnych, których nie ma w danych niższych lig albo mają imienników */
+export const TOWN_REGION: Record<string, string> = {
+  'Stalowa Wola': 'podkarpackie',
+  Kleczew: 'wielkopolskie',
+  Siedlce: 'mazowieckie',
+  Chełm: 'lubelskie',
+  Troszyn: 'mazowieckie',
+  Warszawa: 'mazowieckie',
+  'Nowy Dwór Mazowiecki': 'mazowieckie',
+  Kalisz: 'wielkopolskie',
+  'Jelenia Góra': 'dolnośląskie',
+  'Goczałkowice-Zdrój': 'śląskie',
+  Kluczbork: 'opolskie',
+  Nysa: 'opolskie',
+  Rybnik: 'śląskie',
+  'Busko-Zdrój': 'świętokrzyskie',
+  'Ostrowiec Świętokrzyski': 'świętokrzyskie',
+  Jędrzejów: 'świętokrzyskie',
+  'Kolbuszowa Dolna': 'podkarpackie',
+  Radom: 'mazowieckie',
+  Płock: 'mazowieckie',
+  Lubin: 'dolnośląskie',
+  Nieciecza: 'małopolskie',
+}
+
 const g = (names: string[], strong: string[] = []): RealClub[] =>
   names.map((name) => {
     const reserve = / II$/.test(name)
-    const town = name.replace(/ II$/, '').split(' ').slice(1).join(' ') || name
+    const town = TOWN_FIX[name] ?? (name.replace(/ II$/, '').split(' ').slice(1).join(' ') || name)
     return { name, town, reserve, strength: strong.includes(name) ? 53 : reserve ? 50 : 51 }
   })
 
