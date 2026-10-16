@@ -7,6 +7,11 @@ import { generatePlayer, playerName, teamsAtLevel, wageFor } from './world'
 export const MAX_SQUAD = 28
 export const MIN_SQUAD = 16
 
+/** ilu nowych zawodników zarząd pozwala ściągnąć w jednym oknie: szatnia musi się zgrać */
+export function signingLimit(s: GameState): number {
+  return s.winterWindowDone ? 2 : 4
+}
+
 /** miesięczny limit pensji: zależy od ligi i zamożności klubu */
 export function wageLimitFor(team: Team): number {
   const base = LEVELS[team.level].base
@@ -44,6 +49,9 @@ export function buyPlayer(s: GameState, playerId: number): string {
   if (wageBill(s) + tt.player.wage > s.wageLimit)
     return `Przekroczysz limit pensji (${formatMoney(s.wageLimit)}/mies.). Najpierw kogoś sprzedaj.`
   if (s.squad.length >= MAX_SQUAD) return `Kadra jest pełna (${MAX_SQUAD}). Najpierw kogoś zwolnij.`
+  if ((s.signings ?? 0) >= signingLimit(s))
+    return `Prezes: „${signingLimit(s)} nowych w jednym oknie wystarczy. Nie będziemy wymieniać całej szatni”.`
+  s.signings = (s.signings ?? 0) + 1
   s.budget -= tt.fee
   tt.player.morale = 70
   s.squad.push(tt.player)
@@ -94,6 +102,7 @@ export function releasePlayer(s: GameState, playerId: number): string {
   if (s.squad.length <= MIN_SQUAD) return `Kadra nie może mieć mniej niż ${MIN_SQUAD} zawodników.`
   // rozwiązanie kontraktu kosztuje trzy pensje
   const cost = p.wage * 3
+  if (cost > s.budget) return `Odprawa kosztuje ${formatMoney(cost)}, a w kasie jest ${formatMoney(Math.max(0, s.budget))}. Księgowa kręci głową.`
   s.budget -= cost
   adjustTrust(s, { squad: -2 })
   const extra = departureEffects(s, p)

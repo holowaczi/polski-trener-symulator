@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { Act } from '../App'
 import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
-import { club, clubLeague, computeTable, cupsOf, formatMoney, promotionSlots, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
-import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer } from '../game/market'
+import { club, clubLeague, computeTable, cupsOf, directPromotion, formatMoney, hasPlayoffs, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
+import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer, signingLimit } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
 import type { Cup, CupTie, Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
 import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
+import { callUp, reserveTeamName, sendDown } from '../game/reserves'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
 export function ConfirmButton(props: {
@@ -35,6 +36,12 @@ export function ConfirmButton(props: {
       {armed ? props.confirmLabel : props.label}
     </button>
   )
+}
+
+/** kto wygrał karne, z zapisu „gospodarze:goście” */
+function pensWinner(pens: string): 'home' | 'away' {
+  const [a, b] = pens.split(':').map(Number)
+  return a > b ? 'home' : 'away'
 }
 
 function teamName(s: GameState, id: number) {
@@ -208,20 +215,27 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
         const mine = r.home === s.clubId ? r.hg - r.ag : r.ag - r.hg
         const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
         return (
-          <article key={i} className={`report ${tone} ${i === 0 ? 'latest' : ''} ${r.cup ? 'cup' : ''}`}>
+          <article key={i} className={`report ${tone} ${i === 0 ? 'latest' : ''} ${r.playoff ? 'playoff' : r.cup ? 'cup' : ''}`}>
             <div className="report-head">
-              {r.cup ? (
+              {r.playoff ? (
+                <span className="comp-tag playoff">⚔️ {r.cupName ?? 'Baraże'}</span>
+              ) : r.cup ? (
                 <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
               ) : (
                 <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
               )}
               <div className="score">
-                <span>{teamName(s, r.home)}</span>
+                <span className={r.pens && pensWinner(r.pens) === 'home' ? 'pens-win' : ''}>{teamName(s, r.home)}</span>
                 <b>
                   {r.hg}:{r.ag}
                 </b>
-                <span>{teamName(s, r.away)}</span>
+                <span className={r.pens && pensWinner(r.pens) === 'away' ? 'pens-win' : ''}>{teamName(s, r.away)}</span>
               </div>
+              {r.pens && (
+                <div className="pens-line">
+                  Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)} {!r.playoff ? 'awansuje dalej' : r.cupName?.includes('półfinał') ? 'gra w finale baraży' : 'wygrywa baraż'}
+                </div>
+              )}
             </div>
             {i === 0 && (
               <>
@@ -270,8 +284,10 @@ export function TableView({ s }: { s: GameState }) {
   if (!lg) return null
   const rows = computeTable(lg)
   const size = rows.length
-  const up = promotionSlots(s, lg.level)
+  const up = directPromotion(s, lg.level)
+  const po = hasPlayoffs(s, lg.level) ? 4 : 0
   const down = relegationSlots(s, lg)
+  const playoff = (s.playoffs?.length ? s.playoffs : s.lastPlayoffs)?.find((x) => x.level === lg.level)
   const levels = [...new Set(s.leagues.map((l) => l.level))].sort((a, b) => b - a)
   return (
     <div className="scroll-x">
@@ -315,7 +331,7 @@ export function TableView({ s }: { s: GameState }) {
               key={r.teamId}
               className={[
                 r.teamId === s.clubId ? 'me' : '',
-                i < up ? 'promo' : '',
+                i < up ? 'promo' : i < up + po ? 'playoff-row' : '',
                 i >= size - down ? 'releg' : '',
               ].join(' ')}
             >
@@ -336,8 +352,27 @@ export function TableView({ s }: { s: GameState }) {
         </tbody>
       </table>
       <p className="small muted">
-        Zielone: awans{up === 1 ? ' (tylko mistrz grupy)' : ''}. Czerwone: spadek{down ? ` (${down})` : ''}.{groupsNote(s.leagues.filter((l) => l.level === lg.level).length)}
+        Zielone: awans{up === 1 && !po ? ' (tylko mistrz grupy)' : ''}.{po ? ` Fioletowe: baraże o ${LEVELS[lg.level + 1].name} (miejsca ${up + 1}–${up + po}).` : ''} Czerwone: spadek
+        {down ? ` (${down})` : ''}.{groupsNote(s.leagues.filter((l) => l.level === lg.level).length)}
       </p>
+      {playoff && (
+        <div className="cup-stage">
+          <h3>
+            ⚔️ {playoff.title}
+            {playoff === s.lastPlayoffs?.find((x) => x.level === lg.level) && !s.playoffs?.length ? ' (poprzedni sezon)' : ''}
+          </h3>
+          {playoff.rounds.map((ties, i) => (
+            <div key={i}>
+              <h4>{playoff.names![i]}</h4>
+              <ul className="cup-list">
+                {ties.map((t, j) => (
+                  <CupTieRow key={j} s={s} t={t} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -374,6 +409,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
   const xiIds = new Set(prev.xi.map((p) => p.id))
   const benchIds = new Set(prev.bench.map((p) => p.id))
   const hasGk = prev.xi.some((p) => p.pos === 'BR')
+  const resName = reserveTeamName(s)
   const sorted = [...s.squad].sort((a, b) => {
     const rank = (p: Player) => (xiIds.has(p.id) ? 0 : benchIds.has(p.id) ? 1 : 2)
     return rank(a) - rank(b) || byPos(a, b)
@@ -460,6 +496,11 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                 </td>
                 <td className="muted hide-sm" data-label="Pensja">{formatMoney(p.wage)}</td>
                 <td className="cell-action">
+                  {resName && (
+                    <button className="tiny ghost" disabled={s.squad.length <= MIN_SQUAD} title={`Wyślij do ${resName}`} onClick={() => act((g) => sendDown(g, p.id))}>
+                      ⬇ Rezerwy
+                    </button>
+                  )}
                   <ConfirmButton
                     className="tiny ghost"
                     disabled={s.squad.length <= MIN_SQUAD}
@@ -473,6 +514,65 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
           </tbody>
         </table>
       </div>
+      {resName && <ReserveList s={s} act={act} name={resName} />}
+    </div>
+  )
+}
+
+function ReserveList({ s, act, name }: { s: GameState; act: Act; name: string }) {
+  const list = [...(s.reserveSquad ?? [])].sort((a, b) => Number(!!b.sentDown) - Number(!!a.sentDown) || b.skill - a.skill)
+  const full = s.squad.length >= MAX_SQUAD
+  return (
+    <div className="reserves">
+      <h2>Rezerwy: {name}</h2>
+      <p className="small muted">
+        Młodzi zesłani do rezerw grają co tydzień i po sezonie wracają lepsi. Starsi biorą to do siebie. Zesłani wracają sami po sezonie, ale możesz ich powołać wcześniej.
+      </p>
+      {list.length === 0 ? (
+        <p className="small muted">W rezerwach pusto. Nawet kierownik drużyny poszedł do domu.</p>
+      ) : (
+        <div className="scroll-x">
+          <table className="table stack">
+            <thead>
+              <tr>
+                <th>Poz.</th>
+                <th className="left">Zawodnik</th>
+                <th>Wiek</th>
+                <th>Um.</th>
+                <th>Pot.</th>
+                <th>Pensja</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((p) => (
+                <tr key={p.id}>
+                  <td className="cell-pos">
+                    <span className={`pos pos-${p.pos}`}>{p.pos}</span>
+                  </td>
+                  <td className="left cell-name">
+                    <div>
+                      {playerName(p)} {p.sentDown && <span className="chip tiny-chip">zesłany</span>}
+                    </div>
+                    <Traits p={p} />
+                  </td>
+                  <td data-label="Wiek">{p.age}</td>
+                  <td data-label="Um.">
+                    <b>{p.skill}</b>
+                  </td>
+                  <td className="muted" data-label="Pot.">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
+                  <td className="muted" data-label="Pensja">{p.sentDown ? formatMoney(p.wage) : `${formatMoney(p.wage)} po powołaniu`}</td>
+                  <td className="cell-action">
+                    <button className="tiny" disabled={full} onClick={() => act((g) => callUp(g, p.id))}>
+                      ⬆ Powołaj
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -617,6 +717,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
     { id: 'sprzedaz', label: 'Sprzedaż' },
   ]
   const [want, setSec] = useState<TransferSection | null>(null)
+  const full = (s.signings ?? 0) >= signingLimit(s)
   const sec = sections.some((x) => x.id === want) ? want! : sections[0].id
   return (
     <div>
@@ -677,7 +778,12 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
 
       {sec === 'kupno' && (
         <>
-      <h2>Do kupienia</h2>
+      <div className="section-head">
+        <h2>Do kupienia</h2>
+        <span className={`chip ${full ? 'bad' : ''}`} title="Zarząd pozwala na kilku nowych w jednym oknie">
+          Nowi w tym oknie: {s.signings ?? 0}/{signingLimit(s)}
+        </span>
+      </div>
       <div className="scroll-x">
         <table className="table stack">
           <thead>
@@ -722,8 +828,8 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   <td className="cell-action">
                     <button
                       className="tiny primary"
-                      disabled={fee > s.budget || overWage || s.squad.length >= MAX_SQUAD}
-                      title={overWage ? 'Przekroczysz limit pensji' : fee > s.budget ? 'Za mało pieniędzy' : ''}
+                      disabled={fee > s.budget || overWage || s.squad.length >= MAX_SQUAD || full}
+                      title={full ? 'Limit nowych zawodników w tym oknie' : overWage ? 'Przekroczysz limit pensji' : fee > s.budget ? 'Za mało pieniędzy' : ''}
                       onClick={() => act((g) => buyPlayer(g, p.id))}
                     >
                       Kup
@@ -810,7 +916,7 @@ function CupTieRow({ s, t }: { s: GameState; t: CupTie }) {
     <li className={mine ? 'me' : ''}>
       <span className={t.winner === t.home ? 'win-name' : ''}>{teamName(s, t.home)}</span>{' '}
       <span className="muted small">({cupLabel(s, t.home)})</span> <b>{t.hg !== undefined ? `${t.hg}:${t.ag}` : 'vs'}</b>
-      {t.pens && <span className="small"> (k. {t.pens})</span>}{' '}
+      {t.pens && <span className="pens-chip">k. {t.pens}</span>}{' '}
       <span className={t.winner === t.away ? 'win-name' : ''}>{teamName(s, t.away)}</span>{' '}
       <span className="muted small">({cupLabel(s, t.away)})</span>
     </li>

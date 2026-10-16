@@ -51,8 +51,10 @@ export function formatMoney(v: number): string {
   return `${sign}${a} zł`
 }
 
+/** pensje pierwszej drużyny; zesłani do rezerw dalej są na liście płac klubu */
 export function wageBill(s: GameState): number {
-  return s.squad.reduce((a, p) => a + p.wage, 0)
+  const down = s.reserveSquad?.filter((p) => p.sentDown).reduce((a, p) => a + p.wage, 0) ?? 0
+  return s.squad.reduce((a, p) => a + p.wage, 0) + down
 }
 
 export function isAvailable(p: Player): boolean {

@@ -3,11 +3,12 @@ import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { COACH_QUOTES, LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
-import { departureEffects, generateBids, makeBid, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
+import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { Cup, CupTie, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
+import type { Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
+import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
 import {
   clamp,
   generatePlayer,
@@ -26,7 +27,11 @@ export { club, clubLeague, formatMoney } from './util'
 
 export const SAVE_VERSION = 3
 /** najdłuższa liga ma 34 kolejki; krótsze kończą wcześniej */
-export const SEASON_WEEKS = 34
+export const SEASON_WEEKS = 36
+
+/** baraże o awans grają II i I liga: miejsca 3–6, półfinały i finał po zakończeniu ligi */
+export const PLAYOFF_LEVELS = [7, 8]
+export const PLAYOFF_WEEKS = [34, 35]
 
 // ---------- cele i licencje ----------
 
@@ -54,6 +59,21 @@ export function promotionSlots(s: GameState, level: number): number {
   return groupsAt(s, level).length === 1 && groupsAt(s, level + 1).length === 1 ? SWAPS[level] : 1
 }
 
+/** czy na tym poziomie ostatnie miejsce awansu rozstrzygają baraże */
+export function hasPlayoffs(s: GameState, level: number): boolean {
+  return PLAYOFF_LEVELS.includes(level) && groupsAt(s, level).length === 1 && groupsAt(s, level + 1).length === 1
+}
+
+/** awans bezpośredni: przy barażach o jedno miejsce mniej */
+export function directPromotion(s: GameState, level: number): number {
+  return promotionSlots(s, level) - (hasPlayoffs(s, level) ? 1 : 0)
+}
+
+/** czy drużyna może awansować (rezerwy nie wyżej niż II liga) */
+function canGoUp(s: GameState, teamId: number, level: number): boolean {
+  return !(s.teams[teamId].reserve && level + 1 > RESERVE_MAX_LEVEL)
+}
+
 /** ilu spada z danej grupy: tylu, ilu awansuje z poziomu niżej, rozłożonych po grupach */
 export function relegationSlots(s: GameState, lg: League): number {
   if (!groupsAt(s, lg.level - 1).length) return 0
@@ -72,13 +92,17 @@ function promotionPlan(rng: Rng, s: GameState, tables: Map<League, TableRow[]>) 
     const lowers = groupsAt(s, level)
     const uppers = groupsAt(s, level + 1)
     const k = promotionSlots(s, level)
-    const lowerOut = lowers.map((lg) =>
-      tables
+    const lowerOut = lowers.map((lg) => {
+      const eligible = tables
         .get(lg)!
-        .filter((r) => !(s.teams[r.teamId].reserve && level + 1 > RESERVE_MAX_LEVEL))
-        .slice(0, k)
-        .map((r) => r.teamId),
-    )
+        .filter((r) => canGoUp(s, r.teamId, level))
+        .map((r) => r.teamId)
+      if (!hasPlayoffs(s, level)) return eligible.slice(0, k)
+      // ostatnie miejsce awansu bierze zwycięzca baraży
+      const direct = eligible.slice(0, k - 1)
+      const po = s.playoffs?.find((x) => x.level === level)?.winner
+      return [...direct, po ?? eligible[k - 1]].filter((id) => id !== undefined)
+    })
     const upperOut = uppers.map((lg) => {
       const n = relegationSlots(s, lg)
       return n ? tables.get(lg)!.slice(-n).map((r) => r.teamId) : []
@@ -291,6 +315,9 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   s.lineup = { auto: true, xi: [], bench: [] }
   fillLineupFromAuto(s)
   refreshTransferList(s)
+  s.interim = undefined
+  s.reserveSquad = undefined
+  refreshReserves(s)
   news(s, `${s.coach.firstName} ${s.coach.lastName} nowym trenerem ${team.name}! Cel: ${goalLabel(s.goal, team.level).toLowerCase()}.`)
   s.phase = s.round === 0 ? 'transfer' : 'season'
 }
@@ -390,7 +417,107 @@ function hasClubMatch(s: GameState, week: number): boolean {
   if (s.clubId === null) return false
   const lg = clubLeague(s)!
   if (week < lg.rounds.length) return true
-  return cupTieForWeek(s, week) !== undefined
+  return cupTieForWeek(s, week) !== undefined || playoffTieForWeek(s, week) !== undefined
+}
+
+// ---------- baraże ----------
+
+function playoffTieForWeek(s: GameState, week: number): { po: Playoff; tie: CupTie; idx: number } | undefined {
+  for (const po of s.playoffs ?? []) {
+    const idx = po.schedule.indexOf(week)
+    const tie = idx >= 0 ? po.rounds[idx]?.find((t) => t.home === s.clubId || t.away === s.clubId) : undefined
+    if (tie) return { po, tie, idx }
+  }
+  return undefined
+}
+
+/** nazwa baraży i rundy dla meczu klubu w danym tygodniu */
+export function playoffRoundLabel(s: GameState, week: number): string | undefined {
+  const x = playoffTieForWeek(s, week)
+  return x ? `${x.po.title} · ${x.po.names![x.idx]}` : undefined
+}
+
+/** po ostatniej kolejce ligi: miejsca 3–6 grają baraże, półfinały u wyżej sklasyfikowanego */
+function drawPlayoffs(s: GameState): void {
+  s.playoffs ??= []
+  for (const level of PLAYOFF_LEVELS) {
+    if (!hasPlayoffs(s, level) || s.playoffs.some((p) => p.level === level)) continue
+    const lg = groupsAt(s, level)[0]
+    if (lg.rounds.some((r) => r.some((f) => f.hg === undefined))) continue
+    const eligible = computeTable(lg)
+      .map((r) => r.teamId)
+      .filter((id) => canGoUp(s, id, level))
+    const direct = directPromotion(s, level)
+    const seeds = eligible.slice(direct, direct + 4)
+    if (seeds.length < 4) continue
+    const po: Playoff = {
+      level,
+      seeds,
+      title: `Baraże o ${LEVELS[level + 1].name}`,
+      names: ['półfinał', 'finał'],
+      schedule: PLAYOFF_WEEKS,
+      rounds: [
+        [
+          { home: seeds[0], away: seeds[3] },
+          { home: seeds[1], away: seeds[2] },
+        ],
+      ],
+    }
+    s.playoffs.push(po)
+    if (s.clubId !== null && seeds.includes(s.clubId))
+      news(s, `${po.title}! ${seeds.indexOf(s.clubId) + direct + 1}. miejsce daje półfinał z ${s.teams[seeds[3 - seeds.indexOf(s.clubId)]].name}.`)
+  }
+}
+
+/** remis w meczu bez dogrywki: rzuty karne */
+function decideByPens(rng: Rng, t: CupTie): void {
+  const homeWins = rng.chance(0.5)
+  const a = rng.int(3, 5)
+  const b = Math.max(0, a - 1 - (rng.chance(0.3) ? 1 : 0))
+  t.pens = homeWins ? `${a}:${b}` : `${b}:${a}`
+  t.winner = homeWins ? t.home : t.away
+}
+
+function playPlayoffsForWeek(rng: Rng, s: GameState, week: number): void {
+  for (const po of s.playoffs ?? []) {
+    const idx = po.schedule.indexOf(week)
+    const ties = idx >= 0 ? po.rounds[idx] : undefined
+    if (!ties || ties.every((t) => t.winner !== undefined)) continue
+    for (const t of ties) {
+      if (t.winner !== undefined) continue
+      const mine = s.clubId !== null && (t.home === s.clubId || t.away === s.clubId)
+      if (mine) {
+        const rep = playClubMatch(rng, s, t, true)
+        rep.cupName = `${po.title} · ${po.names![idx]}`
+        rep.playoff = true
+        t.hg = rep.hg
+        t.ag = rep.ag
+        s.reports.unshift(rep)
+      } else playAiFixture(rng, s, t, true)
+      if (t.hg! > t.ag!) t.winner = t.home
+      else if (t.hg! < t.ag!) t.winner = t.away
+      else decideByPens(rng, t)
+      if (mine) {
+        if (t.pens) s.reports[0].pens = t.pens
+        if (t.winner === s.clubId) news(s, idx === 0 ? `${po.title}: jesteśmy w finale!` : `${po.title}: AWANS! Wygrany finał, szampan leje się po szatni.`)
+        else {
+          po.eliminatedAt = idx
+          news(s, `${po.title}: przegrany ${po.names![idx]}. Do zobaczenia za rok.`)
+        }
+      }
+    }
+    if (idx === 0) {
+      // finał u lepszego z tabeli
+      const [a, b] = ties.map((t) => t.winner!).sort((x, y) => po.seeds.indexOf(x) - po.seeds.indexOf(y))
+      po.rounds[1] = [{ home: a, away: b }]
+    } else po.winner = ties[0].winner
+  }
+}
+
+/** koniec sezonu bez klubu w barażach: rozstrzygamy je od razu */
+function finishPlayoffs(rng: Rng, s: GameState): void {
+  drawPlayoffs(s)
+  for (const w of PLAYOFF_WEEKS) playPlayoffsForWeek(rng, s, w)
 }
 
 /** oba etapy Pucharu Polski grane w tym sezonie */
@@ -454,7 +581,10 @@ export function playWeek(s: GameState): void {
         } else playAiFixture(rng, s, f)
       }
     }
-    if (!splitCup) playCupsForWeek(rng, s, week)
+    if (!splitCup) {
+      playCupsForWeek(rng, s, week)
+      playPlayoffsForWeek(rng, s, week)
+    }
   })
   if (s.reports.length > 40) s.reports.length = 40
   if (splitCup) {
@@ -487,14 +617,10 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
     if (t.hg! > t.ag!) t.winner = t.home
     else if (t.hg! < t.ag!) t.winner = t.away
     else {
-      const homeWins = rng.chance(0.5)
-      const a = rng.int(3, 5)
-      const b = Math.max(0, a - 1 - (rng.chance(0.3) ? 1 : 0))
-      t.pens = homeWins ? `${a}:${b}` : `${b}:${a}`
-      t.winner = homeWins ? t.home : t.away
-      if (mine && s.reports[0]?.cup) s.reports[0].cupName += ` · karne ${t.pens}`
+      decideByPens(rng, t)
+      if (mine && s.reports[0]?.cup) s.reports[0].pens = t.pens
     }
-    winners.push(t.winner)
+    winners.push(t.winner!)
     if (mine) {
       if (t.winner === s.clubId) {
         news(s, `${cupName}: awans dalej! (${roundName(cup, idx)})`)
@@ -528,7 +654,22 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
   }
 }
 
+/**
+ * Kasa klubu nie schodzi poniżej zera: dziurę łata prezes z własnej kieszeni,
+ * ale zapamiętuje to i relacje z zarządem spadają.
+ */
+export function coverDeficit(s: GameState): void {
+  const t = club(s)
+  if (!t || s.budget >= 0) return
+  const gap = -s.budget
+  const share = gap / LEVELS[t.level].budget
+  s.budget = 0
+  adjustTrust(s, { board: -Math.min(12, 2 + Math.round(share * 20)) })
+  news(s, `W kasie klubu zabrakło ${formatMoney(gap)}. Prezes łata dziurę z własnej kieszeni i długo patrzy Ci w oczy.`)
+}
+
 function afterWeek(s: GameState): void {
+  coverDeficit(s)
   if (s.clubId === null) return
   if (s.trust.board < 12) {
     // prezes może być wściekły, ale lidera tabeli zwolnić nie wypada
@@ -559,15 +700,18 @@ function afterWeek(s: GameState): void {
     news(s, 'Przerwa zimowa. Okno transferowe otwarte, obóz w Turcji odwołany z braku środków.')
     return
   }
+  drawPlayoffs(s)
   if (isSeasonOver(s)) {
     endSeason(s)
     return
   }
   // maks. jedno wydarzenie na mecz: tylko po tygodniu, w którym klub grał
-  if (hasClubMatch(s, s.round - 1)) maybeEvent(s)
+  if (hasClubMatch(s, s.round - 1) && !maybeInterim(s)) maybeEvent(s)
 }
 
 function openWindow(s: GameState): void {
+  s.signings = 0
+  withRng(s, (rng) => parentRaid(rng, s))
   refreshTransferList(s)
   generateBids(s)
   s.phase = 'transfer'
@@ -588,7 +732,7 @@ export function cupRoundLabel(s: GameState, week: number): string | undefined {
   return undefined
 }
 
-export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; cup?: CupTie } | undefined {
+export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; cup?: CupTie; playoff?: CupTie } | undefined {
   if (s.clubId === null) return undefined
   const lg = clubLeague(s)!
   for (let w = s.round; w < SEASON_WEEKS; w++) {
@@ -597,12 +741,21 @@ export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; c
     if (league) return { week: w, league }
     const cup = pendingCupTie(s, w)
     if (cup) return { week: w, cup }
+    const po = playoffTieForWeek(s, w)
+    if (po && po.tie.winner === undefined) return { week: w, playoff: po.tie }
   }
   return undefined
 }
 
 export function playNext(s: GameState): void {
-  const info = nextMatchInfo(s)
+  let info = nextMatchInfo(s)
+  // klub pauzuje w ostatniej kolejce, a baraże jeszcze nierozlosowane: gramy kolejkę bez nas i sprawdzamy, czy w nich jesteśmy
+  const lv = club(s)?.level
+  while (!info && lv !== undefined && hasPlayoffs(s, lv) && !s.playoffs?.some((p) => p.level === lv) && s.round < PLAYOFF_WEEKS[0] && s.phase === 'season') {
+    playWeek(s)
+    info = nextMatchInfo(s)
+  }
+  if (s.phase !== 'season') return
   if (!info) {
     endSeason(s)
     return
@@ -655,7 +808,8 @@ function pickEvent(rng: Rng, s: GameState): { ev: GameEvent; player?: Player } |
   for (const e of EVENTS) {
     if ((e.minLevel ?? 0) > level || (e.maxLevel ?? 9) < level) continue
     if (e.once && s.usedEvents.includes(e.id)) continue
-    if (s.usedEvents.slice(-14).includes(e.id)) continue
+    // to samo zdarzenie wraca dopiero po kilkudziesięciu innych
+    if (s.usedEvents.slice(-(e.cooldown ?? 30)).includes(e.id)) continue
     if (e.condition && !e.condition(s)) continue
     if (e.player) {
       const players = s.squad.filter((p) => (typeof e.player === 'function' ? e.player(p, s) : e.player === 'any' || p.traits.includes(e.player!)))
@@ -675,32 +829,53 @@ function pickEvent(rng: Rng, s: GameState): { ev: GameEvent; player?: Player } |
 
 const FOREIGN_CLUBS = ['FK Astana', 'Omonia Nikozja', 'Sheriff Tyraspol', 'FC Vaduz', 'Spartak Trnawa', 'Ferencváros', 'Slavia Praga']
 
+/**
+ * Trener rezerw: gdy pierwsza drużyna jest na dnie tabeli, zarząd zwalnia jej trenera
+ * i proponuje Ci zastępstwo do końca sezonu.
+ */
+function maybeInterim(s: GameState): boolean {
+  const t = club(s)
+  const parent = t ? parentTeam(s, t.id) : undefined
+  if (!t || !parent || s.round < 6 || s.flags['zastepstwo'] === s.season) return false
+  const plg = leagueOf(s, parent.id)
+  if (!plg) return false
+  const table = computeTable(plg)
+  const pos = table.findIndex((r) => r.teamId === parent.id) + 1
+  if (pos <= table.length - 3) return false
+  if (!withRng(s, (rng) => rng.chance(0.25))) return false
+  s.flags['zastepstwo'] = s.season
+  s.pendingEvent = {
+    eventId: 'zastepstwo',
+    data: { teamId: parent.id, fee: 0 },
+    text: `${parent.name} jest na ${pos}. miejscu w tabeli. Zarząd zwolnił trenera pierwszej drużyny i dzwoni do Ciebie: „Przejmie pan zespół do końca sezonu? Jak się pan sprawdzi, zostaje pan na dłużej”.`,
+    options: [{ label: 'Biorę pierwszą drużynę' }, { label: 'Zostaję z rezerwami' }],
+  }
+  s.resumePhase = 'season'
+  s.phase = 'event'
+  return true
+}
+
+function takeInterim(s: GameState, parentId: number): string {
+  const from = club(s)!
+  const parent = s.teams[parentId]
+  const lg = leagueOf(s, parentId)!
+  takeJob(s, {
+    teamId: parentId,
+    teamName: parent.name,
+    level: parent.level,
+    leagueName: lg.name,
+    goal: 'utrzymanie',
+    salary: Math.round(Math.max(s.salary, LEVELS[parent.level].salary * 0.6) / 1000) * 1000,
+    note: '',
+  })
+  s.interim = { reserveId: from.id, season: s.season }
+  return `Jesteś trenerem ${parent.name} na zastępstwo. Cel: utrzymanie. Jak się uda, zostajesz na stałe.`
+}
+
 function maybeEvent(s: GameState): void {
   if (s.phase !== 'season') return
   withRng(s, (rng) => {
-    // w trakcie sezonu czasem przychodzi oferta za zawodnika (np. z zagranicy)
-    if (rng.chance(0.06)) {
-      const star = [...s.squad].filter((p) => p.apps >= 3).sort((a, b) => b.ratingSum / b.apps - a.ratingSum / a.apps)[0]
-      if (star && star.ratingSum / star.apps >= 6.9) {
-        const bid = makeBid(rng, s, star)
-        if (bid) {
-          const foreign = rng.chance(0.35)
-          const fee = foreign ? Math.round(bid.fee * 1.3) : bid.fee
-          const fIdx = rng.int(0, FOREIGN_CLUBS.length - 1)
-          const buyer = foreign ? FOREIGN_CLUBS[fIdx] : s.teams[bid.teamId].name
-          s.pendingEvent = {
-            eventId: 'bid',
-            playerId: star.id,
-            data: { fee, teamId: foreign ? -1 - fIdx : bid.teamId },
-            text: `${buyer} składa ofertę za ${playerName(star)}: ${formatMoney(fee)}. Zawodnik ma średnią ocen ${(star.ratingSum / star.apps).toFixed(2)} i wyraźnie się ekscytuje.`,
-            options: [{ label: 'Sprzedaj' }, { label: 'Odrzuć ofertę' }, { label: 'Żądaj więcej' }],
-          }
-          s.resumePhase = 'season'
-          s.phase = 'event'
-          return
-        }
-      }
-    }
+    // transfery tylko w oknach: w trakcie rundy nikt nie składa ofert za zawodników
     // częściej zdarzenia, gdy dzieje się coś ważnego
     const hot = s.streak.slice(-3).join('') === 'LLL' || s.streak.slice(-3).join('') === 'WWW' || s.coach.stress > 70
     if (!rng.chance(hot ? 0.45 : 0.3)) return
@@ -737,6 +912,11 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
   if (!pe) return ''
   let text: string
   if (pe.eventId === 'bid') text = resolveSeasonBid(s, pe.playerId!, pe.data!.fee, pe.data!.teamId, optionIndex)
+  else if (pe.eventId === 'zastepstwo')
+    text =
+      optionIndex === 0
+        ? takeInterim(s, pe.data!.teamId)
+        : (adjustTrust(s, { board: 3, squad: 4 }), 'Zostajesz z rezerwami. Chłopaki doceniają, prezes rezerw też.')
   else {
     const ev = EVENTS.find((e) => e.id === pe.eventId)!
     const player = s.squad.find((p) => p.id === pe.playerId)
@@ -744,6 +924,7 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
     text = fillText(s, result, player)
   }
   news(s, text)
+  coverDeficit(s)
   s.pendingEvent = undefined
   s.phase = s.resumePhase ?? 'season'
   s.resumePhase = undefined
@@ -827,6 +1008,8 @@ function fire(s: GameState, why: string): void {
   news(s, `Zwolnienie z ${t.name}. ${why}`)
   s.clubId = null
   s.squad = []
+  s.reserveSquad = undefined
+  s.interim = undefined
   s.transferList = []
   s.bids = []
   s.modifiers = []
@@ -961,11 +1144,13 @@ function agePlayers(rng: Rng, s: GameState): string[] {
 
 export function endSeason(s: GameState): void {
   const summary: string[] = []
+  let backTo: number | undefined
   withRng(s, (rng) => {
     for (const lg of s.leagues) for (const round of lg.rounds) for (const f of round) if (f.hg === undefined) playAiFixture(rng, s, f)
     for (const cup of cupsOf(s))
       for (let i = 0; i < cup.schedule.length; i++)
         if (cup.rounds[i] && cup.winner === undefined && !cup.rounds[i].every((t) => t.winner !== undefined)) playCupRound(rng, s, cup, i)
+    finishPlayoffs(rng, s)
   })
   // zwycięzca etapu wojewódzkiego gra w przyszłym sezonie w etapie centralnym
   if (s.regionalCup) s.cupQualifier = s.regionalCup.winner
@@ -978,14 +1163,18 @@ export function endSeason(s: GameState): void {
     const table = tables.get(lg)!
     const pos = table.findIndex((r) => r.teamId === t.id) + 1
     const size = lg.teamIds.length
-    const met = goalMet(s.goal, pos, size, lg.level, promotionSlots(s, lg.level), relegationSlots(s, lg))
     const promoted = plan.up.has(t.id)
+    // przy barażach awans to awans, a nie samo miejsce w tabeli
+    const met =
+      s.goal === 'awans' && hasPlayoffs(s, lg.level) ? promoted : goalMet(s.goal, pos, size, lg.level, promotionSlots(s, lg.level), relegationSlots(s, lg))
     const relegated = plan.down.has(t.id)
     let outcome = `${pos}. miejsce`
     if (pos === 1) {
       s.trophies.push(lg.level === 9 ? `Mistrzostwo Polski (sezon ${s.season})` : `Mistrzostwo: ${lg.name} (sezon ${s.season})`)
       outcome += ', mistrzostwo'
     }
+    const po = s.playoffs?.find((x) => x.level === lg.level && x.seeds.includes(t.id))
+    if (po) outcome += po.winner === t.id ? ', baraże wygrane' : ', baraże przegrane'
     if (promoted) outcome += ', awans'
     if (relegated) outcome += ', spadek'
     const cupText = cupsOf(s)
@@ -1008,6 +1197,16 @@ export function endSeason(s: GameState): void {
     }
     // mistrza i beniaminka z awansem nikt nie zwalnia, chyba że relacje z prezesem są tragiczne
     if ((s.trust.board < 30 && !met && !promoted && pos !== 1) || s.trust.board < 10) fired = true
+    if (s.interim) {
+      if (met && s.trust.board >= 10) {
+        summary.push('Zastępstwo zdane: zarząd zostawia Cię na stałe w pierwszej drużynie.')
+        s.interim = undefined
+      } else if (!met) {
+        // nie wyszło: wracasz do rezerw zamiast na bruk
+        backTo = s.interim.reserveId
+        fired = false
+      }
+    }
     s.history.push({ season: s.season, clubName: t.name, level: lg.level, leagueName: lg.name, position: pos, outcome, cup: cupText, fired })
     for (const p of s.squad) if (!s.bestPlayer || p.skill > s.bestPlayer.skill) s.bestPlayer = { name: playerName(p), skill: p.skill }
     const top = [...s.squad].sort((a, b) => b.goals - a.goals)[0]
@@ -1015,6 +1214,10 @@ export function endSeason(s: GameState): void {
     const bestAvg = [...s.squad].filter((p) => p.apps >= 8).sort((a, b) => b.ratingSum / b.apps - a.ratingSum / a.apps)[0]
     if (bestAvg) summary.push(`Najwyższa średnia ocen: ${playerName(bestAvg)} (${(bestAvg.ratingSum / bestAvg.apps).toFixed(2)}).`)
   } else summary.push('Sezon spędzony w roli eksperta w lokalnym radiu. Słuchalność: 37 osób.')
+
+  for (const po of s.playoffs ?? [])
+    if (po.winner !== undefined) summary.push(`${po.title}: wygrywa ${s.teams[po.winner].name}.`)
+  s.lastPlayoffs = s.playoffs
 
   // awanse i spadki we wszystkich ligach i grupach
   for (const m of plan.moves) m.lg.teamIds = m.lg.teamIds.filter((id) => !m.out.includes(id)).concat(m.in)
@@ -1032,6 +1235,7 @@ export function endSeason(s: GameState): void {
       team.strength = Math.round(team.strength + (base + (team.id % 7) - 3 - team.strength) * 0.2 + rng.normal(0, 2.5))
     }
     if (t) {
+      summary.push(...returnSentDown(s))
       summary.push(...agePlayers(rng, s))
       summary.push(...seasonContracts(s))
       const last = s.history[s.history.length - 1]
@@ -1070,6 +1274,12 @@ export function endSeason(s: GameState): void {
     s.squad = []
     s.hiringNote = `Zarząd ${t.name} podziękował Ci za współpracę. Na pożegnanie dostałeś szalik i kosz owocowy.`
     s.offers = generateOffers(s, t.level, true, t.id)
+  } else if (t && backTo !== undefined) {
+    const res = s.teams[backTo]
+    const rlg = leagueOf(s, backTo)!
+    takeJob(s, { teamId: backTo, teamName: res.name, level: res.level, leagueName: rlg.name, goal: 'środek', salary: Math.round((s.salary * 0.6) / 1000) * 1000, note: '' })
+    s.lastSeasonSummary = [...summary, `${t.name} nie osiągnęła celu. Wracasz do ${res.name}, w rezerwach czekają z kawą.`]
+    s.offers = generateOffers(s, res.level, false, res.id)
   } else s.offers = generateOffers(s, t ? t.level : 1, false, t?.id)
   startNewSeasonWorld(s)
   s.phase = 'seasonEnd'
@@ -1086,6 +1296,7 @@ function startNewSeasonWorld(s: GameState): void {
     for (const lg of s.leagues) lg.rounds = makeFixtures(rng, lg.teamIds)
   })
   drawCups(s)
+  s.playoffs = []
   s.reports = []
 }
 
@@ -1095,9 +1306,15 @@ export function stayAtClub(s: GameState): void {
   if (!licenseStatus(s)!.canStay) return
   const lg = clubLeague(s)!
   s.goal = goalFromRank(rankByStrength(s, lg, t.id), lg.teamIds.length)
-  s.budget = Math.round(LEVELS[t.level].budget * (0.8 + s.trust.board / 250)) + Math.round(Math.max(0, s.budget) * 0.3)
+  // beniaminek nie dostaje od razu budżetu jak ligowi wyjadacze: sponsorzy i kibice muszą dopiero dorosnąć do nowej ligi
+  const last = s.history[s.history.length - 1]
+  const promoted = !!last && last.clubName === t.name && last.outcome.includes('awans')
+  const factor = promoted ? 0.5 : 0.8 + s.trust.board / 250
+  s.budget = Math.round(LEVELS[t.level].budget * factor) + Math.round(Math.max(0, s.budget) * 0.3)
   s.salary = Math.round(Math.max(s.salary, LEVELS[t.level].salary * (0.8 + s.coach.reputation / 200)) / 1000) * 1000
-  s.wageLimit = Math.max(s.wageLimit, wageLimitFor(t))
+  // limit pensji rośnie stopniowo, żeby po awansie nie dało się od razu kupić nowej drużyny
+  s.wageLimit = promoted ? Math.max(s.wageLimit, Math.min(wageLimitFor(t), Math.round((s.wageLimit * 1.35) / 100) * 100)) : Math.max(s.wageLimit, wageLimitFor(t))
+  if (promoted) news(s, `Beniaminek ${LEVELS[t.level].name}: budżet ${formatMoney(s.budget)}, limit pensji ${formatMoney(s.wageLimit)}/mies. Sponsorzy jeszcze się rozglądają.`)
   s.trust.board = clamp(s.trust.board, 45, 80)
   s.offers = []
   const lic = licenseStatus(s)!
@@ -1112,6 +1329,7 @@ export function stayAtClub(s: GameState): void {
       `Ta liga wymaga licencji ${lic.need}. Klub zgłasza do rozgrywek trenera z licencją „na papierze” (${formatMoney(lic.cost)} z budżetu), a Ty oficjalnie jesteś asystentem. Zapisz się na kurs, bo drugi taki sezon związek nie przepuści.`,
     )
   }
+  refreshReserves(s)
   openWindow(s)
   news(s, `Sezon ${s.season}: zostajesz w ${t.name}. Cel: ${goalLabel(s.goal, t.level).toLowerCase()}.`)
 }

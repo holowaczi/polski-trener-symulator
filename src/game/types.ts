@@ -52,6 +52,10 @@ export interface Player {
   haggled?: number
   /** zawodnik zerwał rozmowy o nowej umowie */
   talksOver?: boolean
+  /** zawodnik pierwszej drużyny zesłany do rezerw */
+  sentDown?: boolean
+  /** młody zawodnik zbiera minuty w rezerwach i szybciej się rozwija */
+  minutesBoost?: number
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -135,6 +139,13 @@ export interface Cup {
   winner?: number
 }
 
+/** baraże o awans: drabinka jak w pucharze, rozstawiona według tabeli */
+export interface Playoff extends Cup {
+  level: number
+  /** drużyny według miejsca w tabeli, od najlepszej */
+  seeds: number[]
+}
+
 export type License = 'brak' | 'UEFA C' | 'UEFA B' | 'UEFA A' | 'UEFA Pro'
 
 export interface Coach {
@@ -179,6 +190,10 @@ export interface MatchReport {
   cup?: boolean
   /** np. „Puchar wojewódzki · 1/8 finału” */
   cupName?: string
+  /** mecz barażowy */
+  playoff?: boolean
+  /** wynik rzutów karnych (gospodarze:goście) po remisie w pucharze albo barażu */
+  pens?: string
   home: number
   away: number
   hg: number
@@ -258,6 +273,15 @@ export interface GameState {
   regionalCup?: Cup
   /** zwycięzca etapu wojewódzkiego z poprzedniego sezonu, gra w etapie centralnym */
   cupQualifier?: number
+  playoffs?: Playoff[]
+  /** zawodnicy kupieni w tym oknie transferowym */
+  signings?: number
+  /** zaplecze pierwszej drużyny: zawodnicy drużyny rezerw */
+  reserveSquad?: Player[]
+  /** trener prowadzi pierwszą drużynę na zastępstwo; po sezonie zostaje albo wraca do rezerw */
+  interim?: { reserveId: number; season: number }
+  /** baraże zakończonego sezonu, do podsumowania */
+  lastPlayoffs?: Playoff[]
   clubId: number | null
   squad: Player[]
   lineup: Lineup

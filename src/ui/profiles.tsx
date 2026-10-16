@@ -5,6 +5,7 @@ import { club, clubLeague, clubPosition, formatMoney, goalLabel, licenseStatus }
 import { careerScore, multiplierOf } from '../game/score'
 import type { GameState } from '../game/types'
 import { wageBill, withRng } from '../game/util'
+import { parentTeam, reserveTeamName } from '../game/reserves'
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0)
 
@@ -62,6 +63,26 @@ export function ClubView({ s, act }: { s: GameState; act: Act }) {
         </dd>
         <dt>Kończące się umowy</dt>
         <dd>{expiring ? `${expiring} (ostatni rok albo wygasłe)` : 'brak'}</dd>
+        {reserveTeamName(s) && (
+          <>
+            <dt>Rezerwy</dt>
+            <dd>
+              {reserveTeamName(s)} · {s.reserveSquad?.length ?? 0} zawodników ({s.reserveSquad?.filter((p) => p.sentDown).length ?? 0} zesłanych)
+            </dd>
+          </>
+        )}
+        {parentTeam(s, t.id) && (
+          <>
+            <dt>Pierwsza drużyna</dt>
+            <dd>{parentTeam(s, t.id)!.name}. Może zabrać ci najlepszego młodego, ale jak tam zwolnią trenera, możesz dostać szansę.</dd>
+          </>
+        )}
+        {s.interim && (
+          <>
+            <dt>Zastępstwo</dt>
+            <dd className="warn-text">Prowadzisz pierwszą drużynę na zastępstwo. Utrzymaj ją, a zostaniesz na stałe. Jak nie, wracasz do rezerw.</dd>
+          </>
+        )}
       </dl>
 
       <h3>Gabinet prezesa</h3>

@@ -1,5 +1,41 @@
 # Zmiany
 
+## 0.4.0 (alfa) · 16 października 2026
+
+Baraże, rezerwy i porządek w kasie. Prezes wreszcie zagląda do księgowości, a pani Halinka odchodzi na emeryturę tylko raz.
+
+### Baraże
+- **W II i I lidze miejsca 3–6 grają baraże o jedno miejsce awansu.** Półfinały 3–6 i 4–5 u wyżej sklasyfikowanego, finał u lepszego z tabeli. Bezpośrednio awansuje o jedną drużynę mniej.
+- Sezon ma 36 tygodni, bo baraże gra się po ostatniej kolejce.
+- W tabeli miejsca barażowe są fioletowe, a pod tabelą widać drabinkę z wynikami. Mecze barażowe mają fioletową etykietę ⚔️, także w pasku na dole.
+- Rezerwy nie mogą awansować wyżej niż do II ligi, więc w barażach ich miejsce zajmuje następna drużyna.
+
+### Rzuty karne
+- Remis w pucharze i w barażach kończy się karnymi. W raporcie widać wynik karnych, pogrubioną drużynę, która przeszła dalej, i dopisek, co z tego wynikło. Drabinka pucharu też pokazuje wynik karnych.
+
+### Finanse
+- **Budżet nie spada już poniżej zera.** Kiedy zrobi się dziura, prezes ją łata z własnej kieszeni, ale zapamiętuje to i zaufanie zarządu spada.
+- **Awans nie daje już worka pieniędzy.** Beniaminek dostaje połowę budżetu nowej ligi i część tego, co zostało, a limit pensji rośnie najwyżej o 35% na sezon.
+- **Limit nowych zawodników:** w letnim oknie 4, w zimowym 2. Koniec z wymianą całej kadry w jedno popołudnie.
+- Nie zwolnisz zawodnika, jeśli klubu nie stać na odprawę.
+
+### Zdarzenia
+- **Bez transferów w trakcie rundy.** Oferty za zawodników przychodzą tylko w oknie. Zdarzenia, które dawniej kupowały albo sprzedawały kogoś w trakcie sezonu, kończą się teraz obietnicą rozmów w oknie.
+- **Kluby z zagranicy interesują się dopiero zawodnikami z II ligi wzwyż.** Agent z Cypru nie dzwoni już do B-klasy, a VAR jest tylko w I lidze i Ekstraklasie.
+- **49 nowych zdarzeń** na każdy poziom: od krów na boisku i dożynek u sołtysa, przez autokar kibiców o świcie, po przeciek składu i lot odwołany przed meczem wyjazdowym.
+- **Mniej powtórek.** Jednorazowe historie (np. emerytura pani Halinki, wesele, nowa piłka) zdarzają się raz na karierę, a pozostałe mają przerwę, zanim wrócą.
+- Żadne zdarzenie nie wpędza klubu ani trenera w debet. Jak nie ma pieniędzy, opcja kończy się inaczej.
+
+### Rezerwy
+- **Klub z drużyną rezerw (np. „Klub II”) ma je w zakładce Kadra.** Możesz powołać stamtąd zawodnika albo zesłać kogoś na dół przyciskiem „⬇ Rezerwy”.
+- Młodzi (do 21 lat) zesłani do rezerw grają co tydzień i po sezonie wracają lepsi. Starsi biorą zesłanie do siebie, a za zesłanie syna prezesa zarząd się obraża.
+- Zesłani wracają sami na okres przygotowawczy. Pensje zesłanych dalej liczą się do limitu.
+- **Jeśli prowadzisz rezerwy,** pierwsza drużyna w oknie czasem zabiera ci najlepszego młodego i odsyła weterana, który „potrzebuje minut”.
+
+### Zastępstwo w pierwszej drużynie
+- Prowadzisz rezerwy, a pierwsza drużyna jest w strefie spadkowej? Zarząd może zwolnić tamtego trenera i zaproponować ci przejęcie zespołu do końca sezonu.
+- Utrzymasz drużynę, to zostajesz na stałe. Jak nie, wracasz do rezerw zamiast na bruk. W zakładce Klub widać, że jesteś na zastępstwie.
+
 ## 0.3.4 (alfa) · 15 października 2026
 
 - **Kurs na koszt klubu.** Gdy po awansie liga wymaga wyższej licencji, a relacje z zarządem wynoszą co najmniej 60, prezes płaci za kurs i załatwia na nim miejsce, więc reputacja nie gra roli. Kosztuje to odrobinę zaufania zarządu. Przy słabszych relacjach ekran końca sezonu podpowiada, ile brakuje.

@@ -9,6 +9,7 @@ import {
   clubLeague,
   clubPosition,
   cupRoundLabel,
+  playoffRoundLabel,
   finishTransfers,
   formatMoney,
   goalLabel,
@@ -218,20 +219,26 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   let oppStr: number | undefined
   const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
   const isCup = !!info?.cup
+  const isPlayoff = !!info?.playoff
   if (info) {
-    const f = info.league ?? info.cup!
+    const f = info.league ?? info.cup ?? info.playoff!
     oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
     label = vs(f)
   }
-  const cupName = info?.cup ? cupRoundLabel(s, info.week) ?? 'Puchar' : undefined
-  const comp = info ? (isCup ? cupName : 'Liga') : undefined
+  const comp = !info
+    ? undefined
+    : isPlayoff
+      ? `⚔️ ${playoffRoundLabel(s, info.week) ?? 'Baraże'}`
+      : isCup
+        ? `🏆 ${cupRoundLabel(s, info.week) ?? 'Puchar'}`
+        : 'Liga'
   const myStr = Math.round(((mine.att + mine.def) / 2) * 10) / 10
   const speed = SPEEDS[auto.speed]
   return (
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          {comp && <span className={`comp-tag ${isCup ? 'cup' : ''}`}>{isCup ? `🏆 ${comp}` : comp}</span>} <b>{label}</b>
+          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isCup ? 'cup' : ''}`}>{comp}</span>} <b>{label}</b>
         </span>
 
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>

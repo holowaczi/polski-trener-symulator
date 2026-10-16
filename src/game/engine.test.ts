@@ -17,7 +17,10 @@ import {
   boardPaysCourse,
   stayAtClub,
   startLicenseCourse,
+  takeJob,
 } from './engine'
+import { callUp, parentTeam, returnSentDown, sendDown } from './reserves'
+import { wageBill } from './util'
 import { makeFixtures } from './world'
 import { Rng } from './rng'
 import type { GameState } from './types'
@@ -250,5 +253,89 @@ describe('kurs na koszt klubu', () => {
     expect(s.coach.courseLeft).toBe(1)
     expect(s.coach.savings).toBe(savings)
     expect(licenseStatus(s)!.studying).toBe(true)
+  })
+})
+
+describe('baraże', () => {
+  it('w I i II lidze miejsca 3–6 grają baraże, a zwycięzca awansuje', () => {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'śląskie', seed: 13 })
+    acceptOffer(s, s.offers[0].teamId)
+    const levelsBefore = new Map(Object.values(s.teams).map((t) => [t.id, t.level]))
+    let guard = 0
+    while (s.phase !== 'seasonEnd' && guard++ < 50) {
+      if (s.phase === 'transfer') finishTransfers(s)
+      else if (s.phase === 'hiring') acceptOffer(s, s.offers[0].teamId)
+      else simulateToBreak(s)
+    }
+    expect(s.lastPlayoffs?.length).toBe(2)
+    for (const po of s.lastPlayoffs!) {
+      expect(po.seeds).toHaveLength(4)
+      expect(po.rounds[1]).toHaveLength(1)
+      expect(po.winner).toBeDefined()
+      expect(s.teams[po.winner!].level).toBe(levelsBefore.get(po.winner!)! + 1)
+      const final = po.rounds[1][0]
+      // finał u lepszego z tabeli
+      expect(po.seeds.indexOf(final.home)).toBeLessThan(po.seeds.indexOf(final.away))
+    }
+  })
+})
+
+describe('rezerwy', () => {
+  function withReserves() {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'mazowieckie', seed: 5 })
+    const res = Object.values(s.teams).find((t) => t.reserve && parentTeam(s, t.id))!
+    const parent = parentTeam(s, res.id)!
+    return { s, res, parent }
+  }
+
+  it('zesłany młody gra w rezerwach, wraca po sezonie lepszy, a nowy z rezerw kosztuje pensję', () => {
+    const { s, parent } = withReserves()
+    const lg = s.leagues.find((l) => l.teamIds.includes(parent.id))!
+    takeJob(s, { teamId: parent.id, teamName: parent.name, level: parent.level, leagueName: lg.name, goal: 'utrzymanie', salary: 1000, note: '' })
+    expect(s.reserveSquad?.length).toBe(8)
+    const kid = s.squad[0]
+    kid.age = 19
+    kid.potential = kid.skill + 10
+    const skill = kid.skill
+    const before = s.squad.length
+    sendDown(s, kid.id)
+    expect(s.squad).toHaveLength(before - 1)
+    expect(s.reserveSquad!.find((p) => p.id === kid.id)?.sentDown).toBe(true)
+    // pensja zesłanego dalej się liczy
+    expect(wageBill(s)).toBeGreaterThanOrEqual(kid.wage)
+    const notes = returnSentDown(s)
+    expect(notes.length).toBe(2)
+    expect(s.squad.find((p) => p.id === kid.id)?.skill).toBe(skill + 2)
+
+    const prospect = s.reserveSquad!.find((p) => !p.sentDown)!
+    s.wageLimit = wageBill(s)
+    expect(callUp(s, prospect.id)).toMatch(/limit/)
+    s.wageLimit += prospect.wage
+    callUp(s, prospect.id)
+    expect(s.squad.some((p) => p.id === prospect.id)).toBe(true)
+  })
+
+  it('zastępstwo w pierwszej drużynie: przyjęcie zmienia klub na klub macierzysty', () => {
+    const { s, res, parent } = withReserves()
+    const lg = s.leagues.find((l) => l.teamIds.includes(res.id))!
+    takeJob(s, { teamId: res.id, teamName: res.name, level: res.level, leagueName: lg.name, goal: 'środek', salary: 1000, note: '' })
+    s.phase = 'event'
+    s.resumePhase = 'season'
+    s.pendingEvent = { eventId: 'zastepstwo', data: { teamId: parent.id, fee: 0 }, text: '', options: [{ label: 'a' }, { label: 'b' }] }
+    resolveEvent(s, 0)
+    expect(s.clubId).toBe(parent.id)
+    expect(s.interim?.reserveId).toBe(res.id)
+    expect(s.goal).toBe('utrzymanie')
+    let guard = 0
+    while ((s.phase as string) !== 'seasonEnd' && guard++ < 50) {
+      if (s.phase === 'event') resolveEvent(s, 0)
+      else if (s.phase === 'transfer') finishTransfers(s)
+      else simulateToBreak(s)
+    }
+    const last = s.history[s.history.length - 1]
+    // utrzymana pierwsza drużyna zostaje u Ciebie, nieutrzymana: wracasz do rezerw
+    if (last.outcome.includes('spad')) expect(s.clubId).toBe(res.id)
+    else expect(s.clubId).toBe(parent.id)
+    expect(s.interim).toBeUndefined()
   })
 })

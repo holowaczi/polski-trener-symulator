@@ -1359,3 +1359,56 @@ blockquote {
 .callout-bad {
   border-left: 4px solid var(--bad);
 }
+
+/* baraże i karne */
+:root {
+  --playoff: #7b4fb8;
+  --playoff-bg: rgba(123, 79, 184, 0.12);
+}
+.comp-tag.playoff {
+  background: var(--playoff);
+  color: #fff;
+}
+.report.playoff {
+  border-top-color: var(--playoff);
+  border-right-color: var(--playoff);
+  border-bottom-color: var(--playoff);
+  background: var(--playoff-bg);
+}
+.report.playoff.latest {
+  background: var(--playoff-bg);
+}
+.report.playoff .score b {
+  color: var(--playoff);
+}
+.table tr.playoff-row td:first-child {
+  box-shadow: inset 3px 0 var(--playoff);
+}
+.pens-line {
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+.pens-line b {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.score .pens-win {
+  font-weight: 700;
+}
+.pens-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+/* rezerwy */
+.reserves { margin-top: 24px; }
+.chip.tiny-chip { font-size: 11px; padding: 1px 6px; vertical-align: middle; }
+.cell-action { white-space: nowrap; }
+.cell-action button + button, .cell-action button + * { margin-left: 4px; }
