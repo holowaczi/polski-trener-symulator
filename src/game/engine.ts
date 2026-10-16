@@ -69,9 +69,13 @@ export function directPromotion(s: GameState, level: number): number {
   return promotionSlots(s, level) - (hasPlayoffs(s, level) ? 1 : 0)
 }
 
-/** czy drużyna może awansować (rezerwy nie wyżej niż II liga) */
+/** czy drużyna może awansować (rezerwy nie wyżej niż II liga i zawsze poniżej pierwszej drużyny) */
 function canGoUp(s: GameState, teamId: number, level: number): boolean {
-  return !(s.teams[teamId].reserve && level + 1 > RESERVE_MAX_LEVEL)
+  if (!s.teams[teamId].reserve) return true
+  if (level + 1 > RESERVE_MAX_LEVEL) return false
+  // rezerwy nie mogą grać na tym samym poziomie co pierwsza drużyna ani wyżej
+  const parent = parentTeam(s, teamId)
+  return !parent || level + 1 < parent.level
 }
 
 /** ilu spada z danej grupy: tylu, ilu awansuje z poziomu niżej, rozłożonych po grupach */

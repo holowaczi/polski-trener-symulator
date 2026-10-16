@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.4.1 (alfa) · 16 października 2026
+
+- **Rezerwy zawsze grają niżej niż pierwsza drużyna.** „Śląsk Wrocław II” może awansować najwyżej do ligi tuż pod „Śląskiem Wrocław”. Gdy rezerwy wygrają ligę, a wyżej nie mogą, awans dostaje następna drużyna w tabeli. Dotąd blokowała je tylko granica II ligi.
+
 ## 0.4.0 (alfa) · 16 października 2026
 
 Baraże, rezerwy i porządek w kasie. Prezes wreszcie zagląda do księgowości, a pani Halinka odchodzi na emeryturę tylko raz.
