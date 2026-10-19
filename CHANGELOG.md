@@ -1,5 +1,30 @@
 # Zmiany
 
+## 0.6.0 (alfa) · 19 października 2026
+
+Kariera nie kończy się już tylko na siedemdziesiątce albo na Twoje życzenie. Teraz może Cię wykończyć serce, gazeta albo cisza w telefonie.
+
+### Zakończenia kariery
+- **Wypalenie.** Mecze pod bardzo wysokim stresem (od 80 w górę) zbierają wypalenie, spokojniejsze tygodnie je zmniejszają. Po przekroczeniu progu dzwoni lekarz: urlop, sanatorium w Ciechocinku albo „lekarze się nie znają”. Kto zignoruje dwa ostrzeżenia, ten słyszy: „piłka albo serce”.
+- **Urlop.** Sezon przerwy (albo reszta bieżącego): odchodzisz z klubu, stres i wypalenie znikają, reputacja spada o 8. Urlop możesz wziąć też po sezonie, gdy stres sięga 70 albo wypalenie jest już wyraźne. Sezon urlopu nie liczy się jako bezrobocie.
+- **Afera w gazecie.** Afery ze zdarzeń i obietnice bez pokrycia (minuty dla zawodnika, wygrana dla prezesa) trafiają do teczki dziennikarza. Gdy robi się gruba, dzwoni z pytaniem o komentarz: zapłać, przyznaj się do wszystkiego albo zagroź pozwem. Pełna teczka idzie do druku i kończy karierę nagłówkiem, który trafia na kartę jako „Afera kariery”.
+- **Sklep wędkarski.** Po zwolnieniu oferta „z łaski” nie jest już pewna. Każdy sezon bez pracy obniża reputację i sprawia, że telefon dzwoni rzadziej. Po dwóch sezonach ciszy (albo trzech bez pracy) trener przechodzi do sklepu „Szczupak”.
+- Po sezonie bez klubu możesz świadomie czekać na lepsze oferty, a oferty przychodzą z okolic ligi, w której ostatnio pracowałeś, a nie z samego dołu.
+- W zakładce Trener są paski **Wypalenie** i **Teczka w redakcji**, gdy coś się w nich zbiera. Obie rzeczy po sezonie trochę odpuszczają.
+- W szybkiej symulacji asystent wybiera sanatorium i straszy dziennikarza pozwem, ale nie bierze za Ciebie urlopu.
+
+### Karta trenera do pokazania
+- **Przycisk „Udostępnij”.** Na telefonie otwiera systemowe udostępnianie z obrazkiem, na komputerze pobiera PNG. Obok jest „Pobierz PNG” i „Kopiuj tekst”.
+- **Dwa formaty obrazka:** pion 1080×1350 pod Instagram i poziom 1600×900 pod X, z podglądem przed zapisaniem.
+- Na obrazku: zakończenie kariery, punkty i mnożnik startu, sezony, kluby, procent wygranych, zwolnienia, droga przez ligi, najwyższy szczebel, najlepszy podopieczny, trofea, afera kariery, cytat z prasy, ostatnie słowo trenera, numer wersji i seed.
+- Karta dobrze wygląda i po zerowej, i po 30-sezonowej karierze: długie listy trofeów się skracają, a za długie nazwiska dostają wielokropek.
+- **Cytat z prasy** pasuje do kariery („Zwalniany częściej, niż zmienia się rozkład PKS-u”), a gazeta zależy od tego, jak wysoko doszedłeś: od Gazety Gminnej po Sport Wieczorem.
+- Każde zakończenie ma swój opis na karcie i swoje **ostatnie słowo** trenera.
+- Obrazek ma już te same czcionki co gra. Dotąd PNG wychodził w zastępczej czcionce.
+
+### Poprawki
+- Gra nie wywraca się, gdy po nieudanym zastępstwie w pierwszej drużynie rezerwy spadły poza grę. Trener po prostu szuka nowej pracy.
+
 ## 0.5.1 (alfa) · 16 października 2026
 
 - **Czytelniejszy wykres kariery na karcie trenera.** Najedź na sezon albo go stuknij, a zobaczysz klub, ligę, miejsce, awans lub spadek, wynik w pucharze i informację o zmianie klubu.

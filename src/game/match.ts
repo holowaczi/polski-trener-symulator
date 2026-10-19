@@ -4,6 +4,7 @@ import type { Rng } from './rng'
 import type { Formation, GameState, MatchReport, Player, PlayerRating, Position } from './types'
 import { adjustCoach, adjustTrust, club, formatMoney, isAvailable, news, setMorale } from './util'
 import { clamp, playerValue, shortName } from './world'
+import { addDirt, DIRT_PROMISE, trackBurnout } from './endings'
 
 export const BENCH_SIZE = 7
 const MAX_SUBS = 5
@@ -427,6 +428,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
       delete s.flags[key]
       setMorale(p, -25)
       adjustTrust(s, { squad: -5, board: p.traits.includes('syn_prezesa') ? -10 : 0 })
+      addDirt(s, DIRT_PROMISE)
       news(s, `${shortName(p)} miał obiecane minuty i znowu nie zagrał. W szatni mówią, że trener rzuca słowa na wiatr.`)
     }
   }
@@ -466,6 +468,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     if (pts === 3) adjustTrust(s, { board: 5 })
     else {
       adjustTrust(s, { board: -10 })
+      addDirt(s, DIRT_PROMISE)
       news(s, 'Obiecałeś prezesowi wygraną. Prezes pamięta.')
     }
   }
@@ -487,6 +490,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     }
     lines.push(`${incident.text} Skutek: ${incident.effect}.`)
   }
+  trackBurnout(s)
   const best = [...ratings].sort((a, b) => b.rating - a.rating)[0]
   // jedna pochwała w gazecie na mecz, i to tylko za naprawdę wielki występ
   if (best && best.rating >= 8.5) news(s, `${best.name} z oceną ${best.rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)

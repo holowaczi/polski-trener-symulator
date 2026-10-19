@@ -3,9 +3,12 @@ import { careerScore } from './score'
 import { LEVELS } from './data'
 import { acceptBid, buyPlayer } from './market'
 import { acceptDemand, canNegotiate } from './contracts'
-import { acceptOffer, finishTransfers, newGame, playNext, resolveEvent, retire, stayAtClub, startLicenseCourse } from './engine'
+import { acceptOffer, finishTransfers, newGame, playNext, resolveEvent, retire, stayAtClub, startLicenseCourse, waitForOffers } from './engine'
 import type { GameState } from './types'
 import { previewStrength, teamBonus } from './match'
+
+/** bot nie bierze urlopu i nie grozi pozwem: chcemy długich karier */
+const SAFE_CHOICE: Record<string, number> = { lekarz: 1, dziennikarz: 1 }
 
 type Agg = Record<string, number[]>
 const push = (a: Agg, k: string, v: number) => (a[k] ??= []).push(v)
@@ -42,7 +45,7 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
           break
         }
         case 'event':
-          resolveEvent(s, guard % s.pendingEvent!.options.length)
+          resolveEvent(s, SAFE_CHOICE[s.pendingEvent!.eventId] ?? guard % s.pendingEvent!.options.length)
           break
         case 'season': {
           const refs = s.leagues.map((l) => ({ level: l.level, rounds: l.rounds, teamIds: [...l.teamIds] }))
@@ -63,6 +66,10 @@ it.runIf((globalThis as { process?: { env: Record<string, string | undefined> } 
           break
         }
         case 'seasonEnd': {
+          if (s.clubId === null && !s.offers.length) {
+            waitForOffers(s)
+            break
+          }
           if (s.history[s.history.length - 1]) {
             const h = s.history[s.history.length - 1]!
             const pv = previewStrength(s)

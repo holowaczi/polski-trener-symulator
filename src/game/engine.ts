@@ -1,12 +1,12 @@
 import { licenseCovers, startMultiplier } from './score'
 import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
-import { COACH_QUOTES, LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
+import { LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
+import type { CareerEnding, Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
 import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
@@ -26,6 +26,21 @@ import {
 } from './world'
 
 export { club, clubLeague, formatMoney } from './util'
+import {
+  ASSISTANT_CHOICE,
+  BURNOUT_END,
+  burnoutEnding,
+  careerWarning,
+  choiceEnding,
+  DIRT_END,
+  pressQuote,
+  resolveDoctor,
+  resolveJournalist,
+  retirementEnding,
+  scandalEnding,
+  seasonCoolDown,
+  unemployedEnding,
+} from './endings'
 
 export const SAVE_VERSION = 3
 /** najdłuższa liga ma 34 kolejki; krótsze kończą wcześniej */
@@ -763,6 +778,7 @@ export function coverDeficit(s: GameState): void {
 function afterWeek(s: GameState): void {
   coverDeficit(s)
   if (s.clubId === null) return
+  if (forcedEnding(s)) return
   if (s.trust.board < 12) {
     // prezes może być wściekły, ale lidera tabeli zwolnić nie wypada
     const pos = clubPosition(s)
@@ -879,7 +895,7 @@ export function simulateToBreak(s: GameState): string {
   while ((s.phase === 'season' || s.phase === 'event') && guard++ < 200) {
     if (s.phase === 'event') {
       const pe = s.pendingEvent!
-      const choice = pe.eventId === 'bid' ? 1 : withRng(s, (rng) => rng.int(0, pe.options.length - 1))
+      const choice = pe.eventId === 'bid' ? 1 : (ASSISTANT_CHOICE[pe.eventId] ?? withRng(s, (rng) => rng.int(0, pe.options.length - 1)))
       news(s, `Asystent zdecydował: „${pe.options[choice].label}”.`)
       resolveEvent(s, choice)
       decided++
@@ -888,7 +904,8 @@ export function simulateToBreak(s: GameState): string {
       playNext(s)
     }
   }
-  const where = s.phase === 'transfer' ? 'do okna transferowego' : s.phase === 'seasonEnd' ? 'do końca sezonu' : s.phase === 'hiring' ? 'do zwolnienia' : 'dalej'
+  const where =
+    s.phase === 'transfer' ? 'do okna transferowego' : s.phase === 'seasonEnd' ? 'do końca sezonu' : s.phase === 'hiring' ? 'do zwolnienia' : s.phase === 'retired' ? 'do końca kariery' : 'dalej'
   return `Przesymulowano ${where}: ${played} ${plural(played, 'mecz', 'mecze', 'meczów')}${decided ? `, asystent rozstrzygnął ${decided} ${plural(decided, 'sprawę', 'sprawy', 'spraw')}` : ''}.`
 }
 
@@ -966,6 +983,14 @@ function takeInterim(s: GameState, parentId: number): string {
 
 function maybeEvent(s: GameState): void {
   if (s.phase !== 'season') return
+  if (forcedEnding(s)) return
+  const warning = careerWarning(s)
+  if (warning) {
+    s.pendingEvent = warning
+    s.resumePhase = 'season'
+    s.phase = 'event'
+    return
+  }
   withRng(s, (rng) => {
     // transfery tylko w oknach: w trakcie rundy nikt nie składa ofert za zawodników
     // częściej zdarzenia, gdy dzieje się coś ważnego
@@ -1003,7 +1028,17 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
   const pe = s.pendingEvent
   if (!pe) return ''
   let text: string
+  if (pe.eventId === 'lekarz' && optionIndex === 0) {
+    s.pendingEvent = undefined
+    s.resumePhase = undefined
+    s.phase = 'season'
+    text = takeLeave(s)
+    news(s, text)
+    return text
+  }
   if (pe.eventId === 'bid') text = resolveSeasonBid(s, pe.playerId!, pe.data!.fee, pe.data!.teamId, optionIndex)
+  else if (pe.eventId === 'lekarz') text = resolveDoctor(s, optionIndex)
+  else if (pe.eventId === 'dziennikarz') text = resolveJournalist(s, optionIndex, withRng(s, (rng) => rng.next()))
   else if (pe.eventId === 'zastepstwo')
     text =
       optionIndex === 0
@@ -1020,6 +1055,7 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
   s.pendingEvent = undefined
   s.phase = s.resumePhase ?? 'season'
   s.resumePhase = undefined
+  if (s.clubId !== null && forcedEnding(s)) return text
   if (s.clubId !== null && s.trust.board < 12) fire(s, 'Po tej akcji zarząd nie miał wyjścia. Kluczyki do szatni na biurko.')
   return text
 }
@@ -1098,6 +1134,14 @@ function fire(s: GameState, why: string): void {
   s.totalStats.firedCount++
   adjustCoach(s, { reputation: -6, stress: 15 })
   news(s, `Zwolnienie z ${t.name}. ${why}`)
+  leaveClub(s)
+  s.hiringNote = `${why} Kilka klubów i tak dzwoni, bo trenerów jest mniej niż boisk.`
+  s.offers = generateOffers(s, t.level, true, t.id)
+  if (!s.offers.length) s.hiringNote = `${why} Telefon milczy. Możesz przeczekać do końca sezonu i liczyć, że ktoś sobie o Tobie przypomni.`
+  s.phase = 'hiring'
+}
+
+function leaveClub(s: GameState): void {
   s.clubId = null
   s.squad = []
   s.reserveSquad = undefined
@@ -1106,9 +1150,55 @@ function fire(s: GameState, why: string): void {
   s.bids = []
   s.modifiers = []
   s.pendingEvent = undefined
-  s.hiringNote = `${why} Kilka klubów i tak dzwoni, bo trenerów jest mniej niż boisk.`
-  s.offers = generateOffers(s, t.level, true, t.id)
-  s.phase = 'hiring'
+}
+
+/** trener odchodzi z klubu w trakcie sezonu, a sezon w historii kończy się tym, co się stało */
+function leaveMidSeason(s: GameState, outcome: string): void {
+  const t = club(s)
+  const lg = clubLeague(s)
+  if (!t || !lg) return
+  if (s.phase === 'season' && s.round > 0)
+    s.history.push({ season: s.season, clubName: t.name, level: t.level, leagueName: lg.name, position: clubPosition(s), outcome, cup: '' })
+  leaveClub(s)
+}
+
+/** wypalenie albo afera w gazecie kończą karierę; zwraca, czy to już koniec */
+function forcedEnding(s: GameState): boolean {
+  const name = club(s)?.name
+  if ((s.burnout ?? 0) >= BURNOUT_END) {
+    leaveMidSeason(s, 'wypalenie w trakcie sezonu')
+    endCareer(s, burnoutEnding(s, name))
+    return true
+  }
+  if ((s.dirt ?? 0) >= DIRT_END) {
+    leaveMidSeason(s, 'afera w trakcie sezonu')
+    endCareer(s, scandalEnding(s))
+    return true
+  }
+  return false
+}
+
+/** urlop po ostrzeżeniu lekarza: sezon przerwy (albo jego reszta), spadek reputacji, wypalenie znika */
+export function takeLeave(s: GameState): string {
+  const t = club(s)
+  if (t) {
+    if (s.phase === 'season') leaveMidSeason(s, 'urlop w trakcie sezonu')
+    else leaveClub(s)
+  }
+  adjustCoach(s, { reputation: -8 })
+  s.onLeave = true
+  s.offers = []
+  s.phase = 'season'
+  const msg = t
+    ? `Bierzesz urlop. ${t.name} żegna Cię kwiatami i pytaniem, kto teraz poprowadzi trening.`
+    : 'Bierzesz urlop. Telefon ląduje w szufladzie, a Ty na działce.'
+  waitForOffers(s)
+  return msg
+}
+
+/** urlop jest możliwy, kiedy trener jest wyraźnie przemęczony */
+export function canTakeLeave(s: GameState): boolean {
+  return (s.burnout ?? 0) >= 6 || s.coach.stress >= 70
 }
 
 export function waitForOffers(s: GameState): void {
@@ -1119,7 +1209,11 @@ export function waitForOffers(s: GameState): void {
     })
     s.round++
   }
-  s.seasonsUnemployed++
+  if (!s.onLeave) {
+    s.seasonsUnemployed++
+    // kto długo nie pracuje, o tym prezesi zapominają
+    adjustCoach(s, { reputation: -4 })
+  }
   adjustCoach(s, { stress: -25 })
   endSeason(s)
 }
@@ -1144,7 +1238,9 @@ function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean,
       offers.push(makeOffer(s, id, rng.pick(OFFER_NOTES)))
       if (offers.length >= 4) break
     }
-    if (!offers.length) {
+    // po zwolnieniu albo długiej przerwie oferta „z łaski” nie jest pewna
+    const fallback = afterFiring ? Math.max(0.1, 0.9 - 0.35 * s.seasonsUnemployed) : 1
+    if (!offers.length && rng.chance(fallback)) {
       const level = Math.max(bottomLevel(s), Math.min(minL, bottomLevel(s) + 1))
       const id = rng.pick(teamsAtLevel(s, level).filter((x) => x !== excludeId))
       offers.push(makeOffer(s, id, 'Nikt inny nie chciał. Ale mają nowe siatki w bramkach!'))
@@ -1305,7 +1401,15 @@ export function endSeason(s: GameState): void {
     if (top && top.goals > 0) summary.push(`Król strzelców drużyny: ${playerName(top)} (${top.goals} goli).`)
     const bestAvg = [...s.squad].filter((p) => p.apps >= 8).sort((a, b) => b.ratingSum / b.apps - a.ratingSum / a.apps)[0]
     if (bestAvg) summary.push(`Najwyższa średnia ocen: ${playerName(bestAvg)} (${(bestAvg.ratingSum / bestAvg.apps).toFixed(2)}).`)
-  } else summary.push('Sezon spędzony w roli eksperta w lokalnym radiu. Słuchalność: 37 osób.')
+  } else if (s.onLeave) summary.push('Sezon urlopu: działka, ryby i zero telefonów od prezesów. Ciśnienie wreszcie w normie.')
+  else summary.push('Sezon spędzony w roli eksperta w lokalnym radiu. Słuchalność: 37 osób.')
+  seasonCoolDown(s)
+  const wasOnLeave = !!s.onLeave
+  if (!t) {
+    s.burnout = 0
+    if (s.onLeave) s.coach.stress = Math.min(s.coach.stress, 10)
+    s.onLeave = undefined
+  }
 
   for (const po of s.playoffs ?? [])
     if (po.winner !== undefined) summary.push(`${po.title}: wygrywa ${s.teams[po.winner].name}.`)
@@ -1359,8 +1463,13 @@ export function endSeason(s: GameState): void {
 
   s.lastSeasonSummary = summary
   if (s.coach.age >= 70) {
-    retire(s, 'Siedemdziesiątka na karku. Czas na działkę i komentowanie meczów z pilotem w ręku.')
+    endCareer(s, retirementEnding(s))
     return
+  }
+  if (backTo !== undefined && (!s.teams[backTo] || !leagueOf(s, backTo))) {
+    // rezerw już nie ma w grze (spadły poza nią): po nieudanym zastępstwie nie ma dokąd wracać
+    backTo = undefined
+    fired = true
   }
   if (t && !fired && backTo === undefined && plan.gone.has(t.id)) {
     // klub spadł do okręgówki, której nie ma w grze
@@ -1383,7 +1492,21 @@ export function endSeason(s: GameState): void {
     takeJob(s, { teamId: backTo, teamName: res.name, level: res.level, leagueName: rlg.name, goal: 'środek', salary: Math.round((s.salary * 0.6) / 1000) * 1000, note: '' })
     s.lastSeasonSummary = [...summary, `${t.name} nie osiągnęła celu. Wracasz do ${res.name}, w rezerwach czekają z kawą.`]
     s.offers = generateOffers(s, res.level, false, res.id)
-  } else s.offers = generateOffers(s, t ? t.level : 1, false, t?.id)
+  } else if (t) s.offers = generateOffers(s, t.level, false, t.id)
+  else {
+    // bez pracy: oferty z okolic ostatniego klubu, coraz rzadsze z każdym sezonem przerwy
+    const lastLevel = s.history[s.history.length - 1]?.level ?? bottomLevel(s)
+    s.offers = generateOffers(s, lastLevel, true)
+    if (!wasOnLeave && (s.seasonsUnemployed >= 3 || (s.seasonsUnemployed >= 2 && !s.offers.length))) {
+      endCareer(s, unemployedEnding(s))
+      return
+    }
+    s.hiringNote = wasOnLeave
+      ? 'Wracasz wypoczęty. Prezesi pamiętają, że zniknąłeś, ale niektórzy i tak dzwonią.'
+      : s.offers.length
+        ? `Sezon bez pracy (${s.seasonsUnemployed}). Ktoś jednak zadzwonił.`
+        : `Telefon milczy. Jeszcze ${s.seasonsUnemployed >= 2 ? 'jedna taka cisza' : 'kilka miesięcy ciszy'} i zostaje Ci sklep wędkarski.`
+  }
   startNewSeasonWorld(s)
   s.phase = 'seasonEnd'
 }
@@ -1471,15 +1594,21 @@ export function startLicenseCourse(s: GameState, sponsored = false): string {
   return `Zapisałeś się na kurs ${next}. Dyplom po ${s.coach.courseLeft === 1 ? 'zakończeniu sezonu' : 'dwóch sezonach'}.`
 }
 
-export function retire(s: GameState, reason: string): void {
-  s.retireReason = reason
+export function endCareer(s: GameState, ending: CareerEnding): void {
+  s.ending = ending
+  s.retireReason = ending.text
+  s.pendingEvent = undefined
+  s.resumePhase = undefined
   s.phase = 'retired'
+}
+
+/** trener sam kończy karierę */
+export function retire(s: GameState, reason: string): void {
+  endCareer(s, choiceEnding(s, reason))
 }
 
 export function careerCard(s: GameState) {
   const best = [...s.history].sort((a, b) => b.level - a.level || (a.position ?? 99) - (b.position ?? 99))[0]
-  // bez losowania, żeby karta nie zmieniała stanu gry przy każdym renderze
-  const quote = COACH_QUOTES[(s.seed + s.history.length) % COACH_QUOTES.length]
   const total = s.totalStats.w + s.totalStats.d + s.totalStats.l
   return {
     name: `${s.coach.firstName} ${s.coach.lastName}`,
@@ -1491,14 +1620,17 @@ export function careerCard(s: GameState) {
     clubs: [...new Set(s.history.map((h) => h.clubName))],
     peak: best ? `${best.leagueName} (${best.clubName})` : 'brak',
     trophies: s.trophies,
-    scandal: s.scandals[s.scandals.length - 1],
+    // przy aferze w gazecie to ona jest aferą kariery
+    scandal: s.ending?.headline ?? s.scandals[s.scandals.length - 1],
     bestPlayer: s.bestPlayer,
     record: `${s.totalStats.w}Z ${s.totalStats.d}R ${s.totalStats.l}P`,
     winPct: total ? Math.round((s.totalStats.w / total) * 100) : 0,
     fired: s.totalStats.firedCount,
-    quote,
+    press: pressQuote(s),
     path: s.history.map((h) => h.level),
     reason: s.retireReason ?? '',
+    ending: s.ending,
+    lastWord: s.ending?.lastWord,
   }
 }
 

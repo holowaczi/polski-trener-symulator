@@ -3,6 +3,7 @@ import { askBoard, askOutlook } from '../game/board'
 import { LICENSE_COURSES, LICENSES } from '../game/data'
 import { club, clubLeague, clubPosition, formatMoney, goalLabel, licenseStatus } from '../game/engine'
 import { careerScore, multiplierOf } from '../game/score'
+import { BURNOUT_END, DIRT_END } from '../game/endings'
 import type { GameState } from '../game/types'
 import { wageBill, withRng } from '../game/util'
 import { parentTeam, reserveTeamName } from '../game/reserves'
@@ -134,7 +135,15 @@ export function CoachCard({ s }: { s: GameState }) {
       <div className="bars">
         <Bar label="Stres" value={s.coach.stress} invert />
         <Bar label="Reputacja" value={Math.max(0, Math.min(100, s.coach.reputation))} />
+        {(s.burnout ?? 0) > 0 && <Bar label="Wypalenie" value={Math.min(100, Math.round(((s.burnout ?? 0) / BURNOUT_END) * 100))} invert />}
+        {(s.dirt ?? 0) > 0 && <Bar label="Teczka w redakcji" value={Math.min(100, Math.round(((s.dirt ?? 0) / DIRT_END) * 100))} invert />}
       </div>
+      {((s.burnout ?? 0) > 0 || (s.dirt ?? 0) > 0) && (
+        <p className="small muted">
+          Wypalenie rośnie, gdy długo grasz pod bardzo wysokim stresem; na 100 lekarz zabiera Ci gwizdek. Teczkę zapełniają afery i obietnice bez pokrycia; pełna trafia
+          do gazety i kończy karierę. Obie po sezonie trochę się zmniejszają.
+        </p>
+      )}
       <dl className="facts">
         <dt>Punkty kariery</dt>
         <dd>

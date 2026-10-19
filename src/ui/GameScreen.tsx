@@ -5,6 +5,7 @@ import {
   acceptOffer,
   BOARD_PAYS_COURSE,
   boardPaysCourse,
+  canTakeLeave,
   club,
   clubLeague,
   clubPosition,
@@ -22,6 +23,7 @@ import {
   simulateToBreak,
   startLicenseCourse,
   stayAtClub,
+  takeLeave,
   waitForOffers,
 } from '../game/engine'
 import { previewStrength } from '../game/match'
@@ -425,6 +427,22 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
           <button className="primary" disabled={lic && !lic.canStay} onClick={() => act((g) => stayAtClub(g))}>
             Zostaję w {team.name}
           </button>
+        )}
+        {!team && (
+          <ConfirmButton
+            label="Czekam na lepsze oferty"
+            confirmLabel="Cały sezon bez pracy?"
+            title="Sezon bez klubu. Reputacja trochę spada, a po długiej przerwie telefon może zamilknąć na dobre."
+            onConfirm={() => act((g) => waitForOffers(g))}
+          />
+        )}
+        {team && canTakeLeave(s) && (
+          <ConfirmButton
+            label="🏖️ Biorę urlop na sezon"
+            confirmLabel="Na pewno sezon przerwy?"
+            title="Sezon odpoczynku: stres i wypalenie znikają, reputacja spada. Odchodzisz z klubu."
+            onConfirm={() => act((g) => takeLeave(g))}
+          />
         )}
         <button
           className="ghost"

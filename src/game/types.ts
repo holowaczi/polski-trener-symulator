@@ -329,6 +329,28 @@ export interface GameState {
   figurant?: number
   /** wybrany start kariery: od niego zależy mnożnik punktów */
   start?: StartInfo
+  /** wypalenie: rośnie, gdy trener długo gra pod bardzo wysokim stresem */
+  burnout?: number
+  /** „brudy”: afery i obietnice bez pokrycia, które dziennikarze zbierają do teczki */
+  dirt?: number
+  /** trener wziął urlop: sezon przerwy po wypaleniu, nie liczy się jako bezrobocie */
+  onLeave?: boolean
+  /** jak skończyła się kariera */
+  ending?: CareerEnding
+}
+
+export type EndingKind = 'decyzja' | 'emerytura' | 'wypalenie' | 'skandal' | 'bezrobocie'
+
+export interface CareerEnding {
+  kind: EndingKind
+  /** krótki tytuł zakończenia, np. „Wypalenie” */
+  title: string
+  /** opis, jak to się skończyło */
+  text: string
+  /** „Ostatnie słowo” trenera na karcie */
+  lastWord?: string
+  /** nagłówek z gazety: „Afera kariery” przy skandalu */
+  headline?: string
 }
 
 export interface StartInfo {

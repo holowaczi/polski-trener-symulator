@@ -1,0 +1,187 @@
+import { forwardRef } from 'react'
+import { LEVELS } from '../game/data'
+import type { careerCard } from '../game/engine'
+import type { SeasonRecord } from '../game/types'
+import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
+
+const SHORT = ['C', 'B', 'B', 'A', 'Okr.', 'IV', 'III', 'II', 'I', 'Ekstra']
+
+/** prosta ścieżka przez ligi: bez podpowiedzi, czytelna i przy 1, i przy 40 sezonach */
+function MiniPath({ history, w, h }: { history: SeasonRecord[]; w: number; h: number }) {
+  if (!history.length)
+    return (
+      <div className="sc-empty" style={{ height: h }}>
+        Kariera skończyła się przed pierwszym gwizdkiem.
+      </div>
+    )
+  const left = 96
+  const pad = 18
+  const lo = Math.max(0, Math.min(...history.map((x) => x.level)) - 1)
+  const hi = Math.min(LEVELS.length - 1, Math.max(...history.map((x) => x.level)) + 1)
+  const n = history.length
+  const xOf = (i: number) => (n === 1 ? (left + w - pad) / 2 : left + (i * (w - left - pad)) / (n - 1))
+  const yOf = (lv: number) => pad + ((hi - lv) * (h - 2 * pad)) / Math.max(1, hi - lo)
+  const r = n > 30 ? 5 : n > 15 ? 7 : 9
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="sc-path">
+      {Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).map((lv) => (
+        <g key={lv}>
+          <line x1={left} x2={w - pad} y1={yOf(lv)} y2={yOf(lv)} className="sc-grid" />
+          <text x={left - 12} y={yOf(lv) + 8} className="sc-axis" textAnchor="end">
+            {SHORT[lv]}
+          </text>
+        </g>
+      ))}
+      <polyline points={history.map((x, i) => `${xOf(i)},${yOf(x.level)}`).join(' ')} className="sc-line" />
+      {history.map((x, i) => {
+        const cls = x.fired ? 'fired' : x.outcome.includes('mistrzostwo') ? 'title' : x.outcome.includes('awans') ? 'up' : x.outcome.includes('spadek') ? 'down' : 'none'
+        return <circle key={i} cx={xOf(i)} cy={yOf(x.level)} r={cls === 'none' ? r * 0.6 : r} className={`sc-pt ${cls}`} />
+      })}
+    </svg>
+  )
+}
+
+export interface ShareCardProps {
+  card: ReturnType<typeof careerCard>
+  history: SeasonRecord[]
+  score: number
+  mult: number
+  startLicense?: string
+  daily?: boolean
+  seed: number
+  version: string
+  format: ShareFormat
+}
+
+/** karta do udostępnienia: stały rozmiar w pikselach, z niej powstaje PNG */
+export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function ShareCard(p, ref) {
+  const { card, format } = p
+  const { w, h } = SHARE_SIZE[format]
+  const wide = format === 'poziom'
+  const maxTrophies = wide ? 4 : 3
+  const trophies = card.trophies.slice(-maxTrophies).reverse()
+  const ending = card.ending
+  const multLabel = p.mult !== 1 ? `mnożnik ×${p.mult} za start (${p.startLicense})` : p.daily ? 'wyzwanie dnia' : 'zwykły start ×1'
+
+  const header = (
+    <div className="sc-head">
+      <div className="sc-top">
+        <span className="sc-badge">TRENER</span>
+        {ending && (
+          <span className={`sc-ending ${ending.kind}`}>
+            {ENDING_ICON[ending.kind]} {ending.title}
+          </span>
+        )}
+      </div>
+      <div className="sc-name">{card.name}</div>
+      <div className="sc-sub">
+        {card.age} lat · {card.region} · licencja {card.license}
+      </div>
+    </div>
+  )
+  const scoreBlock = (
+    <div className="sc-score">
+      <div className="sc-score-num">{p.score.toLocaleString('pl-PL')}</div>
+      <div className="sc-score-lbl">punktów kariery · {multLabel}</div>
+    </div>
+  )
+  const stats = (
+    <div className="sc-stats">
+      {[
+        [card.seasons, 'sezonów'],
+        [card.clubs.length, 'klubów'],
+        [`${card.winPct}%`, 'wygranych'],
+        [card.fired, 'zwolnień'],
+      ].map(([v, l]) => (
+        <div key={l as string}>
+          <div className="sc-num">{v}</div>
+          <div className="sc-lbl">{l}</div>
+        </div>
+      ))}
+    </div>
+  )
+  const facts = (
+    <div className="sc-facts">
+      <div className="sc-fact">
+        <div className="sc-lbl">Najwyższy szczebel</div>
+        <div className="sc-val clamp-2">{card.peak}</div>
+      </div>
+      <div className="sc-fact">
+        <div className="sc-lbl">Najlepszy podopieczny</div>
+        <div className="sc-val clamp-1">{card.bestPlayer ? `${card.bestPlayer.name} (${card.bestPlayer.skill})` : 'nikt się nie wybił'}</div>
+      </div>
+      <div className="sc-fact">
+        <div className="sc-lbl">Trofea{card.trophies.length ? ` (${card.trophies.length})` : ''}</div>
+        {trophies.length ? (
+          <ul className="sc-trophies">
+            {trophies.map((t, i) => (
+              <li key={i} className="clamp-1">
+                🏆 {t}
+              </li>
+            ))}
+            {card.trophies.length > trophies.length && <li className="sc-more">i jeszcze {card.trophies.length - trophies.length}</li>}
+          </ul>
+        ) : (
+          <div className="sc-val">Gablota czeka. Kurz też.</div>
+        )}
+      </div>
+      {card.scandal && (
+        <div className="sc-fact sc-scandal">
+          <div className="sc-lbl">Afera kariery</div>
+          <div className="sc-val clamp-2">{card.scandal}</div>
+        </div>
+      )}
+    </div>
+  )
+  const quotes = (
+    <div className="sc-quotes">
+      <div className="sc-press">
+        <span className="clamp-2">„{card.press.text}”</span>
+        <span className="sc-src">{card.press.source}</span>
+      </div>
+      {card.lastWord && (
+        <div className="sc-last">
+          <span className="sc-lbl">Ostatnie słowo</span>
+          <span className="clamp-2">„{card.lastWord}”</span>
+        </div>
+      )}
+    </div>
+  )
+  const foot = (
+    <div className="sc-foot">
+      <span>Polski Trener Symulator</span>
+      <span>
+        v{p.version} · seed {p.seed}
+      </span>
+    </div>
+  )
+
+  return (
+    <div ref={ref} className={`share-card ${format}`} style={{ width: w, height: h }}>
+      {wide ? (
+        <div className="sc-cols">
+          <div className="sc-col">
+            {header}
+            {scoreBlock}
+            {stats}
+            <MiniPath history={p.history} w={720} h={250} />
+          </div>
+          <div className="sc-col">
+            {facts}
+            {quotes}
+          </div>
+        </div>
+      ) : (
+        <>
+          {header}
+          {scoreBlock}
+          {stats}
+          <MiniPath history={p.history} w={952} h={230} />
+          {facts}
+          {quotes}
+        </>
+      )}
+      {foot}
+    </div>
+  )
+})

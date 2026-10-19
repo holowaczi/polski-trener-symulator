@@ -18,6 +18,7 @@ import {
   stayAtClub,
   startLicenseCourse,
   takeJob,
+  waitForOffers,
 } from './engine'
 import { callUp, parentTeam, returnSentDown, sendDown } from './reserves'
 import { wageBill } from './util'
@@ -26,6 +27,9 @@ import { makeFixtures } from './world'
 import { Rng } from './rng'
 import type { GameState } from './types'
 
+/** bot nie bierze urlopu i nie grozi pozwem: chcemy długich karier */
+const SAFE_CHOICE: Record<string, number> = { lekarz: 1, dziennikarz: 1 }
+
 /** prosty bot: gra całą karierę, żeby sprawdzić, że nic się nie sypie */
 function botCareer(seed: number, seasons: number): GameState {
   const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'mazowieckie', seed })
@@ -33,6 +37,10 @@ function botCareer(seed: number, seasons: number): GameState {
   while (s.phase !== 'retired' && s.season <= seasons && guard++ < 20000) {
     switch (s.phase) {
       case 'hiring': {
+        if (!s.offers.length) {
+          waitForOffers(s)
+          break
+        }
         const best = [...s.offers].sort((a, b) => b.level - a.level)[0]
         acceptOffer(s, best.teamId)
         break
@@ -46,12 +54,16 @@ function botCareer(seed: number, seasons: number): GameState {
         break
       }
       case 'event':
-        resolveEvent(s, guard % s.pendingEvent!.options.length)
+        resolveEvent(s, SAFE_CHOICE[s.pendingEvent!.eventId] ?? guard % s.pendingEvent!.options.length)
         break
       case 'season':
         playNext(s)
         break
       case 'seasonEnd': {
+        if (s.clubId === null && !s.offers.length) {
+          waitForOffers(s)
+          break
+        }
         startLicenseCourse(s)
         const better = s.offers.filter((o) => o.level > (s.clubId ? s.teams[s.clubId].level : -1))
         if (better.length) acceptOffer(s, better[0].teamId)

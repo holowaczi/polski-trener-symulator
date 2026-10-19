@@ -1,6 +1,7 @@
 import type { Rng } from './rng'
 import type { GameState, Player, TraitId } from './types'
 import { addModifier, adjustCoach, adjustTrust, nudgeForm, setMorale } from './util'
+import { addDirt, DIRT_SCANDAL } from './endings'
 
 export interface EventCtx {
   s: GameState
@@ -30,7 +31,10 @@ const trust = (s: GameState, board = 0, squad = 0, fans = 0) => adjustTrust(s, {
 const coach = (s: GameState, stress = 0, reputation = 0, savings = 0) => adjustCoach(s, { stress, reputation, savings })
 const mod = addModifier
 const teamMorale = (s: GameState, d: number) => s.squad.forEach((p) => setMorale(p, d))
-const scandal = (s: GameState, text: string) => s.scandals.push(text)
+const scandal = (s: GameState, text: string) => {
+  s.scandals.push(text)
+  addDirt(s, DIRT_SCANDAL)
+}
 const k = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)} tys. zł` : `${v} zł`)
 /** kwota zależna od poziomu ligi */
 const money = (s: GameState, base: number) => Math.round(base * Math.pow(2.2, s.teams[s.clubId!].level))

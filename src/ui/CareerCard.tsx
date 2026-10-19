@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import { LEVELS } from '../game/data'
 import { careerCard } from '../game/engine'
 import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
 import { saveRecord } from './save'
 import type { GameState, SeasonRecord } from '../game/types'
+import { ShareCard } from './ShareCard'
+import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
 
 /** krótkie nazwy poziomów na oś wykresu */
 const SHORT = ['C', 'B', 'B', 'A', 'Okręg.', 'IV', 'III', 'II', 'I', 'Ekstra']
@@ -181,11 +183,30 @@ function Stints({ history }: { history: SeasonRecord[] }) {
   )
 }
 
+/** podgląd karty do udostępnienia: zmniejszony do szerokości ekranu */
+function useFitScale(width: number) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(0.3)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const fit = () => setScale(Math.min(1, el.clientWidth / width))
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [width])
+  return { ref, scale }
+}
+
+type ShareNav = Navigator & { canShare?: (d: ShareData) => boolean }
+
 export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
   const card = careerCard(s)
   const score = careerScore(s)
   const mult = multiplierOf(s)
   const lines = scoreBreakdown(s)
+  const version = __APP_VERSION__.replace('-alpha', ' alfa')
 
   useEffect(() => {
     if (!s.history.length) return
@@ -199,33 +220,89 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
       date: new Date().toISOString().slice(0, 10),
     })
   }, [s, card.name, card.peak, score, mult])
-  const ref = useRef<HTMLDivElement>(null)
+
+  const [format, setFormat] = useState<ShareFormat>('pion')
+  const size = SHARE_SIZE[format]
+  const { ref: fitRef, scale } = useFitScale(size.w)
+  const shareRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const [image, setImage] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [copied, setCopied] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const fileName = `kariera-${card.name.replace(/\s+/g, '-').toLowerCase()}-${format}.png`
 
-  const download = async () => {
-    if (!ref.current) return
+  const render = useCallback(async () => {
+    if (!shareRef.current) return null
+    const url = await toPng(shareRef.current, { width: size.w, height: size.h, pixelRatio: 1, cacheBust: true })
+    const blob = await (await fetch(url)).blob()
+    return { url, file: new File([blob], fileName, { type: 'image/png' }) }
+  }, [size.w, size.h, fileName])
+
+  // obrazek przygotowujemy zawczasu: telefon pozwala udostępnić tylko zaraz po stuknięciu
+  useEffect(() => {
+    let live = true
+    setFile(null)
+    const t = setTimeout(() => {
+      render()
+        .then((r) => {
+          if (live && r) {
+            setFile(r.file)
+            setImage(r.url)
+          }
+        })
+        .catch(() => undefined)
+    }, 300)
+    return () => {
+      live = false
+      clearTimeout(t)
+    }
+  }, [render])
+
+  const shareText = `${card.name}: ${score.toLocaleString('pl-PL')} pkt kariery, ${card.seasons} ${card.seasons === 1 ? 'sezon' : 'sezonów'}, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}.${card.ending ? ` Koniec: ${card.ending.title.toLowerCase()}.` : ''} #PolskiTrenerSymulator`
+
+  const download = (url: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    setNote('Karta pobrana. Jeśli plik się nie pobrał, przytrzymaj obrazek poniżej albo kliknij go prawym przyciskiem i zapisz.')
+  }
+
+  const getReady = async () => {
+    if (file && image) return { url: image, file }
     setBusy(true)
     try {
-      const bg = getComputedStyle(document.body).backgroundColor
-      const url = await toPng(ref.current, { pixelRatio: 2, backgroundColor: bg })
-      // obrazek pokazujemy też na stronie, bo nie każda przeglądarka pozwala pobrać plik
-      setImage(url)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `kariera-${card.name.replace(/\s+/g, '-').toLowerCase()}.png`
-      a.click()
+      const r = await render()
+      if (r) {
+        setFile(r.file)
+        setImage(r.url)
+      }
+      return r
     } finally {
       setBusy(false)
     }
   }
 
-  const shareText = `${card.name}: ${score} pkt kariery, ${card.seasons} sezonów, ${card.clubs.length} klubów, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}. #PolskiTrenerSymulator`
+  const share = async () => {
+    const nav = navigator as ShareNav
+    const r = await getReady()
+    if (!r) return
+    if (nav.share && nav.canShare?.({ files: [r.file] })) {
+      try {
+        await nav.share({ files: [r.file], text: shareText, title: `Karta trenera ${card.name}` })
+        setNote(null)
+        return
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
+      }
+    }
+    download(r.url)
+  }
 
   return (
     <main className="retired">
-      <div ref={ref} className="career-card">
+      <div className="career-card">
         <div className="cc-head">
           <div className="cc-badge">TRENER</div>
           <h1>{card.name}</h1>
@@ -233,6 +310,16 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
             {card.age} lat · {card.region} · licencja {card.license}
           </div>
         </div>
+
+        {card.ending && (
+          <div className={`cc-ending ${card.ending.kind}`}>
+            <div className="cc-ending-title">
+              {ENDING_ICON[card.ending.kind]} {card.ending.title}
+            </div>
+            {card.ending.headline && <div className="cc-headline">{card.ending.headline}</div>}
+            <p>{card.ending.text}</p>
+          </div>
+        )}
 
         <div className="cc-grid">
           <div>
@@ -300,36 +387,79 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
           </ul>
         )}
 
-        <blockquote>„{card.quote}”</blockquote>
-        <p className="small muted">{card.reason}</p>
-        <div className="cc-foot">Polski Trener Symulator</div>
+        <blockquote>
+          „{card.press.text}”<cite>{card.press.source}</cite>
+        </blockquote>
+        {card.lastWord && (
+          <p className="cc-last">
+            <span className="muted small">Ostatnie słowo: </span>„{card.lastWord}”
+          </p>
+        )}
+        <div className="cc-foot">
+          Polski Trener Symulator · v{version} · seed {s.seed}
+        </div>
       </div>
 
+      <section className="share-panel">
+        <h2>Pokaż znajomym</h2>
+        <div className="segmented" role="group" aria-label="Format obrazka">
+          <button className={format === 'pion' ? 'active' : ''} aria-pressed={format === 'pion'} onClick={() => setFormat('pion')}>
+            Pion · Instagram
+          </button>
+          <button className={format === 'poziom' ? 'active' : ''} aria-pressed={format === 'poziom'} onClick={() => setFormat('poziom')}>
+            Poziom · X
+          </button>
+        </div>
+        <div className="share-preview" ref={fitRef}>
+          <div style={{ width: size.w * scale, height: size.h * scale }}>
+            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: size.w }}>
+              <ShareCard
+                ref={shareRef}
+                card={card}
+                history={s.history}
+                score={score}
+                mult={mult}
+                startLicense={s.start?.license}
+                daily={s.start?.daily}
+                seed={s.seed}
+                version={version}
+                format={format}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="row center">
+          <button className="primary" onClick={share} disabled={busy}>
+            {busy ? 'Przygotowuję…' : '📤 Udostępnij'}
+          </button>
+          <button onClick={() => getReady().then((r) => r && download(r.url))} disabled={busy}>
+            Pobierz PNG
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard
+                ?.writeText(shareText)
+                .then(() => setCopied(true))
+                .catch(() => setCopied(false))
+            }}
+          >
+            {copied ? 'Skopiowano' : 'Kopiuj tekst'}
+          </button>
+        </div>
+        {note && <p className="small muted center-text">{note}</p>}
+        <p className="share-text small muted">{shareText}</p>
+        {note && image && (
+          <figure className="card-image">
+            <img src={image} alt={`Karta trenera ${card.name}`} />
+          </figure>
+        )}
+      </section>
+
       <div className="row center">
-        <button className="primary" onClick={download} disabled={busy}>
-          {busy ? 'Generuję…' : 'Pobierz kartę (PNG)'}
-        </button>
-        <button
-          onClick={() => {
-            navigator.clipboard
-              ?.writeText(shareText)
-              .then(() => setCopied(true))
-              .catch(() => setCopied(false))
-          }}
-        >
-          {copied ? 'Skopiowano' : 'Kopiuj tekst na X'}
-        </button>
         <button className="ghost" onClick={onNew}>
           Nowa kariera
         </button>
       </div>
-      <p className="share-text small muted">{shareText}</p>
-      {image && (
-        <figure className="card-image">
-          <img src={image} alt={`Karta trenera ${card.name}`} />
-          <figcaption className="small muted">Jeśli plik się nie pobrał, przytrzymaj obrazek albo kliknij go prawym przyciskiem i zapisz.</figcaption>
-        </figure>
-      )}
     </main>
   )
 }
