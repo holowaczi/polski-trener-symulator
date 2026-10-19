@@ -4,12 +4,10 @@ import { LEVELS } from '../game/data'
 import { careerCard } from '../game/engine'
 import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
 import { saveRecord } from './save'
+import { levelShort, lowestLevel } from '../game/world'
 import type { GameState, SeasonRecord } from '../game/types'
 import { ShareCard } from './ShareCard'
 import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
-
-/** krótkie nazwy poziomów na oś wykresu */
-const SHORT = ['C', 'B', 'B', 'A', 'Okręg.', 'IV', 'III', 'II', 'I', 'Ekstra']
 
 type Mark = 'up' | 'down' | 'title' | 'fired' | 'none'
 
@@ -36,7 +34,7 @@ function stintsOf(history: SeasonRecord[]) {
   return out
 }
 
-function PathChart({ history }: { history: SeasonRecord[] }) {
+function PathChart({ history, region }: { history: SeasonRecord[]; region: string }) {
   const [active, setActive] = useState<number | null>(null)
   if (history.length === 0) return null
   const w = 400
@@ -45,7 +43,7 @@ function PathChart({ history }: { history: SeasonRecord[] }) {
   const right = 12
   const topPad = 22
   const bottom = 22
-  const lo = Math.max(0, Math.min(...history.map((x) => x.level)) - 1)
+  const lo = Math.max(lowestLevel(region), Math.min(...history.map((x) => x.level)) - 1)
   const hi = LEVELS.length - 1
   const n = history.length
   const xOf = (i: number) => (n === 1 ? (left + w - right) / 2 : left + (i * (w - left - right)) / (n - 1))
@@ -78,7 +76,7 @@ function PathChart({ history }: { history: SeasonRecord[] }) {
           <g key={lv}>
             <line x1={left} x2={w - right} y1={yOf(lv)} y2={yOf(lv)} className="grid" />
             <text x={left - 6} y={yOf(lv) + 3} className="axis" textAnchor="end">
-              {SHORT[lv]}
+              {levelShort(lv, region) ?? ''}
             </text>
           </g>
         ))}
@@ -355,7 +353,7 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
           </ul>
         </div>
 
-        <PathChart history={s.history} />
+        <PathChart history={s.history} region={s.coach.region} />
         <Stints history={s.history} />
 
         <dl className="cc-facts">

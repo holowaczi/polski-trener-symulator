@@ -2,12 +2,12 @@ import { forwardRef } from 'react'
 import { LEVELS } from '../game/data'
 import type { careerCard } from '../game/engine'
 import type { SeasonRecord } from '../game/types'
+import { levelShort, lowestLevel } from '../game/world'
 import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
 
-const SHORT = ['C', 'B', 'B', 'A', 'Okr.', 'IV', 'III', 'II', 'I', 'Ekstra']
 
 /** prosta ścieżka przez ligi: bez podpowiedzi, czytelna i przy 1, i przy 40 sezonach */
-function MiniPath({ history, w, h }: { history: SeasonRecord[]; w: number; h: number }) {
+function MiniPath({ history, region, w, h }: { history: SeasonRecord[]; region: string; w: number; h: number }) {
   if (!history.length)
     return (
       <div className="sc-empty" style={{ height: h }}>
@@ -16,7 +16,7 @@ function MiniPath({ history, w, h }: { history: SeasonRecord[]; w: number; h: nu
     )
   const left = 96
   const pad = 18
-  const lo = Math.max(0, Math.min(...history.map((x) => x.level)) - 1)
+  const lo = Math.max(lowestLevel(region), Math.min(...history.map((x) => x.level)) - 1)
   const hi = Math.min(LEVELS.length - 1, Math.max(...history.map((x) => x.level)) + 1)
   const n = history.length
   const xOf = (i: number) => (n === 1 ? (left + w - pad) / 2 : left + (i * (w - left - pad)) / (n - 1))
@@ -28,7 +28,7 @@ function MiniPath({ history, w, h }: { history: SeasonRecord[]; w: number; h: nu
         <g key={lv}>
           <line x1={left} x2={w - pad} y1={yOf(lv)} y2={yOf(lv)} className="sc-grid" />
           <text x={left - 12} y={yOf(lv) + 8} className="sc-axis" textAnchor="end">
-            {SHORT[lv]}
+            {levelShort(lv, region) ?? ''}
           </text>
         </g>
       ))}
@@ -164,7 +164,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
             {header}
             {scoreBlock}
             {stats}
-            <MiniPath history={p.history} w={720} h={250} />
+            <MiniPath history={p.history} region={p.card.region} w={720} h={250} />
           </div>
           <div className="sc-col">
             {facts}
@@ -176,7 +176,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           {header}
           {scoreBlock}
           {stats}
-          <MiniPath history={p.history} w={952} h={230} />
+          <MiniPath history={p.history} region={p.card.region} w={952} h={230} />
           {facts}
           {quotes}
         </>

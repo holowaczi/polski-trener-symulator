@@ -97,3 +97,15 @@ describe('zakończenia kariery', () => {
     expect(card.press.source).toBe('Forum kibiców')
   })
 })
+
+describe('oś wykresu kariery', () => {
+  it('nazwy poziomów według lig województwa', async () => {
+    const { levelShort, lowestLevel } = await import('./world')
+    expect([1, 2, 3, 4, 5].map((lv) => levelShort(lv, 'mazowieckie'))).toEqual(['B', 'A', 'Okr.', 'V', 'IV'])
+    expect(lowestLevel('mazowieckie')).toBe(1)
+    expect(levelShort(0, 'mazowieckie')).toBeUndefined()
+    expect([2, 3, 4, 5].map((lv) => levelShort(lv, 'łódzkie'))).toEqual(['B', 'A', 'Okr.', 'IV'])
+    expect(lowestLevel('śląskie')).toBe(0)
+    expect(levelShort(9, 'śląskie')).toBe('Ekstra')
+  })
+})

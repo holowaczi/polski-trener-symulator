@@ -23,6 +23,30 @@ export function leagueName(level: number, region: string): string {
   return LEVELS[level].name
 }
 
+const TIER_SHORT: Record<string, string> = {
+  'IV liga': 'IV',
+  'V liga': 'V',
+  'Klasa okręgowa': 'Okr.',
+  'Liga okręgowa': 'Okr.',
+  'Klasa A': 'A',
+  'Klasa B': 'B',
+  'Klasa C': 'C',
+}
+
+/** krótka nazwa poziomu na oś wykresu, według lig w województwie; brak = takiego poziomu tam nie ma */
+export function levelShort(level: number, region: string): string | undefined {
+  if (level >= 6) return ['III', 'II', 'I', 'Ekstra'][level - 6]
+  const tier = lowerTier(level, region)?.tier
+  return tier ? (TIER_SHORT[tier] ?? tier) : undefined
+}
+
+/** najniższy poziom, który istnieje w województwie */
+export function lowestLevel(region: string): number {
+  let lv = 5
+  while (lv > 0 && levelShort(lv - 1, region)) lv--
+  return lv
+}
+
 /** wszystkie drużyny na danym poziomie, ze wszystkich grup */
 export function teamsAtLevel(state: Pick<GameState, 'leagues'>, level: number): number[] {
   return state.leagues.filter((l) => l.level === level).flatMap((l) => l.teamIds)

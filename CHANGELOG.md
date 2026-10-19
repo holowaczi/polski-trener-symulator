@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.6.1 (alfa) · 19 października 2026
+
+- **Poprawna oś na wykresie kariery.** Zamiast ogólnego „C, B, B, A” wykres pokazuje ligi Twojego województwa, np. w mazowieckim: B, A, Okr., V, IV. Dotąd niższe poziomy były podpisane źle, bo nie każde województwo ma V ligę czy klasę C. To samo dotyczy obrazka do udostępnienia.
+
 ## 0.6.0 (alfa) · 19 października 2026
 
 Kariera nie kończy się już tylko na siedemdziesiątce albo na Twoje życzenie. Teraz może Cię wykończyć serce, gazeta albo cisza w telefonie.
