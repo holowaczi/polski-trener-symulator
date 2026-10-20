@@ -652,8 +652,9 @@ function Contract({ p }: { p: Player }) {
 
 /** rozmowy o nowych umowach: wygasające i w ostatnim roku */
 function ContractTalks({ s, act }: { s: GameState; act: Act }) {
-  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1).sort((a, b) => (a.contract ?? 1) - (b.contract ?? 1) || b.skill - a.skill)
-  if (!talks.length) return null
+  const fresh = s.squad.filter((p) => p.newSigning && (p.contract ?? 1) <= 1)
+  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1 && !p.newSigning).sort((a, b) => (a.contract ?? 1) - (b.contract ?? 1) || b.skill - a.skill)
+  if (!talks.length && !fresh.length) return null
   const bill = wageBill(s)
   const open = talks.filter((p) => !p.talksOver)
   const extra = open.reduce((a, p) => a + (p.haggled ?? wageDemand(s, p)) - p.wage, 0)
@@ -681,6 +682,11 @@ function ContractTalks({ s, act }: { s: GameState; act: Act }) {
         <span className="warn-text">Wygasa</span>: odejdzie za darmo po zamknięciu okna. <span className="warn-text">1 sez.</span>: można przedłużyć już teraz.
         Targowanie zbija pensję o 15%, ale drugie podejście kończy rozmowy.
       </p>
+      {fresh.length > 0 && (
+        <p className="small muted">
+          Nowi zawodnicy z umową na sezon ({fresh.map((p) => playerName(p)).join(', ')}): dopiero co podpisali, o przedłużeniu porozmawiacie najwcześniej w kolejnym oknie.
+        </p>
+      )}
       <div className="bids">
         {talks.map((p) => {
           const demand = p.haggled ?? wageDemand(s, p)

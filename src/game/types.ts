@@ -56,6 +56,8 @@ export interface Player {
   sentDown?: boolean
   /** młody zawodnik zbiera minuty w rezerwach i szybciej się rozwija */
   minutesBoost?: number
+  /** kupiony w tym oknie: o nowej umowie można rozmawiać najwcześniej w kolejnym */
+  newSigning?: boolean
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'

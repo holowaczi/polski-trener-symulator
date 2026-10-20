@@ -132,3 +132,22 @@ describe('trofea na karcie', () => {
     ])
   })
 })
+
+describe('nowy nabytek', () => {
+  it('umowę kupionego zawodnika przedłużysz dopiero w kolejnym oknie', async () => {
+    const { buyPlayer } = await import('./market')
+    const { canNegotiate } = await import('./contracts')
+    const s = newGame({ firstName: 'A', lastName: 'B', age: 30, region: 'mazowieckie', seed: 9 })
+    acceptOffer(s, s.offers[0].teamId)
+    expect(s.phase).toBe('transfer')
+    s.budget = 10_000_000
+    s.wageLimit = 10_000_000
+    const target = s.transferList[0]
+    target.player.contract = 1
+    buyPlayer(s, target.player.id)
+    const p = s.squad.find((x) => x.id === target.player.id)!
+    expect(canNegotiate(p)).toBe(false)
+    finishTransfers(s)
+    expect(canNegotiate(p)).toBe(true)
+  })
+})

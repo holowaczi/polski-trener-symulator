@@ -54,6 +54,8 @@ export function buyPlayer(s: GameState, playerId: number): string {
   s.signings = (s.signings ?? 0) + 1
   s.budget -= tt.fee
   tt.player.morale = 70
+  // świeżo podpisana umowa: przedłużenie dopiero w kolejnym oknie
+  tt.player.newSigning = true
   s.squad.push(tt.player)
   s.transferList.splice(idx, 1)
   const msg = `${playerName(tt.player)} dołącza do ${club(s)!.name}${tt.fee ? ` za ${formatMoney(tt.fee)}` : ' za darmo'}.`

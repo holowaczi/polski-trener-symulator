@@ -1120,6 +1120,7 @@ function fillSquad(s: GameState): void {
 
 export function finishTransfers(s: GameState): void {
   expireContracts(s)
+  for (const p of s.squad) p.newSigning = undefined
   fillSquad(s)
   s.bids = []
   s.phase = 'season'

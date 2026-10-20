@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.6.7 (alfa) · 20 października 2026
+
+- **Nowego zawodnika nie przedłużysz w tym samym oknie.** Kto dopiero co przyszedł z umową na sezon, siada do rozmów o nowym kontrakcie najwcześniej w kolejnym oknie transferowym. W oknie, w którym go kupiłeś, pod umowami do przedłużenia jest o tym krótka notka.
+
 ## 0.6.6 (alfa) · 20 października 2026
 
 - **Ostatni mecz nie znika.** Gdy zaraz po meczu otwiera się okno transferowe, kończy się sezon albo prezes Cię zwalnia, gra najpierw pokazuje raport z tego meczu („Ostatni mecz przed oknem transferowym”, „Ostatni mecz sezonu”). Dopiero przyciskiem przechodzisz dalej. Dotąd ekran przeskakiwał i wynik (np. finału pucharu w ostatnim tygodniu) zostawał tylko w Wieściach.

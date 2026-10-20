@@ -19,7 +19,7 @@ export function contractOf(p: Player): number {
 
 /** czy z zawodnikiem można rozmawiać o nowej umowie */
 export function canNegotiate(p: Player): boolean {
-  return contractOf(p) <= 1 && !p.talksOver
+  return contractOf(p) <= 1 && !p.talksOver && !p.newSigning
 }
 
 /** ile lat umowy chce zawodnik: młodzi długo, weterani też, bo boją się końca kariery */
