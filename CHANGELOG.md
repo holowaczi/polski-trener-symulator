@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.6.3 (alfa) · 20 października 2026
+
+- **Zmiana klubu na wykresie kariery to przerywana linia.** Ciągła linia łączy już tylko sezony w jednym klubie, więc przeprowadzka z III ligi do okręgówki nie wygląda jak spadek. Tak samo na obrazku do udostępnienia.
+
 ## 0.6.2 (alfa) · 20 października 2026
 
 - **Trofea na obrazku karty zgrupowane.** Trzy tytuły mistrza Polski to jedna linijka „Mistrzostwo Polski ×3”. Mistrzostwa niższych lig pokazują sam poziom („Mistrzostwo: III liga”) bez grupy i województwa. Najpierw najważniejsze trofea, a reszta mieści się w „i jeszcze X trofeów”.

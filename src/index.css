@@ -1887,3 +1887,15 @@ blockquote cite::before {
 .sc-count {
   color: var(--sc-gold);
 }
+.path-chart .seg.jump {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  opacity: 0.8;
+}
+.sc-line.jump {
+  stroke: var(--sc-muted);
+  stroke-width: 3;
+  stroke-dasharray: 8 10;
+  opacity: 0.7;
+}

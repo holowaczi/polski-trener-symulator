@@ -82,7 +82,8 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
         ))}
         {history.slice(1).map((x, i) => {
           const a = history[i]
-          const cls = x.level > a.level ? 'seg up' : x.level < a.level ? 'seg down' : 'seg'
+          // zmiana klubu to przeprowadzka, a nie awans ani spadek: cienka przerywana linia
+          const cls = x.clubName !== a.clubName ? 'seg jump' : x.level > a.level ? 'seg up' : x.level < a.level ? 'seg down' : 'seg'
           return <line key={i} x1={xOf(i)} y1={yOf(a.level)} x2={xOf(i + 1)} y2={yOf(x.level)} className={cls} />
         })}
         {history.map((x, i) => {

@@ -33,7 +33,16 @@ function MiniPath({ history, region, w, h }: { history: SeasonRecord[]; region: 
           </text>
         </g>
       ))}
-      <polyline points={history.map((x, i) => `${xOf(i)},${yOf(x.level)}`).join(' ')} className="sc-line" />
+      {history.slice(1).map((x, i) => (
+        <line
+          key={i}
+          x1={xOf(i)}
+          y1={yOf(history[i].level)}
+          x2={xOf(i + 1)}
+          y2={yOf(x.level)}
+          className={x.clubName !== history[i].clubName ? 'sc-line jump' : 'sc-line'}
+        />
+      ))}
       {history.map((x, i) => {
         const cls = x.fired ? 'fired' : x.outcome.includes('mistrzostwo') ? 'title' : x.outcome.includes('awans') ? 'up' : x.outcome.includes('spadek') ? 'down' : 'none'
         return <circle key={i} cx={xOf(i)} cy={yOf(x.level)} r={cls === 'none' ? r * 0.6 : r} className={`sc-pt ${cls}`} />
