@@ -30,7 +30,7 @@ import { previewStrength } from '../game/match'
 import { careerScore, multiplierOf } from '../game/score'
 import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
-import { ConfirmButton, CupView, MatchView, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
+import { ConfirmButton, CupView, MatchView, ReportCard, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 import { ClubView, CoachCard } from './profiles'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
@@ -51,6 +51,14 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   const [tab, setTab] = useState<Tab>('mecz')
   const [auto, setAuto] = useState<AutoState>({ speed: 1, running: false })
   const team = club(s)
+  // ostatni mecz przed oknem, końcem sezonu albo zwolnieniem: pokazujemy go, zanim gra pójdzie dalej
+  const [seenSeq, setSeenSeq] = useState(() => s.lastReport?.seq ?? 0)
+  const lastSeq = s.lastReport?.seq ?? 0
+  const inSeason = s.phase === 'season' || s.phase === 'event'
+  useEffect(() => {
+    if (inSeason && lastSeq > seenSeq) setSeenSeq(lastSeq)
+  }, [inSeason, lastSeq, seenSeq])
+  const showLast = !inSeason && lastSeq > seenSeq && !!s.lastReport
 
   // tryb automatyczny: kolejny mecz po chwili; zdarzenie czeka na decyzję, okno, koniec sezonu i zwolnienie zatrzymują
   useEffect(() => {
@@ -125,6 +133,21 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
         </>
       )}
       {s.phase === 'event' && s.pendingEvent && <EventModal s={s} act={act} />}
+      {showLast && (
+        <div className="modal-bg">
+          <div className="modal last-match" role="dialog" aria-modal="true">
+            <div className="modal-tag">
+              Ostatni mecz {s.phase === 'transfer' ? 'przed oknem transferowym' : s.phase === 'seasonEnd' ? 'sezonu' : s.phase === 'hiring' ? 'w klubie' : ''}
+            </div>
+            <ReportCard s={s} r={s.lastReport!} latest />
+            <div className="options">
+              <button className="primary" onClick={() => setSeenSeq(lastSeq)}>
+                {s.phase === 'transfer' ? 'Do okna transferowego' : s.phase === 'seasonEnd' ? 'Do podsumowania sezonu' : 'Dalej'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

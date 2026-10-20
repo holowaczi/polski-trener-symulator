@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.6.6 (alfa) · 20 października 2026
+
+- **Ostatni mecz nie znika.** Gdy zaraz po meczu otwiera się okno transferowe, kończy się sezon albo prezes Cię zwalnia, gra najpierw pokazuje raport z tego meczu („Ostatni mecz przed oknem transferowym”, „Ostatni mecz sezonu”). Dopiero przyciskiem przechodzisz dalej. Dotąd ekran przeskakiwał i wynik (np. finału pucharu w ostatnim tygodniu) zostawał tylko w Wieściach.
+
 ## 0.6.5 (alfa) · 20 października 2026
 
 - **Finał pucharu kończy się zdobyciem pucharu, a nie awansem.** W raporcie z finału, po karnych i bez nich, jest linijka „🏆 … zdobywa Puchar Polski” (albo puchar wojewódzki). Zniknął też komunikat „awans dalej!” po wygranym finale.

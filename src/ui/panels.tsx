@@ -4,7 +4,7 @@ import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
 import { club, clubLeague, computeTable, cupsOf, directPromotion, formatMoney, hasPlayoffs, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer, signingLimit } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
-import type { Cup, CupTie, Formation, GameState, Mentality, Player, PlayerRating, Style } from '../game/types'
+import type { Cup, CupTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
 import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { playerName } from '../game/world'
@@ -211,60 +211,66 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
           </ul>
         </div>
       )}
-      {reports.map((r, i) => {
-        const mine = r.home === s.clubId ? r.hg - r.ag : r.ag - r.hg
-        const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
-        return (
-          <article key={i} className={`report ${tone} ${i === 0 ? 'latest' : ''} ${r.playoff ? 'playoff' : r.cup ? 'cup' : ''}`}>
-            <div className="report-head">
-              {r.playoff ? (
-                <span className="comp-tag playoff">⚔️ {r.cupName ?? 'Baraże'}</span>
-              ) : r.cup ? (
-                <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
-              ) : (
-                <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
-              )}
-              <div className="score">
-                <span className={r.pens && pensWinner(r.pens) === 'home' ? 'pens-win' : ''}>{teamName(s, r.home)}</span>
-                <b>
-                  {r.hg}:{r.ag}
-                </b>
-                <span className={r.pens && pensWinner(r.pens) === 'away' ? 'pens-win' : ''}>{teamName(s, r.away)}</span>
-              </div>
-              {r.pens && (
-                <div className="pens-line">
-                  Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)}{' '}
-                  {r.trophy ? `zdobywa ${r.trophy}` : !r.playoff ? 'awansuje dalej' : r.cupName?.includes('półfinał') ? 'gra w finale baraży' : 'wygrywa baraż'}
-                </div>
-              )}
-              {r.trophy && !r.pens && (
-                <div className="pens-line">
-                  🏆 {teamName(s, r.hg > r.ag ? r.home : r.away)} zdobywa {r.trophy}
-                </div>
-              )}
-            </div>
-            {i === 0 && (
-              <>
-                <div className="small muted">
-                  Siła: atak {r.myStrength.att}, obrona {r.myStrength.def} · rywal {r.oppStrength}
-                </div>
-                <ul className="match-events">
-                  {r.events.map((e, j) => (
-                    <li key={j}>{withInjuryCross(e)}</li>
-                  ))}
-                </ul>
-                {r.lines.length > 0 && <ul className="lines">
-                  {r.lines.map((l, j) => (
-                    <li key={j}>{l}</li>
-                  ))}
-                </ul>}
-                <RatingsTable ratings={r.ratings} />
-              </>
-            )}
-          </article>
-        )
-      })}
+      {reports.map((r, i) => (
+        <ReportCard key={i} s={s} r={r} latest={i === 0} />
+      ))}
     </div>
+  )
+}
+
+/** raport z jednego meczu: na liście meczów i w okienku „Ostatni mecz” */
+export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; latest?: boolean }) {
+  const me = r.me ?? s.clubId
+  const mine = r.home === me ? r.hg - r.ag : r.ag - r.hg
+  const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
+  return (
+    <article className={`report ${tone} ${latest ? 'latest' : ''} ${r.playoff ? 'playoff' : r.cup ? 'cup' : ''}`}>
+      <div className="report-head">
+        {r.playoff ? (
+          <span className="comp-tag playoff">⚔️ {r.cupName ?? 'Baraże'}</span>
+        ) : r.cup ? (
+          <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
+        ) : (
+          <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
+        )}
+        <div className="score">
+          <span className={r.pens && pensWinner(r.pens) === 'home' ? 'pens-win' : ''}>{teamName(s, r.home)}</span>
+          <b>
+            {r.hg}:{r.ag}
+          </b>
+          <span className={r.pens && pensWinner(r.pens) === 'away' ? 'pens-win' : ''}>{teamName(s, r.away)}</span>
+        </div>
+        {r.pens && (
+          <div className="pens-line">
+            Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)}{' '}
+            {r.trophy ? `zdobywa ${r.trophy}` : !r.playoff ? 'awansuje dalej' : r.cupName?.includes('półfinał') ? 'gra w finale baraży' : 'wygrywa baraż'}
+          </div>
+        )}
+        {r.trophy && !r.pens && (
+          <div className="pens-line">
+            🏆 {teamName(s, r.hg > r.ag ? r.home : r.away)} zdobywa {r.trophy}
+          </div>
+        )}
+      </div>
+      {latest && (
+        <>
+          <div className="small muted">
+            Siła: atak {r.myStrength.att}, obrona {r.myStrength.def} · rywal {r.oppStrength}
+          </div>
+          <ul className="match-events">
+            {r.events.map((e, j) => (
+              <li key={j}>{withInjuryCross(e)}</li>
+            ))}
+          </ul>
+          {r.lines.length > 0 && <ul className="lines">
+            {r.lines.map((l, j) => (
+              <li key={j}>{l}</li>
+            ))}
+          </ul>}
+          <RatingsTable ratings={r.ratings} />
+        </>
+      )}
+    </article>
   )
 }
 

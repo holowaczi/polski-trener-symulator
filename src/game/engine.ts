@@ -6,7 +6,7 @@ import { EVENTS, type GameEvent } from './events'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { CareerEnding, Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, Player, Position, TableRow } from './types'
+import type { CareerEnding, Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, MatchReport, Player, Position, TableRow } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
 import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
@@ -599,7 +599,7 @@ function playPlayoffsForWeek(rng: Rng, s: GameState, week: number): void {
         rep.playoff = true
         t.hg = rep.hg
         t.ag = rep.ag
-        s.reports.unshift(rep)
+        pushReport(s, rep)
       } else playAiFixture(rng, s, t, true)
       if (t.hg! > t.ag!) t.winner = t.home
       else if (t.hg! < t.ag!) t.winner = t.away
@@ -684,7 +684,7 @@ export function playWeek(s: GameState): void {
           const rep = playClubMatch(rng, s, f, false)
           f.hg = rep.hg
           f.ag = rep.ag
-          s.reports.unshift(rep)
+          pushReport(s, rep)
         } else playAiFixture(rng, s, f)
       }
     }
@@ -701,6 +701,13 @@ export function playWeek(s: GameState): void {
   }
   s.round++
   afterWeek(s)
+}
+
+function pushReport(s: GameState, rep: MatchReport): void {
+  rep.seq = (s.lastReport?.seq ?? 0) + 1
+  rep.me = s.clubId ?? undefined
+  s.reports.unshift(rep)
+  s.lastReport = rep
 }
 
 function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
@@ -721,7 +728,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
       if (final) rep.trophy = cupName
       t.hg = rep.hg
       t.ag = rep.ag
-      s.reports.unshift(rep)
+      pushReport(s, rep)
     } else playAiFixture(rng, s, t, true)
     if (t.hg! > t.ag!) t.winner = t.home
     else if (t.hg! < t.ag!) t.winner = t.away

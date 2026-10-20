@@ -198,6 +198,10 @@ export interface MatchReport {
   playoff?: boolean
   /** finał pucharu: nazwa trofeum, o które grano */
   trophy?: string
+  /** numer kolejny meczu trenera w karierze */
+  seq?: number
+  /** klub trenera w tym meczu (po zwolnieniu klubId już go nie wskazuje) */
+  me?: number
   /** wynik rzutów karnych (gospodarze:goście) po remisie w pucharze albo barażu */
   pens?: string
   home: number
@@ -339,6 +343,8 @@ export interface GameState {
   onLeave?: boolean
   /** jak skończyła się kariera */
   ending?: CareerEnding
+  /** ostatni mecz trenera: pokazujemy go, nawet gdy zaraz po nim otwiera się okno albo kończy sezon */
+  lastReport?: MatchReport
 }
 
 export type EndingKind = 'decyzja' | 'emerytura' | 'wypalenie' | 'skandal' | 'bezrobocie'

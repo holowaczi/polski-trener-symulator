@@ -1895,3 +1895,16 @@ blockquote cite::before {
   stroke-dasharray: 8 10;
   opacity: 0.7;
 }
+.modal.last-match {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal.last-match .report {
+  margin: 8px 0 12px;
+}
+.modal.last-match .options {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding-top: 8px;
+}
