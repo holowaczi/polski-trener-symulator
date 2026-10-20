@@ -1612,6 +1612,8 @@ export function careerCard(s: GameState) {
   const total = s.totalStats.w + s.totalStats.d + s.totalStats.l
   return {
     name: `${s.coach.firstName} ${s.coach.lastName}`,
+    firstName: s.coach.firstName,
+    lastName: s.coach.lastName,
     age: s.coach.age,
     region: s.coach.region,
     license: s.coach.license,

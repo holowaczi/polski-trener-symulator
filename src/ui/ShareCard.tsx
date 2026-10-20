@@ -69,6 +69,9 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
   const { w, h } = SHARE_SIZE[format]
   const wide = format === 'poziom'
   const maxTrophies = wide ? 4 : 3
+  // imię i nazwisko w dwóch linijkach; długie nazwisko dostaje mniejszą czcionkę zamiast wielokropka
+  const longest = Math.max(card.firstName.length, card.lastName.length, 1)
+  const nameSize = Math.max(36, Math.min(wide ? 64 : 80, Math.floor((wide ? 720 : 952) / (longest * 0.5))))
   const allLines = trophyLines(card.trophies)
   const trophies = allLines.slice(0, maxTrophies)
   const hidden = allLines.slice(maxTrophies).reduce((a, l) => a + l.count, 0)
@@ -85,7 +88,10 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           </span>
         )}
       </div>
-      <div className="sc-name">{card.name}</div>
+      <div className="sc-name" style={{ fontSize: nameSize }}>
+        <div>{card.firstName}</div>
+        <div>{card.lastName}</div>
+      </div>
       <div className="sc-sub">
         {card.age} lat · {card.region} · licencja {card.license}
       </div>
@@ -120,7 +126,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       </div>
       <div className="sc-fact">
         <div className="sc-lbl">Najlepszy podopieczny</div>
-        <div className="sc-val clamp-1">{card.bestPlayer ? `${card.bestPlayer.name} (${card.bestPlayer.skill})` : 'nikt się nie wybił'}</div>
+        <div className="sc-val">{card.bestPlayer ? `${card.bestPlayer.name} (${card.bestPlayer.skill})` : 'nikt się nie wybił'}</div>
       </div>
       <div className="sc-fact">
         <div className="sc-lbl">Trofea{card.trophies.length ? ` (${card.trophies.length})` : ''}</div>
@@ -145,7 +151,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       {card.scandal && (
         <div className="sc-fact sc-scandal">
           <div className="sc-lbl">Afera kariery</div>
-          <div className="sc-val clamp-2">{card.scandal}</div>
+          <div className="sc-val">{card.scandal}</div>
         </div>
       )}
     </div>
@@ -181,7 +187,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
             {header}
             {scoreBlock}
             {stats}
-            <MiniPath history={p.history} region={p.card.region} w={720} h={250} />
+            <MiniPath history={p.history} region={p.card.region} w={720} h={200} />
           </div>
           <div className="sc-col">
             {facts}
@@ -193,7 +199,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           {header}
           {scoreBlock}
           {stats}
-          <MiniPath history={p.history} region={p.card.region} w={952} h={230} />
+          <MiniPath history={p.history} region={p.card.region} w={952} h={210} />
           {facts}
           {quotes}
         </>

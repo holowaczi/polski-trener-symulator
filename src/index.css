@@ -1634,8 +1634,8 @@ blockquote cite::before {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  padding: 56px 64px 40px;
+  gap: 18px;
+  padding: 52px 64px 36px;
   color: var(--sc-text);
   font-family: var(--font-body);
   font-size: 30px;
@@ -1671,7 +1671,7 @@ blockquote cite::before {
 .sc-col {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   min-width: 0;
 }
 .sc-top {
@@ -1715,10 +1715,8 @@ blockquote cite::before {
   font-weight: 800;
   font-size: 84px;
   line-height: 1;
-  margin-top: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
 }
 .sc-sub {
   color: var(--sc-muted);
@@ -1727,12 +1725,12 @@ blockquote cite::before {
 .sc-score-num {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 130px;
+  font-size: 110px;
   line-height: 0.95;
   color: var(--sc-gold);
 }
 .share-card.poziom .sc-score-num {
-  font-size: 112px;
+  font-size: 88px;
 }
 .sc-score-lbl {
   color: var(--sc-muted);
@@ -1742,7 +1740,7 @@ blockquote cite::before {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  padding: 18px 0;
+  padding: 14px 0;
   border-top: 2px solid rgba(255, 255, 255, 0.12);
   border-bottom: 2px solid rgba(255, 255, 255, 0.12);
 }
@@ -1760,6 +1758,7 @@ blockquote cite::before {
 }
 .sc-path {
   display: block;
+  flex-shrink: 0;
 }
 .sc-grid {
   stroke: rgba(255, 255, 255, 0.1);
@@ -1880,9 +1879,6 @@ blockquote cite::before {
 .clamp-2 {
   -webkit-line-clamp: 2;
   line-clamp: 2;
-}
-.share-card.poziom .sc-name {
-  font-size: 68px;
 }
 .sc-count {
   color: var(--sc-gold);

@@ -1,5 +1,10 @@
 # Zmiany
 
+## 0.6.4 (alfa) · 20 października 2026
+
+- **Imię i nazwisko na obrazku karty w dwóch linijkach, bez przycinania.** Długie nazwisko dostaje mniejszą czcionkę zamiast wielokropka. Afera kariery i najlepszy podopieczny też nie są już ucinane.
+- Układ obrazka jest trochę ciaśniejszy, żeby wykres kariery zawsze miał swoje miejsce.
+
 ## 0.6.3 (alfa) · 20 października 2026
 
 - **Zmiana klubu na wykresie kariery to przerywana linia.** Ciągła linia łączy już tylko sezony w jednym klubie, więc przeprowadzka z III ligi do okręgówki nie wygląda jak spadek. Tak samo na obrazku do udostępnienia.
