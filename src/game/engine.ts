@@ -708,6 +708,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
   const regional = cup !== s.cup
   const cupName = regional ? 'Puchar wojewódzki' : 'Puchar Polski'
   const winners: number[] = []
+  const final = ties.length === 1 && !cup.byes?.length
   for (const t of ties) {
     if (t.winner !== undefined) {
       winners.push(t.winner)
@@ -717,6 +718,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
     if (mine) {
       const rep = playClubMatch(rng, s, t, true)
       rep.cupName = `${cupName} · ${roundName(cup, idx)}`
+      if (final) rep.trophy = cupName
       t.hg = rep.hg
       t.ag = rep.ag
       s.reports.unshift(rep)
@@ -730,7 +732,8 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
     winners.push(t.winner!)
     if (mine) {
       if (t.winner === s.clubId) {
-        news(s, `${cupName}: awans dalej! (${roundName(cup, idx)})`)
+        // w finale nie ma już „dalej”: o zwycięstwie piszemy niżej
+        if (!final) news(s, `${cupName}: awans dalej! (${roundName(cup, idx)})`)
         adjustTrust(s, { fans: regional ? 2 : 4, board: regional ? 1 : 2 })
       } else {
         cup.eliminatedAt = idx
@@ -738,7 +741,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
       }
     }
   }
-  if (winners.length === 1 && !cup.byes?.length) {
+  if (final) {
     cup.winner = winners[0]
     if (regional) {
       if (winners[0] === s.clubId) {

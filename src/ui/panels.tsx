@@ -233,7 +233,13 @@ export function MatchView({ s }: { s: GameState; act: Act }) {
               </div>
               {r.pens && (
                 <div className="pens-line">
-                  Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)} {!r.playoff ? 'awansuje dalej' : r.cupName?.includes('półfinał') ? 'gra w finale baraży' : 'wygrywa baraż'}
+                  Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)}{' '}
+                  {r.trophy ? `zdobywa ${r.trophy}` : !r.playoff ? 'awansuje dalej' : r.cupName?.includes('półfinał') ? 'gra w finale baraży' : 'wygrywa baraż'}
+                </div>
+              )}
+              {r.trophy && !r.pens && (
+                <div className="pens-line">
+                  🏆 {teamName(s, r.hg > r.ag ? r.home : r.away)} zdobywa {r.trophy}
                 </div>
               )}
             </div>

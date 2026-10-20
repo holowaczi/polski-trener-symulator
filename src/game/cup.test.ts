@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { acceptOffer, cupsOf, finishTransfers, newGame, playNext, resolveEvent, stayAtClub } from './engine'
 import { roundName } from './cup'
+import type { MatchReport } from './types'
 
 describe('Puchar Polski', () => {
   for (const region of ['śląskie', 'podlaskie', 'mazowieckie']) {
@@ -41,5 +42,31 @@ describe('Puchar Polski', () => {
     const [reg, central] = cupsOf(s)
     expect(reg.rounds[0].length).toBeGreaterThan(0)
     expect(central.byes).toContain(s.cupQualifier)
+  })
+
+  it('w finale raport mówi, kto zdobywa puchar, a nie kto przechodzi dalej', () => {
+    const finals: MatchReport[] = []
+    for (let seed = 1; seed <= 12 && !finals.length; seed++) {
+      const probe = newGame({ firstName: 'a', lastName: 'b', age: 30, region: 'opolskie', seed })
+      // najmocniejszy klub IV ligi: zwykle dochodzi daleko w pucharze wojewódzkim
+      const best = probe.leagues.filter((l) => l.level === 5 && l.region === 'opolskie').flatMap((l) => l.teamIds).sort((a, b) => probe.teams[b].strength - probe.teams[a].strength)[0]
+      const s = newGame({ firstName: 'a', lastName: 'b', age: 30, region: 'opolskie', seed, license: 'UEFA B', teamId: best })
+      // finał bywa ostatnim meczem sezonu, a raporty znikają razem z sezonem: łapiemy je w locie
+      const seen = (reps: MatchReport[]) => {
+        const orig = reps.unshift.bind(reps)
+        reps.unshift = (...r: MatchReport[]) => (finals.push(...r.filter((x) => x.cupName?.endsWith('Finał'))), orig(...r))
+      }
+      seen(s.reports)
+      let guard = 0
+      while (s.season === 1 && guard++ < 500) {
+        if (s.phase === 'transfer') finishTransfers(s)
+        else if (s.phase === 'event') resolveEvent(s, 0)
+        else if (s.phase === 'season') playNext(s)
+        else break
+      }
+      expect(s.news.some((n) => n.includes('awans dalej! (Finał)'))).toBe(false)
+    }
+    expect(finals.length).toBeGreaterThan(0)
+    for (const r of finals) expect(r.trophy).toBe(r.cupName!.split(' · ')[0])
   })
 })

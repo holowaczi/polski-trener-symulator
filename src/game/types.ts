@@ -196,6 +196,8 @@ export interface MatchReport {
   cupName?: string
   /** mecz barażowy */
   playoff?: boolean
+  /** finał pucharu: nazwa trofeum, o które grano */
+  trophy?: string
   /** wynik rzutów karnych (gospodarze:goście) po remisie w pucharze albo barażu */
   pens?: string
   home: number

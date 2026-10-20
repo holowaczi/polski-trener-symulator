@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.6.5 (alfa) · 20 października 2026
+
+- **Finał pucharu kończy się zdobyciem pucharu, a nie awansem.** W raporcie z finału, po karnych i bez nich, jest linijka „🏆 … zdobywa Puchar Polski” (albo puchar wojewódzki). Zniknął też komunikat „awans dalej!” po wygranym finale.
+
 ## 0.6.4 (alfa) · 20 października 2026
 
 - **Imię i nazwisko na obrazku karty w dwóch linijkach, bez przycinania.** Długie nazwisko dostaje mniejszą czcionkę zamiast wielokropka. Afera kariery i najlepszy podopieczny też nie są już ucinane.
