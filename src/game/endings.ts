@@ -220,3 +220,50 @@ export function pressQuote(s: GameState): { text: string; source: string } {
   })()
   return { text, source: seasons === 0 ? 'Forum kibiców' : source }
 }
+
+// ---------- trofea na karcie ----------
+
+export interface TrophyLine {
+  label: string
+  count: number
+}
+
+/** ranga ligi z nazwy: im wyżej, tym ważniejsze mistrzostwo */
+const TIER_RANK: [RegExp, number][] = [
+  [/^I liga/, 80],
+  [/^II liga/, 70],
+  [/^III liga/, 60],
+  [/^IV liga/, 50],
+  [/^V liga/, 45],
+  [/okręgowa/i, 40],
+  [/Klasa A|A-klasa/, 30],
+  [/Klasa B|B-klasa/, 20],
+  [/Klasa C|C-klasa/, 10],
+]
+
+/**
+ * Trofea zgrupowane do karty: sam poziom ligi bez grupy i województwa,
+ * powtórki w jednej linijce („×3”), najważniejsze na początku.
+ */
+export function trophyLines(trophies: string[]): TrophyLine[] {
+  const lines = new Map<string, { count: number; rank: number }>()
+  const add = (label: string, rank: number) => {
+    const x = lines.get(label)
+    if (x) x.count++
+    else lines.set(label, { count: 1, rank })
+  }
+  for (const t of trophies) {
+    if (t.startsWith('Mistrzostwo Polski')) add('Mistrzostwo Polski', 100)
+    else if (t.startsWith('Puchar Polski (')) add('Puchar Polski', 90)
+    else if (t.startsWith('Puchar Polski na szczeblu')) add('Puchar wojewódzki', 42)
+    else if (t.startsWith('Mistrzostwo: ')) {
+      const tier = t
+        .slice('Mistrzostwo: '.length)
+        .replace(/ \(sezon \d+\)$/, '')
+        .split(' · ')[0]
+        .replace(/ \(gr\.[^)]*\)$/, '')
+      add(`Mistrzostwo: ${tier}`, TIER_RANK.find(([re]) => re.test(tier))?.[1] ?? 0)
+    } else add(t, 0)
+  }
+  return [...lines.entries()].sort((a, b) => b[1].rank - a[1].rank).map(([label, x]) => ({ label, count: x.count }))
+}

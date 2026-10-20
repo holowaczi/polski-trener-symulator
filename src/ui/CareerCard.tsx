@@ -39,7 +39,7 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
   if (history.length === 0) return null
   const w = 400
   const h = 210
-  const left = 44
+  const left = 62
   const right = 12
   const topPad = 22
   const bottom = 22

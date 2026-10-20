@@ -1,5 +1,10 @@
 # Zmiany
 
+## 0.6.2 (alfa) · 20 października 2026
+
+- **Trofea na obrazku karty zgrupowane.** Trzy tytuły mistrza Polski to jedna linijka „Mistrzostwo Polski ×3”. Mistrzostwa niższych lig pokazują sam poziom („Mistrzostwo: III liga”) bez grupy i województwa. Najpierw najważniejsze trofea, a reszta mieści się w „i jeszcze X trofeów”.
+- Na wykresie kariery najwyższy poziom podpisany jest pełną nazwą: Ekstraklasa.
+
 ## 0.6.1 (alfa) · 19 października 2026
 
 - **Poprawna oś na wykresie kariery.** Zamiast ogólnego „C, B, B, A” wykres pokazuje ligi Twojego województwa, np. w mazowieckim: B, A, Okr., V, IV. Dotąd niższe poziomy były podpisane źle, bo nie każde województwo ma V ligę czy klasę C. To samo dotyczy obrazka do udostępnienia.

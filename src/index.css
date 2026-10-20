@@ -1884,3 +1884,6 @@ blockquote cite::before {
 .share-card.poziom .sc-name {
   font-size: 68px;
 }
+.sc-count {
+  color: var(--sc-gold);
+}

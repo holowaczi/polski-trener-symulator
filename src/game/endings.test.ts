@@ -106,6 +106,29 @@ describe('oś wykresu kariery', () => {
     expect(levelShort(0, 'mazowieckie')).toBeUndefined()
     expect([2, 3, 4, 5].map((lv) => levelShort(lv, 'łódzkie'))).toEqual(['B', 'A', 'Okr.', 'IV'])
     expect(lowestLevel('śląskie')).toBe(0)
-    expect(levelShort(9, 'śląskie')).toBe('Ekstra')
+    expect(levelShort(9, 'śląskie')).toBe('Ekstraklasa')
+  })
+})
+
+describe('trofea na karcie', () => {
+  it('grupuje mistrzostwa po poziomie ligi i zaczyna od najważniejszych', async () => {
+    const { trophyLines } = await import('./endings')
+    const lines = trophyLines([
+      'Mistrzostwo: Klasa B · Siedlce I (sezon 1)',
+      'Mistrzostwo: III liga (gr. I) (sezon 7)',
+      'Puchar Polski na szczeblu wojewódzkim (sezon 8)',
+      'Mistrzostwo Polski (sezon 20)',
+      'Mistrzostwo: III liga (gr. IV) (sezon 9)',
+      'Mistrzostwo Polski (sezon 21)',
+      'Mistrzostwo Polski (sezon 24)',
+      'Puchar Polski (sezon 22)',
+    ])
+    expect(lines).toEqual([
+      { label: 'Mistrzostwo Polski', count: 3 },
+      { label: 'Puchar Polski', count: 1 },
+      { label: 'Mistrzostwo: III liga', count: 2 },
+      { label: 'Puchar wojewódzki', count: 1 },
+      { label: 'Mistrzostwo: Klasa B', count: 1 },
+    ])
   })
 })

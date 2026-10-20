@@ -3,6 +3,7 @@ import { LEVELS } from '../game/data'
 import type { careerCard } from '../game/engine'
 import type { SeasonRecord } from '../game/types'
 import { levelShort, lowestLevel } from '../game/world'
+import { trophyLines } from '../game/endings'
 import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
 
 
@@ -14,7 +15,7 @@ function MiniPath({ history, region, w, h }: { history: SeasonRecord[]; region: 
         Kariera skończyła się przed pierwszym gwizdkiem.
       </div>
     )
-  const left = 96
+  const left = 150
   const pad = 18
   const lo = Math.max(lowestLevel(region), Math.min(...history.map((x) => x.level)) - 1)
   const hi = Math.min(LEVELS.length - 1, Math.max(...history.map((x) => x.level)) + 1)
@@ -59,7 +60,9 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
   const { w, h } = SHARE_SIZE[format]
   const wide = format === 'poziom'
   const maxTrophies = wide ? 4 : 3
-  const trophies = card.trophies.slice(-maxTrophies).reverse()
+  const allLines = trophyLines(card.trophies)
+  const trophies = allLines.slice(0, maxTrophies)
+  const hidden = allLines.slice(maxTrophies).reduce((a, l) => a + l.count, 0)
   const ending = card.ending
   const multLabel = p.mult !== 1 ? `mnożnik ×${p.mult} za start (${p.startLicense})` : p.daily ? 'wyzwanie dnia' : 'zwykły start ×1'
 
@@ -114,12 +117,17 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
         <div className="sc-lbl">Trofea{card.trophies.length ? ` (${card.trophies.length})` : ''}</div>
         {trophies.length ? (
           <ul className="sc-trophies">
-            {trophies.map((t, i) => (
-              <li key={i} className="clamp-1">
-                🏆 {t}
+            {trophies.map((t) => (
+              <li key={t.label} className="clamp-1">
+                🏆 {t.label}
+                {t.count > 1 && <b className="sc-count"> ×{t.count}</b>}
               </li>
             ))}
-            {card.trophies.length > trophies.length && <li className="sc-more">i jeszcze {card.trophies.length - trophies.length}</li>}
+            {hidden > 0 && (
+              <li className="sc-more">
+                i jeszcze {hidden} {hidden === 1 ? 'trofeum' : hidden % 10 >= 2 && hidden % 10 <= 4 && (hidden % 100 < 12 || hidden % 100 > 14) ? 'trofea' : 'trofeów'}
+              </li>
+            )}
           </ul>
         ) : (
           <div className="sc-val">Gablota czeka. Kurz też.</div>
