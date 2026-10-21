@@ -18,6 +18,8 @@ export interface Player {
   firstName: string
   lastName: string
   nickname?: string
+  /** narodowość, np. „Polska”; brak w starych zapisach (wtedy zgadujemy z nazwiska) */
+  nation?: string
   age: number
   pos: Position
   skill: number
@@ -92,6 +94,8 @@ export interface Team {
   region?: string
   /** gość etapu centralnego Pucharu Polski spoza województwa gracza (opis do drabinki) */
   guest?: string
+  /** rywal z europejskich pucharów: kraj klubu */
+  country?: string
 }
 
 export interface Fixture {
@@ -152,6 +156,57 @@ export interface Playoff extends Cup {
   seeds: number[]
 }
 
+/** Liga Mistrzów, Liga Europy, Liga Konferencji */
+export type EuroComp = 'LM' | 'LE' | 'LKE'
+/** rundy eliminacji (Q2, Q3, PO) i fazy pucharowej (KPO = baraże o 1/8) */
+export type EuroStage = 'Q2' | 'Q3' | 'PO' | 'KPO' | 'R16' | 'QF' | 'SF' | 'F'
+
+/** dwumecz (albo finał) klubu gracza w europejskich pucharach */
+export interface EuroTie {
+  stage: EuroStage
+  comp: EuroComp
+  opp: number
+  /** tygodnie meczów: dwa przy dwumeczu, jeden w finale */
+  weeks: number[]
+  legs: Fixture[]
+  /** karne po rewanżu, jako wynik gospodarzy rewanżu do gości */
+  pens?: string
+  won?: boolean
+}
+
+/** faza ligowa jako jeden wynik: bilans meczów i miejsce w tabeli 36 drużyn */
+export interface EuroLeague {
+  comp: EuroComp
+  games: number
+  w: number
+  d: number
+  l: number
+  gf: number
+  ga: number
+  pts: number
+  rank: number
+  /** gracz widział już okienko z wynikiem */
+  shown?: boolean
+}
+
+/** przygoda klubu gracza z europejskimi pucharami w jednym sezonie */
+export interface EuroRun {
+  teamId: number
+  season: number
+  /** rozgrywki, w których klub gra teraz (po odpadnięciu z eliminacji może spaść niżej) */
+  comp: EuroComp
+  ties: EuroTie[]
+  /** tydzień fazy ligowej, gdy klub się do niej dostał */
+  leagueWeek?: number
+  league?: EuroLeague
+  done?: boolean
+  champion?: boolean
+  /** jak się skończyło, np. „Liga Konferencji: ćwierćfinał” */
+  result?: string
+  /** najdalszy etap: 0 eliminacje, 1 faza ligowa, 2 baraże o 1/8, 3 1/8, 4 ćwierćfinał, 5 półfinał, 6 finał, 7 zwycięstwo */
+  reached: number
+}
+
 export type License = 'brak' | 'UEFA C' | 'UEFA B' | 'UEFA A' | 'UEFA Pro'
 
 export interface Coach {
@@ -200,6 +255,10 @@ export interface MatchReport {
   playoff?: boolean
   /** finał pucharu: nazwa trofeum, o które grano */
   trophy?: string
+  /** mecz w europejskich pucharach */
+  euro?: boolean
+  /** wynik dwumeczu po rewanżu, np. „Dwumecz: Legia 3:2 Dinamo Split” */
+  agg?: string
   /** numer kolejny meczu trenera w karierze */
   seq?: number
   /** klub trenera w tym meczu (po zwolnieniu klubId już go nie wskazuje) */
@@ -234,6 +293,8 @@ export interface SeasonRecord {
   outcome: string
   cup: string
   fired?: boolean
+  /** europejskie puchary w tym sezonie: rozgrywki i najdalszy etap (EuroRun.reached) */
+  euro?: { comp: EuroComp; reached: number }
 }
 
 export interface JobOffer {
@@ -347,6 +408,10 @@ export interface GameState {
   ending?: CareerEnding
   /** ostatni mecz trenera: pokazujemy go, nawet gdy zaraz po nim otwiera się okno albo kończy sezon */
   lastReport?: MatchReport
+  /** europejskie puchary klubu gracza w bieżącym sezonie */
+  euro?: EuroRun
+  /** kto gra w Europie w kolejnym sezonie: miejsca 1–3 Ekstraklasy i zdobywca Pucharu Polski */
+  euroSpots?: { teamId: number; comp: EuroComp }[]
 }
 
 export type EndingKind = 'decyzja' | 'emerytura' | 'wypalenie' | 'skandal' | 'bezrobocie'

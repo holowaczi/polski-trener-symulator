@@ -41,7 +41,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'tabela', label: 'Tabela', icon: '📊' },
   { id: 'kadra', label: 'Kadra', icon: '👥' },
   { id: 'taktyka', label: 'Taktyka', icon: '📋' },
-  { id: 'puchar', label: 'Puchar', icon: '🏆' },
+  { id: 'puchar', label: 'Puchary', icon: '🏆' },
   { id: 'klub', label: 'Klub', icon: '🏟️' },
   { id: 'kariera', label: 'Trener', icon: '🧢' },
   { id: 'wiesci', label: 'Wieści', icon: '📰' },
@@ -245,8 +245,9 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
   const isCup = !!info?.cup
   const isPlayoff = !!info?.playoff
+  const isEuro = !!info?.euro
   if (info) {
-    const f = info.league ?? info.cup ?? info.playoff!
+    const f = info.league ?? info.cup ?? info.playoff ?? info.euro!
     oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
     label = vs(f)
   }
@@ -254,7 +255,9 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
     ? undefined
     : isPlayoff
       ? `⚔️ ${playoffRoundLabel(s, info.week) ?? 'Baraże'}`
-      : isCup
+      : isEuro
+        ? `🌍 ${cupRoundLabel(s, info.week) ?? 'Europa'}`
+        : isCup
         ? `🏆 ${cupRoundLabel(s, info.week) ?? 'Puchar'}`
         : 'Liga'
   const myStr = Math.round(((mine.att + mine.def) / 2) * 10) / 10
@@ -263,7 +266,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isCup ? 'cup' : ''}`}>{comp}</span>} <b>{label}</b>
+          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? 'euro' : isCup ? 'cup' : ''}`}>{comp}</span>} <b>{label}</b>
         </span>
 
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>

@@ -60,6 +60,13 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
   }
   const cups = s.trophies.filter((t) => t.startsWith('Puchar Polski (')).length * 150
   const regionalCups = s.trophies.filter((t) => t.startsWith('Puchar Polski na szczeblu')).length * 40
+  // Europa: za sam start, za każdy etap dalej i za trofeum; Liga Mistrzów waży najwięcej
+  const euroWeight = { LKE: 1, LE: 1.3, LM: 1.6 }
+  let euro = 0
+  for (const h of s.history) if (h.euro) euro += Math.round((15 + 20 * h.euro.reached) * euroWeight[h.euro.comp])
+  euro += s.trophies.filter((t) => t.startsWith('Liga Konferencji (')).length * 200
+  euro += s.trophies.filter((t) => t.startsWith('Liga Europy (')).length * 350
+  euro += s.trophies.filter((t) => t.startsWith('Liga Mistrzów (')).length * 600
   const peak = s.history.length ? Math.max(...s.history.map((h) => h.level)) : -1
   const lines: ScoreLine[] = [
     { label: 'Sezony (im wyższa liga, tym więcej)', points: seasons },
@@ -68,6 +75,7 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
     { label: 'Spadki', points: relegations },
     { label: 'Puchar Polski', points: cups },
     { label: 'Puchary wojewódzkie', points: regionalCups },
+    { label: 'Europejskie puchary', points: euro },
     { label: 'Wygrane mecze', points: s.totalStats.w },
     { label: 'Szczyt kariery', points: peak >= 0 ? 10 * (peak + 1) : 0 },
     { label: 'Zwolnienia', points: -20 * s.totalStats.firedCount },

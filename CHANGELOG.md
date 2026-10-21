@@ -1,5 +1,25 @@
 # Zmiany
 
+## 0.7.0 (alfa) · 21 października 2026
+
+Mistrzostwo Polski przestało być końcem drogi. Teraz po tytule trzeba jeszcze przeżyć lot do Kazachstanu.
+
+### Europejskie puchary
+- **Kto gra w Europie:** mistrz Polski w eliminacjach Ligi Mistrzów, zdobywca Pucharu Polski w Lidze Europy, a 2. i 3. drużyna Ekstraklasy w Lidze Konferencji. Gdy zdobywca pucharu jest też mistrzem, miejsca przesuwają się w dół tabeli.
+- **Eliminacje to dwumecze** z fikcyjnymi rywalami z całej Europy: od Wysp Owczych latem po Anglię wiosną. Przy remisie w dwumeczu od razu są karne. Kto odpadnie z eliminacji Ligi Mistrzów albo Ligi Europy, gra dalej w słabszych rozgrywkach.
+- **Faza ligowa to jeden wynik:** po 15. tygodniu okienko z bilansem i miejscem w tabeli 36 drużyn. Miejsca 1–8 dają 1/8 finału, 9–24 baraże. Do wyboru: premia dla piłkarzy albo pieniądze na koncie klubu.
+- **Wiosną faza pucharowa:** baraże, 1/8, ćwierćfinał i półfinał w dwumeczach, finał w jednym meczu. Za zwycięstwo jest trofeum na karcie trenera i sporo punktów kariery.
+- Premie od UEFA trafiają do budżetu, a awanse podnoszą reputację i humor kibiców. Wynik w Europie zapisuje się w historii sezonu i w punktach kariery.
+- Zakładka **Puchary** pokazuje całą europejską drogę: rywali z flagą i siłą, wyniki obu meczów i fazę ligową. Mecze europejskie mają w raportach własny, niebieski kolor i wynik dwumeczu po rewanżu.
+- Oferty pracy po sezonie mówią, czy klub zagra w eliminacjach.
+
+### Transfery
+- **Kolumna „W składzie”:** przy każdym zawodniku z rynku widać, czy przy obecnym ustawieniu wszedłby do pierwszej jedenastki (i kogo by z niej wypchnął), siadłby na ławce, czy trafiłby do rezerw. To samo przy sprzedaży i przy ofertach za Twoich zawodników.
+
+### Narodowość
+- **Każdy zawodnik ma kraj.** Obcokrajowcy mają flagę przy nazwisku, a w Kadrze jest licznik Polaków, z myślą o przyszłej reprezentacji. Zapisy sprzed tej wersji zgadują kraj z nazwiska.
+- **PZPN powołuje do młodzieżówki tylko Polaków.** Dotąd potrafił wezwać na zgrupowanie Japończyka z Twojej kadry. Powołanie do seniorskiej reprezentacji mówi teraz, do której kadry jedzie zawodnik.
+
 ## 0.6.7 (alfa) · 20 października 2026
 
 - **Nowego zawodnika nie przedłużysz w tym samym oknie.** Kto dopiero co przyszedł z umową na sezon, siada do rozmów o nowym kontrakcie najwcześniej w kolejnym oknie transferowym. W oknie, w którym go kupiłeś, pod umowami do przedłużenia jest o tym krótka notka.

@@ -2,6 +2,7 @@ import type { Rng } from './rng'
 import type { GameState, Player, TraitId } from './types'
 import { addModifier, adjustCoach, adjustTrust, nudgeForm, setMorale } from './util'
 import { addDirt, DIRT_SCANDAL } from './endings'
+import { isPolish } from './world'
 
 export interface EventCtx {
   s: GameState
@@ -21,7 +22,7 @@ export interface GameEvent {
   /** zdarzenie dotyczy zawodnika: dowolnego, z cechą albo spełniającego warunek */
   player?: 'any' | TraitId | ((p: Player, s: GameState) => boolean)
   condition?: (s: GameState) => boolean
-  /** {p} imię i nazwisko, {ps} skrót, {ocena} średnia ocen, {mecze} mecze bez gry, {klub}, {miasto}, {trener} */
+  /** {p} imię i nazwisko, {ps} skrót, {kraj} kraj zawodnika w dopełniaczu („reprezentacji Polski”), {ocena} średnia ocen, {mecze} mecze bez gry, {klub}, {miasto}, {trener} */
   text: string
   options: { label: string; apply: (c: EventCtx) => string }[]
 }
@@ -1836,7 +1837,7 @@ export const EVENTS: GameEvent[] = [
     minLevel: 8,
     cooldown: 20,
     player: (p, s) => p.skill >= topSkill(s, 3) && p.injuredFor === 0 && p.age >= 19,
-    text: '{p} dostał powołanie do reprezentacji. Selekcjoner planuje dać mu po 90 minut w obu meczach, a wy gracie zaraz po przerwie.',
+    text: '{p} dostał powołanie do reprezentacji {kraj}. Selekcjoner planuje dać mu po 90 minut w obu meczach, a wy gracie zaraz po przerwie.',
     options: [
       {
         label: 'Pogratuluj, niech jedzie i gra',
@@ -2318,8 +2319,8 @@ export const EVENTS: GameEvent[] = [
     minLevel: 6,
     maxLevel: 7,
     cooldown: 30,
-    player: (p) => p.age <= 21 && p.apps >= 2 && p.injuredFor === 0,
-    text: '{p} dostał powołanie do młodzieżowej reprezentacji na zgrupowanie w środku rundy. Klub może poprosić PZPN o zwolnienie.',
+    player: (p) => p.age <= 21 && p.apps >= 2 && p.injuredFor === 0 && isPolish(p),
+    text: '{p} dostał powołanie do młodzieżowej reprezentacji Polski na zgrupowanie w środku rundy. Klub może poprosić PZPN o zwolnienie.',
     options: [
       {
         label: 'Puść go, to wyróżnienie',

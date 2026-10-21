@@ -1,4 +1,4 @@
-import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, TOWNS } from './data'
+import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, POLAND, TOWNS } from './data'
 import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
 import { LOWER_LEAGUES } from './lowerData'
 import type { Rng } from './rng'
@@ -278,6 +278,7 @@ export function generatePlayer(
   return newPlayer(state, {
     firstName,
     lastName,
+    nation: country?.country ?? POLAND.country,
     age,
     pos,
     skill,
@@ -305,6 +306,21 @@ export function generateSquad(rng: Rng, state: Pick<GameState, 'nextId'>, level:
     }
   }
   return squad
+}
+
+/** kraj zawodnika; stare zapisy nie mają narodowości, więc zgadujemy ją z nazwiska */
+export function nationOf(p: Pick<Player, 'nation' | 'lastName'>): string {
+  return p.nation ?? FOREIGN_NAMES.find((c) => c.last.includes(p.lastName))?.country ?? POLAND.country
+}
+
+/** czy zawodnik może grać w reprezentacji Polski */
+export function isPolish(p: Pick<Player, 'nation' | 'lastName'>): boolean {
+  return nationOf(p) === POLAND.country
+}
+
+/** dane kraju: flaga i dopełniacz („reprezentacji Chorwacji”) */
+export function nationInfo(nation: string): { country: string; gen: string; flag: string } {
+  return FOREIGN_NAMES.find((c) => c.country === nation) ?? POLAND
 }
 
 export function playerName(p: Player): string {

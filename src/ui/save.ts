@@ -1,5 +1,6 @@
 import { SAVE_VERSION } from '../game/engine'
 import type { GameState } from '../game/types'
+import { nationOf } from '../game/world'
 
 const KEY = 'pts-save'
 
@@ -11,6 +12,8 @@ export function loadGame(): GameState | null {
     if (s.version !== SAVE_VERSION) return null
     // zapisy sprzed kontraktów: każdy dostaje umowę na 1–3 sezony
     for (const p of s.squad) if (p.contract === undefined) p.contract = 1 + ((p.id * 7 + p.age) % 3)
+    // zapisy sprzed narodowości: kraj zgadujemy z nazwiska
+    for (const p of [...s.squad, ...(s.reserveSquad ?? []), ...s.transferList.map((x) => x.player)]) p.nation ??= nationOf(p)
     return s
   } catch {
     return null

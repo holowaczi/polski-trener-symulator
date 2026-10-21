@@ -206,6 +206,7 @@ export function pressQuote(s: GameState): { text: string; source: string } {
   const text = (() => {
     if (seasons === 0) return 'Kto to w ogóle był? Pytamy dla znajomego.'
     if (s.ending?.kind === 'skandal') return 'Wiedzieliśmy, że to się tak skończy. Pisaliśmy o tym trzy razy.'
+    if (s.trophies.some((t) => /^Liga (Mistrzów|Europy|Konferencji) \(/.test(t))) return 'Europa nauczyła się wymawiać nazwę jego klubu. Prawie poprawnie.'
     if (s.trophies.some((t) => t.startsWith('Mistrzostwo Polski'))) return 'Najlepszy trener w kraju. Bez dyskusji, choć dyskusje były.'
     if (s.trophies.some((t) => t.startsWith('Puchar Polski ('))) return 'Puchar Polski pojechał do szatni, w której nie było ciepłej wody.'
     if (promotions >= 3) return 'Gdzie przyjdzie, tam awans. Prezesi ustawiają się w kolejce.'
@@ -253,7 +254,10 @@ export function trophyLines(trophies: string[]): TrophyLine[] {
     else lines.set(label, { count: 1, rank })
   }
   for (const t of trophies) {
-    if (t.startsWith('Mistrzostwo Polski')) add('Mistrzostwo Polski', 100)
+    if (t.startsWith('Liga Mistrzów (')) add('Liga Mistrzów', 130)
+    else if (t.startsWith('Liga Europy (')) add('Liga Europy', 120)
+    else if (t.startsWith('Liga Konferencji (')) add('Liga Konferencji', 110)
+    else if (t.startsWith('Mistrzostwo Polski')) add('Mistrzostwo Polski', 100)
     else if (t.startsWith('Puchar Polski (')) add('Puchar Polski', 90)
     else if (t.startsWith('Puchar Polski na szczeblu')) add('Puchar wojewódzki', 42)
     else if (t.startsWith('Mistrzostwo: ')) {

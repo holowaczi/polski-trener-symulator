@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import type { Act } from '../App'
 import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
 import { club, clubLeague, computeTable, cupsOf, directPromotion, formatMoney, hasPlayoffs, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
-import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, sellPlayer, signingLimit } from '../game/market'
+import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, roleIfSigned, ROLE_LABEL, sellPlayer, signingLimit, squadRoles, type SquadRole } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
-import type { Cup, CupTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
+import type { Cup, CupTie, EuroRun, EuroTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
 import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
-import { playerName } from '../game/world'
+import { isPolish, nationInfo, nationOf, playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
+import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, LEAGUE_WEEK, STAGE_NAME } from '../game/europe'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
 export function ConfirmButton(props: {
@@ -97,6 +98,29 @@ function Status({ p }: { p: Player }) {
       </span>,
     )
   return chips.length ? <>{chips}</> : null
+}
+
+/** flaga przy zagranicznym zawodniku; Polacy jej nie potrzebują */
+function Flag({ p }: { p: Player }) {
+  if (isPolish(p)) return null
+  const n = nationInfo(nationOf(p))
+  return (
+    <span className="flag" title={n.country} aria-label={n.country}>
+      {n.flag}
+    </span>
+  )
+}
+
+/** gdzie zawodnik ląduje w hierarchii: pierwsza jedenastka, ławka albo rezerwy */
+function RoleTag({ role, note }: { role: SquadRole; note?: string }) {
+  const title =
+    role === 'xi' ? 'Przy obecnym ustawieniu grałby od pierwszej minuty' : role === 'bench' ? 'Siedziałby na ławce rezerwowych' : 'Poza kadrą meczową: trybuny albo mecze rezerw'
+  return (
+    <span className={`role-tag role-${role}`} title={title}>
+      {ROLE_LABEL[role]}
+      {note && <span className="role-note"> {note}</span>}
+    </span>
+  )
 }
 
 function Traits({ p }: { p: Player }) {
@@ -224,10 +248,12 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
   const mine = r.home === me ? r.hg - r.ag : r.ag - r.hg
   const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
   return (
-    <article className={`report ${tone} ${latest ? 'latest' : ''} ${r.playoff ? 'playoff' : r.cup ? 'cup' : ''}`}>
+    <article className={`report ${tone} ${latest ? 'latest' : ''} ${r.playoff ? 'playoff' : r.euro ? 'euro' : r.cup ? 'cup' : ''}`}>
       <div className="report-head">
         {r.playoff ? (
           <span className="comp-tag playoff">⚔️ {r.cupName ?? 'Baraże'}</span>
+        ) : r.euro ? (
+          <span className="comp-tag euro">🌍 {r.cupName ?? 'Europa'}</span>
         ) : r.cup ? (
           <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
         ) : (
@@ -240,6 +266,7 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
           </b>
           <span className={r.pens && pensWinner(r.pens) === 'away' ? 'pens-win' : ''}>{teamName(s, r.away)}</span>
         </div>
+        {r.agg && <div className="pens-line">{r.agg}</div>}
         {r.pens && (
           <div className="pens-line">
             Rzuty karne <b>{r.pens}</b> · {pensWinner(r.pens) === 'home' ? teamName(s, r.home) : teamName(s, r.away)}{' '}
@@ -446,6 +473,9 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
         <span className="chip">Ławka {prev.bench.length}/7</span>
         <span className="chip">Ustawienie {formationOf(prev.xi)}</span>
         {!hasGk && <span className="chip bad">Brak bramkarza!</span>}
+        <span className="chip" title="Zawodnicy, których może powołać selekcjoner reprezentacji Polski">
+          🇵🇱 Polaków {s.squad.filter(isPolish).length}/{s.squad.length}
+        </span>
         <span className="chip">
           Atak {prev.att} · Obrona {prev.def}
         </span>
@@ -485,7 +515,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                 </td>
                 <td className="left cell-name">
                   <div>
-                    {playerName(p)} <Status p={p} />
+                    {playerName(p)} <Flag p={p} /> <Status p={p} />
                   </div>
                   <Traits p={p} />
                 </td>
@@ -737,6 +767,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
   ]
   const [want, setSec] = useState<TransferSection | null>(null)
   const full = (s.signings ?? 0) >= signingLimit(s)
+  const roles = squadRoles(s)
   const sec = sections.some((x) => x.id === want) ? want! : sections[0].id
   return (
     <div>
@@ -773,7 +804,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   <div>
                     <b>{teamName(s, b.teamId)}</b> chce kupić <b>{playerName(p)}</b> za <b>{formatMoney(b.fee)}</b>
                     <div className="small muted">
-                      Wartość {formatMoney(p.value)} · średnia ocen {avgRating(p)?.toFixed(2) ?? '–'}
+                      {ROLE_LABEL[roles.get(p.id) ?? 'out']} · wartość {formatMoney(p.value)} · średnia ocen {avgRating(p)?.toFixed(2) ?? '–'}
                       {s.teams[b.teamId].level > (club(s)?.level ?? 0) ? ' · zawodnik chciałby grać wyżej' : ''}
                     </div>
                   </div>
@@ -803,12 +834,17 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
           Nowi w tym oknie: {s.signings ?? 0}/{signingLimit(s)}
         </span>
       </div>
+      <p className="small muted">
+        „W składzie” podpowiada, gdzie trafiłby zawodnik przy obecnym ustawieniu z zakładki Taktyka: do pierwszej jedenastki (i kogo by z niej wypchnął), na ławkę czy do
+        rezerw. Kontuzje i kartki pomijamy, bo kiedyś się kończą.
+      </p>
       <div className="scroll-x">
         <table className="table stack">
           <thead>
             <tr>
               <th>Poz.</th>
               <th className="left">Zawodnik</th>
+              <th className="left" title="Gdzie trafiłby przy obecnym ustawieniu i składzie">W składzie</th>
               <th>Wiek</th>
               <th>Um.</th>
               <th>Pot.</th>
@@ -822,14 +858,18 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
           <tbody>
             {s.transferList.map(({ player: p, fee, from }) => {
               const overWage = bill + p.wage > s.wageLimit
+              const fit = roleIfSigned(s, p)
               return (
                 <tr key={p.id}>
                   <td className="cell-pos">
                     <span className={`pos pos-${p.pos}`}>{p.pos}</span>
                   </td>
                   <td className="left cell-name">
-                    {playerName(p)}
+                    {playerName(p)} <Flag p={p} />
                     <Traits p={p} />
+                  </td>
+                  <td className="left" data-label="W składzie">
+                    <RoleTag role={fit.role} note={fit.replaces ? `za ${fit.replaces.firstName[0]}. ${fit.replaces.lastName}` : undefined} />
                   </td>
                   <td data-label="Wiek">{p.age}</td>
                   <td data-label="Um.">
@@ -876,6 +916,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
             <tr>
               <th>Poz.</th>
               <th className="left">Zawodnik</th>
+              <th className="left" title="Miejsce w składzie przy obecnym ustawieniu">W składzie</th>
               <th>Wiek</th>
               <th>Um.</th>
               <th>Umowa</th>
@@ -892,8 +933,11 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   <span className={`pos pos-${p.pos}`}>{p.pos}</span>
                 </td>
                 <td className="left cell-name">
-                  {playerName(p)} <Status p={p} />
+                  {playerName(p)} <Flag p={p} /> <Status p={p} />
                   <Traits p={p} />
+                </td>
+                <td className="left" data-label="W składzie">
+                  <RoleTag role={roles.get(p.id) ?? 'out'} />
                 </td>
                 <td data-label="Wiek">{p.age}</td>
                 <td data-label="Um.">
@@ -994,6 +1038,100 @@ function CupBracket({ s, cup }: { s: GameState; cup: Cup }) {
   )
 }
 
+function EuroTieRow({ s, run, t }: { s: GameState; run: EuroRun; t: EuroTie }) {
+  const opp = s.teams[t.opp]
+  const me = run.teamId
+  return (
+    <li>
+      <div>
+        <b>{STAGE_NAME[t.stage]}</b>
+        {t.comp !== run.comp || run.ties.some((x) => x.comp !== t.comp) ? <span className="muted small"> · {COMP_NAME[t.comp]}</span> : null}
+        {': '}
+        {opp ? (
+          <>
+            {countryFlag(opp.country ?? '')} {opp.name} <span className="muted small">({opp.country}, siła {opp.strength})</span>
+          </>
+        ) : (
+          'rywal'
+        )}
+      </div>
+      <div className="small">
+        {t.legs.map((l, i) => {
+          const where = t.legs.length === 1 ? 'finał' : l.home === me ? 'u siebie' : 'wyjazd'
+          const score = l.hg === undefined ? `tydzień ${t.weeks[i]}` : l.home === me ? `${l.hg}:${l.ag}` : `${l.ag}:${l.hg}`
+          return (
+            <span key={i}>
+              {i > 0 && ' · '}
+              {where} <b>{score}</b>
+            </span>
+          )
+        })}
+        {t.pens && <span className="pens-chip">k. {t.pens}</span>}
+        {t.won !== undefined && <span className={t.won ? 'win' : 'loss'}> · {t.won ? (t.stage === 'F' ? 'zwycięstwo!' : 'awans') : 'odpadnięcie'}</span>}
+      </div>
+    </li>
+  )
+}
+
+function EuroSection({ s }: { s: GameState }) {
+  const run = s.euro && s.euro.teamId === s.clubId && s.euro.season === s.season ? s.euro : undefined
+  const spots = s.euroSpots ?? []
+  if (!run)
+    return (
+      <section className="euro-stage">
+        <h3>🌍 Europejskie puchary</h3>
+        <p className="small muted">
+          Mistrz Polski gra w eliminacjach Ligi Mistrzów, zdobywca Pucharu Polski w Lidze Europy, a 2. i 3. drużyna Ekstraklasy w Lidze Konferencji. Kto odpadnie z
+          eliminacji Ligi Mistrzów albo Ligi Europy, gra dalej w słabszych rozgrywkach.
+        </p>
+        {spots.length > 0 && (
+          <p className="small">
+            Polskę reprezentują: {spots.map((x) => `${s.teams[x.teamId]?.name ?? '?'} (${COMP_NAME[x.comp]})`).join(', ')}.
+          </p>
+        )}
+      </section>
+    )
+  const qual = run.ties.filter((t) => ['Q2', 'Q3', 'PO'].includes(t.stage))
+  const ko = run.ties.filter((t) => !qual.includes(t))
+  const lp = run.league
+  return (
+    <section className="euro-stage">
+      <h3>
+        🌍 {COMP_ICON[run.comp]} {COMP_NAME[run.comp]}
+      </h3>
+      {run.done && <p>{run.champion ? <b>🏆 Puchar jest nasz!</b> : <>Koniec przygody · {euroResult(run)}</>}</p>}
+      <ul className="euro-ties">
+        {qual.map((t, i) => (
+          <EuroTieRow key={`q${i}`} s={s} run={run} t={t} />
+        ))}
+        {run.leagueWeek !== undefined && (
+          <li>
+            <b>Faza ligowa {COMP_GEN[lp?.comp ?? run.comp]}</b>
+            <div className="small">
+              {lp ? (
+                <>
+                  Bilans {lp.w}-{lp.d}-{lp.l}, bramki {lp.gf}:{lp.ga}, {lp.pts} pkt · <b>{lp.rank}. miejsce</b> na 36{' '}
+                  <span className={lp.rank <= 24 ? 'win' : 'loss'}>
+                    · {lp.rank <= 8 ? 'prosto do 1/8 finału' : lp.rank <= 24 ? 'baraże o 1/8 finału' : 'odpadnięcie'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  Rozstrzygnie się po tygodniu {LEAGUE_WEEK}: jeden wynik z całej jesieni. Miejsca 1–8 dają 1/8 finału, 9–24 baraże.
+                </>
+              )}
+            </div>
+          </li>
+        )}
+        {ko.map((t, i) => (
+          <EuroTieRow key={`k${i}`} s={s} run={run} t={t} />
+        ))}
+      </ul>
+      <p className="small muted">Eliminacje i faza pucharowa to dwumecze. Przy remisie w dwumeczu są od razu karne. Finał to jeden mecz.</p>
+    </section>
+  )
+}
+
 export function CupView({ s }: { s: GameState }) {
   const cups = cupsOf(s)
   const playing = (cup: Cup) =>
@@ -1001,8 +1139,10 @@ export function CupView({ s }: { s: GameState }) {
   const inAny = cups.some(playing)
   // najpierw etap, w którym gra klub gracza
   const ordered = [...cups].sort((a, b) => Number(playing(b)) - Number(playing(a)))
+  const inEurope = s.euro?.teamId === s.clubId && s.euro?.season === s.season
   return (
     <div>
+      {inEurope && <EuroSection s={s} />}
       <h2>Puchar Polski</h2>
       <p className="small muted">
         Niższe ligi zaczynają od etapu wojewódzkiego, który trwa cały sezon. Jego zwycięzca gra w następnym sezonie w etapie centralnym: II liga i część III ligi
@@ -1012,6 +1152,7 @@ export function CupView({ s }: { s: GameState }) {
       {ordered.map((cup, i) => (
         <CupBracket key={i} s={s} cup={cup} />
       ))}
+      {!inEurope && <EuroSection s={s} />}
     </div>
   )
 }

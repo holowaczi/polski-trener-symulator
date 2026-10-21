@@ -164,6 +164,7 @@ export function cupLabel(s: GameState, id: number): string {
   const t = s.teams[id]
   if (!t) return ''
   if (t.guest) return t.guest
+  if (t.country) return t.country
   const lg = s.leagues.find((l) => l.teamIds.includes(id))
   if (!lg) return LEVELS[t.level].name
   return lg.group ? lg.name.split(' · ')[0] : lg.name.replace(/ \(.*\)$/, '')

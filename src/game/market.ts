@@ -3,6 +3,7 @@ import type { Rng } from './rng'
 import type { Bid, GameState, Player, Position, Team } from './types'
 import { adjustTrust, avgRating, club, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import { generatePlayer, playerName, teamsAtLevel, wageFor } from './world'
+import { autoLineup } from './match'
 
 export const MAX_SQUAD = 28
 export const MIN_SQUAD = 16
@@ -39,6 +40,35 @@ export function refreshTransferList(s: GameState): void {
     }
     return list
   })
+}
+
+export type SquadRole = 'xi' | 'bench' | 'out'
+
+export const ROLE_LABEL: Record<SquadRole, string> = { xi: 'Pierwsza 11', bench: 'Ławka', out: 'Rezerwy' }
+
+/** na potrzeby podpowiedzi wszyscy zdrowi i bez kartek: liczy się miejsce w hierarchii, nie dzisiejszy uraz */
+const healthy = (p: Player): Player => ({ ...p, injuredFor: 0, suspendedFor: 0 })
+
+/** miejsce zawodnika w kadrze przy obecnym ustawieniu: pierwsza jedenastka, ławka albo poza kadrą meczową */
+export function squadRoles(s: GameState): Map<number, SquadRole> {
+  const { xi, bench } = autoLineup(s.squad.map(healthy), s.tactic.formation)
+  const roles = new Map<number, SquadRole>(s.squad.map((p) => [p.id, 'out']))
+  for (const p of bench) roles.set(p.id, 'bench')
+  for (const p of xi) roles.set(p.id, 'xi')
+  return roles
+}
+
+/** gdzie trafiłby zawodnik z rynku, gdyby dziś podpisał umowę, i kogo wypchnąłby ze składu */
+export function roleIfSigned(s: GameState, p: Player): { role: SquadRole; replaces?: Player } {
+  const squad = s.squad.map(healthy)
+  const before = autoLineup(squad, s.tactic.formation)
+  // nowy zawodnik przychodzi z morale jak po podpisaniu umowy
+  const after = autoLineup([...squad, { ...healthy(p), morale: 70 }], s.tactic.formation)
+  if (after.xi.some((x) => x.id === p.id)) {
+    const out = before.xi.find((x) => !after.xi.some((y) => y.id === x.id))
+    return { role: 'xi', replaces: out && s.squad.find((x) => x.id === out.id) }
+  }
+  return { role: after.bench.some((x) => x.id === p.id) ? 'bench' : 'out' }
 }
 
 export function buyPlayer(s: GameState, playerId: number): string {

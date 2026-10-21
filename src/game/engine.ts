@@ -3,6 +3,7 @@ import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
+import { closeEuro, drawEuro, euroLeagueEvent, euroLegForWeek, euroResult, euroRoundLabel, euroSpotsFor, pendingEuroLeg, playEuroForWeek, resolveEuroLeague, COMP_GEN } from './europe'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
@@ -23,6 +24,8 @@ import {
   bottomLevel,
   wageFor,
   newcomerTeams,
+  nationInfo,
+  nationOf,
 } from './world'
 
 export { club, clubLeague, formatMoney } from './util'
@@ -333,6 +336,8 @@ export function newGame(input: NewGameInput): GameState {
   // zwycięzca zeszłorocznego pucharu wojewódzkiego: zwykle mocny klub IV ligi
   s.cupQualifier = withRng(s, (rng) => rng.pick([...teamsAtLevel(s, 5).filter((id) => teamRegion(s, id) === input.region)].sort((a, b) => s.teams[b].strength - s.teams[a].strength).slice(0, 6)))
   drawCups(s)
+  // Europa w pierwszym sezonie: najmocniejsze kluby Ekstraklasy
+  s.euroSpots = euroSpotsFor([...teamsAtLevel(s, 9)].sort((a, b) => s.teams[b].strength - s.teams[a].strength))
   const picks = withRng(s, (rng) => rng.shuffle(teamsAtLevel(s, bottomLevel(s))).slice(0, 3))
   s.offers = picks.map((id) => makeOffer(s, id, 'Szukają trenera od zaraz. Poprzedni wyjechał do Holandii na szparagi.'))
   s.hiringNote = `Masz ${input.age} lat, licencję ${s.coach.license} i kontakty w województwie ${input.region}. Trzy kluby z najniższej ligi dzwonią.`
@@ -425,6 +430,7 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   const rc = s.regionalCup
   if (s.round === 0 && rc && team.level <= 6 && !rc.rounds[0]?.some((x) => x.home === team.id || x.away === team.id) && !rc.byes?.includes(team.id))
     s.regionalCup = withRng(s, (rng) => drawRegionalCup(rng, s))
+  if (s.round === 0) withRng(s, (rng) => drawEuro(rng, s))
   news(s, `${s.coach.firstName} ${s.coach.lastName} nowym trenerem ${team.name}! Cel: ${goalLabel(s.goal, team.level).toLowerCase()}.`)
   s.phase = s.round === 0 ? 'transfer' : 'season'
 }
@@ -524,7 +530,7 @@ function hasClubMatch(s: GameState, week: number): boolean {
   if (s.clubId === null) return false
   const lg = clubLeague(s)!
   if (week < lg.rounds.length) return true
-  return cupTieForWeek(s, week) !== undefined || playoffTieForWeek(s, week) !== undefined
+  return cupTieForWeek(s, week) !== undefined || playoffTieForWeek(s, week) !== undefined || euroLegForWeek(s, week) !== undefined
 }
 
 // ---------- baraże ----------
@@ -673,7 +679,7 @@ function pendingCupTie(s: GameState, week: number): CupTie | undefined {
 export function playWeek(s: GameState): void {
   if (s.phase !== 'season') return
   const week = s.round
-  const splitCup = !!pendingLeagueFixture(s, week) && !!pendingCupTie(s, week)
+  const splitCup = !!pendingLeagueFixture(s, week) && (!!pendingCupTie(s, week) || !!pendingEuroLeg(s, week))
   withRng(s, (rng) => {
     for (const lg of s.leagues) {
       const round = lg.rounds[week]
@@ -691,6 +697,7 @@ export function playWeek(s: GameState): void {
     if (!splitCup) {
       playCupsForWeek(rng, s, week)
       playPlayoffsForWeek(rng, s, week)
+      playEuroForWeek(rng, s, week, (rep) => pushReport(s, rep))
     }
   })
   if (s.reports.length > 40) s.reports.length = 40
@@ -823,6 +830,14 @@ function afterWeek(s: GameState): void {
     endSeason(s)
     return
   }
+  // wynik fazy ligowej w Europie pokazujemy w okienku, zamiast zwykłego zdarzenia
+  const euroEvent = euroLeagueEvent(s)
+  if (euroEvent) {
+    s.pendingEvent = euroEvent
+    s.resumePhase = 'season'
+    s.phase = 'event'
+    return
+  }
   // maks. jedno wydarzenie na mecz: tylko po tygodniu, w którym klub grał
   if (hasClubMatch(s, s.round - 1) && !maybeInterim(s)) maybeEvent(s)
 }
@@ -847,10 +862,10 @@ export function cupRoundLabel(s: GameState, week: number): string | undefined {
     if (idx < 0 || !cup.rounds[idx]?.some((t) => t.home === s.clubId || t.away === s.clubId)) continue
     return `${cup === s.cup ? 'Puchar Polski' : 'Puchar wojewódzki'} · ${roundName(cup, idx)}`
   }
-  return undefined
+  return euroRoundLabel(s, week)
 }
 
-export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; cup?: CupTie; playoff?: CupTie } | undefined {
+export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; cup?: CupTie; playoff?: CupTie; euro?: Fixture } | undefined {
   if (s.clubId === null) return undefined
   const lg = clubLeague(s)!
   for (let w = s.round; w < SEASON_WEEKS; w++) {
@@ -861,6 +876,8 @@ export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; c
     if (cup) return { week: w, cup }
     const po = playoffTieForWeek(s, w)
     if (po && po.tie.winner === undefined) return { week: w, playoff: po.tie }
+    const eu = pendingEuroLeg(s, w)
+    if (eu) return { week: w, euro: eu.tie.legs[eu.idx] }
   }
   return undefined
 }
@@ -1027,6 +1044,7 @@ export function fillText(s: GameState, text: string, p?: Player): string {
   return text
     .replace(/\{p\}/g, p ? playerName(p) : 'zawodnik')
     .replace(/\{ps\}/g, p ? `${p.firstName[0]}. ${p.lastName}` : 'zawodnik')
+    .replace(/\{kraj\}/g, nationInfo(p ? nationOf(p) : 'Polska').gen)
     .replace(/\{ocena\}/g, avg)
     .replace(/\{mecze\}/g, p ? String(p.benchStreak) : '0')
     .replace(/\{klub\}/g, t?.name ?? 'klub')
@@ -1048,6 +1066,7 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
   }
   if (pe.eventId === 'bid') text = resolveSeasonBid(s, pe.playerId!, pe.data!.fee, pe.data!.teamId, optionIndex)
   else if (pe.eventId === 'lekarz') text = resolveDoctor(s, optionIndex)
+  else if (pe.eventId === 'euro_faza') text = resolveEuroLeague(s, optionIndex)
   else if (pe.eventId === 'dziennikarz') text = resolveJournalist(s, optionIndex, withRng(s, (rng) => rng.next()))
   else if (pe.eventId === 'zastepstwo')
     text =
@@ -1139,9 +1158,11 @@ function fire(s: GameState, why: string): void {
     leagueName: lg.name,
     position: clubPosition(s),
     outcome: 'zwolniony w trakcie sezonu',
-    cup: '',
+    cup: euroOf(s) ? euroResult(euroOf(s)!) : '',
     fired: true,
+    euro: euroOf(s) ? { comp: euroOf(s)!.comp, reached: euroOf(s)!.reached } : undefined,
   })
+  if (s.euro) closeEuro(s.euro)
   s.totalStats.firedCount++
   adjustCoach(s, { reputation: -6, stress: 15 })
   news(s, `Zwolnienie z ${t.name}. ${why}`)
@@ -1150,6 +1171,11 @@ function fire(s: GameState, why: string): void {
   s.offers = generateOffers(s, t.level, true, t.id)
   if (!s.offers.length) s.hiringNote = `${why} Telefon milczy. Możesz przeczekać do końca sezonu i liczyć, że ktoś sobie o Tobie przypomni.`
   s.phase = 'hiring'
+}
+
+/** europejskie puchary obecnego klubu w tym sezonie */
+function euroOf(s: GameState) {
+  return s.euro && s.euro.teamId === s.clubId && s.euro.season === s.season ? s.euro : undefined
 }
 
 function leaveClub(s: GameState): void {
@@ -1229,7 +1255,18 @@ export function waitForOffers(s: GameState): void {
   endSeason(s)
 }
 
-function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean, excludeId?: number): JobOffer[] {
+function generateOffers(s: GameState, aroundLevel: number, afterFiring: boolean, excludeId?: number, newSeason = false): JobOffer[] {
+  const offers = rawOffers(s, aroundLevel, afterFiring, excludeId)
+  // po sezonie kluby z miejscem w Europie chwalą się tym od razu
+  if (newSeason)
+    for (const o of offers) {
+      const spot = s.euroSpots?.find((x) => x.teamId === o.teamId)
+      if (spot) o.note += ` W nowym sezonie gra w eliminacjach ${COMP_GEN[spot.comp]}.`
+    }
+  return offers
+}
+
+function rawOffers(s: GameState, aroundLevel: number, afterFiring: boolean, excludeId?: number): JobOffer[] {
   return withRng(s, (rng) => {
     const offers: JobOffer[] = []
     const rep = s.coach.reputation
@@ -1355,6 +1392,11 @@ export function endSeason(s: GameState): void {
   if (s.regionalCup) s.cupQualifier = s.regionalCup.winner
   const t = club(s)
   const tables = new Map(s.leagues.map((lg) => [lg, computeTable(lg)] as const))
+  // Europa w kolejnym sezonie: czołówka Ekstraklasy i zdobywca Pucharu Polski
+  const top = s.leagues.find((l) => l.level === 9)
+  s.euroSpots = top ? euroSpotsFor(tables.get(top)!.map((r) => r.teamId), s.cup.winner) : []
+  const euro = t && s.euro?.teamId === t.id && s.euro.season === s.season ? s.euro : undefined
+  if (s.euro) closeEuro(s.euro)
   const plan = promotionPlan(s, tables)
   let fired = false
   if (t) {
@@ -1385,6 +1427,7 @@ export function endSeason(s: GameState): void {
         return cup.eliminatedAt !== undefined ? `${stage}: ${roundName(cup, cup.eliminatedAt)}` : ''
       })
       .filter(Boolean)
+      .concat(euro ? [euroResult(euro)] : [])
       .join(', ') || 'nie grał'
     summary.push(`${t.name}: ${outcome} (${lg.name}). Cel: ${goalLabel(s.goal, lg.level).toLowerCase()}, ${met ? 'wykonany' : 'niewykonany'}.`)
     const repGain = (met ? 4 : -4) + (promoted ? 3 + Math.round(lg.level / 2) : 0) + (pos === 1 ? 2 + Math.round(lg.level / 2) : 0) - (relegated ? 6 : 0)
@@ -1406,7 +1449,20 @@ export function endSeason(s: GameState): void {
         fired = false
       }
     }
-    s.history.push({ season: s.season, clubName: t.name, level: lg.level, leagueName: lg.name, position: pos, outcome, cup: cupText, fired })
+    s.history.push({
+      season: s.season,
+      clubName: t.name,
+      level: lg.level,
+      leagueName: lg.name,
+      position: pos,
+      outcome,
+      cup: cupText,
+      fired,
+      euro: euro ? { comp: euro.comp, reached: euro.reached } : undefined,
+    })
+    if (euro) summary.push(`Europa: ${euroResult(euro)}.`)
+    const spot = s.euroSpots.find((x) => x.teamId === t.id)
+    if (spot) summary.push(`Za rok gramy w Europie: eliminacje ${COMP_GEN[spot.comp]}!`)
     for (const p of s.squad) if (!s.bestPlayer || p.skill > s.bestPlayer.skill) s.bestPlayer = { name: playerName(p), skill: p.skill }
     const top = [...s.squad].sort((a, b) => b.goals - a.goals)[0]
     if (top && top.goals > 0) summary.push(`Król strzelców drużyny: ${playerName(top)} (${top.goals} goli).`)
@@ -1489,25 +1545,25 @@ export function endSeason(s: GameState): void {
     s.reserveSquad = undefined
     s.interim = undefined
     s.hiringNote = `${t.name} spada do okręgówki. Prezes mówi, że na tym szczeblu wystarczy im trener z sąsiedztwa, i oddaje Ci kluczyki do szatni.`
-    s.offers = generateOffers(s, t.level + 1, false, t.id)
+    s.offers = generateOffers(s, t.level + 1, false, t.id, true)
   } else if (t && fired) {
     s.totalStats.firedCount++
     adjustCoach(s, { reputation: -5 })
     s.clubId = null
     s.squad = []
     s.hiringNote = `Zarząd ${t.name} podziękował Ci za współpracę. Na pożegnanie dostałeś szalik i kosz owocowy.`
-    s.offers = generateOffers(s, t.level, true, t.id)
+    s.offers = generateOffers(s, t.level, true, t.id, true)
   } else if (t && backTo !== undefined) {
     const res = s.teams[backTo]
     const rlg = leagueOf(s, backTo)!
     takeJob(s, { teamId: backTo, teamName: res.name, level: res.level, leagueName: rlg.name, goal: 'środek', salary: Math.round((s.salary * 0.6) / 1000) * 1000, note: '' })
     s.lastSeasonSummary = [...summary, `${t.name} nie osiągnęła celu. Wracasz do ${res.name}, w rezerwach czekają z kawą.`]
-    s.offers = generateOffers(s, res.level, false, res.id)
-  } else if (t) s.offers = generateOffers(s, t.level, false, t.id)
+    s.offers = generateOffers(s, res.level, false, res.id, true)
+  } else if (t) s.offers = generateOffers(s, t.level, false, t.id, true)
   else {
     // bez pracy: oferty z okolic ostatniego klubu, coraz rzadsze z każdym sezonem przerwy
     const lastLevel = s.history[s.history.length - 1]?.level ?? bottomLevel(s)
-    s.offers = generateOffers(s, lastLevel, true)
+    s.offers = generateOffers(s, lastLevel, true, undefined, true)
     if (!wasOnLeave && (s.seasonsUnemployed >= 3 || (s.seasonsUnemployed >= 2 && !s.offers.length))) {
       endCareer(s, unemployedEnding(s))
       return
@@ -1567,6 +1623,7 @@ export function stayAtClub(s: GameState): void {
     )
   }
   refreshReserves(s)
+  withRng(s, (rng) => drawEuro(rng, s))
   openWindow(s)
   news(s, `Sezon ${s.season}: zostajesz w ${t.name}. Cel: ${goalLabel(s.goal, t.level).toLowerCase()}.`)
 }

@@ -1908,3 +1908,81 @@ blockquote cite::before {
   background: var(--surface);
   padding-top: 8px;
 }
+
+/* miejsce w składzie przy transferach */
+.role-tag {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.role-tag.role-xi {
+  border-color: var(--good);
+  color: var(--good);
+}
+.role-tag.role-bench {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.role-tag.role-out {
+  color: var(--muted);
+}
+.role-note {
+  font-weight: 400;
+  color: var(--muted);
+}
+.flag {
+  font-size: 0.9em;
+  cursor: default;
+}
+
+/* europejskie puchary */
+:root {
+  --euro: #1f5fae;
+  --euro-bg: rgba(31, 95, 174, 0.12);
+}
+.comp-tag.euro {
+  background: var(--euro);
+  color: #fff;
+}
+.report.euro {
+  border-top-color: var(--euro);
+  border-right-color: var(--euro);
+  border-bottom-color: var(--euro);
+  background: var(--euro-bg);
+}
+.report.euro.latest {
+  background: var(--euro-bg);
+}
+.report.euro .score b {
+  color: var(--euro);
+}
+.euro-stage {
+  border-left: 4px solid var(--euro);
+  padding-left: 12px;
+  margin-bottom: 20px;
+}
+.euro-ties {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.euro-ties li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.euro-ties li:last-child {
+  border-bottom: 0;
+}
+.euro-ties .win {
+  color: var(--good);
+  font-weight: 600;
+}
+.euro-ties .loss {
+  color: var(--bad);
+  font-weight: 600;
+}

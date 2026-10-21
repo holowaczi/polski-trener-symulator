@@ -70,20 +70,23 @@ export const LAST_NAMES = [
   'Piątek', 'Rzepka', 'Siwiec', 'Tarnowski', 'Ulatowski', 'Wierzbicki', 'Zygmunt', 'Żmuda', 'Socha', 'Grzesiak',
 ]
 
+/** Polska: kraj, dopełniacz do „reprezentacji …” i flaga */
+export const POLAND = { country: 'Polska', gen: 'Polski', flag: '🇵🇱' }
+
 /** zagraniczni zawodnicy: imię i nazwisko losowane osobno w obrębie jednego kraju */
-export const FOREIGN_NAMES: { first: string[]; last: string[] }[] = [
-  { first: ['João', 'Pedro', 'Rafael', 'Tiago', 'Bruno', 'Diogo'], last: ['Silva', 'Pereira', 'Santos', 'Costa', 'Ferreira', 'Gomes'] },
-  { first: ['Bogdan', 'Andriy', 'Oleksandr', 'Mykola', 'Yaroslav', 'Denys'], last: ['Petrenko', 'Kovalenko', 'Shevchuk', 'Bondarenko', 'Tkachenko', 'Melnyk'] },
-  { first: ['Ivan', 'Luka', 'Mateo', 'Josip', 'Ante', 'Mario'], last: ['Horvat', 'Kovačić', 'Babić', 'Marić', 'Jurić', 'Perić'] },
-  { first: ['Lukáš', 'Tomáš', 'Jakub', 'Ondřej', 'Martin', 'Petr'], last: ['Novák', 'Svoboda', 'Dvořák', 'Černý', 'Procházka', 'Kučera'] },
-  { first: ['Mamadou', 'Ibrahima', 'Moussa', 'Cheikh', 'Abdoulaye', 'Ousmane'], last: ['Diallo', 'Ndiaye', 'Sow', 'Diop', 'Camara', 'Traoré'] },
-  { first: ['Sergio', 'Pablo', 'Álvaro', 'Iker', 'Jorge', 'Raúl'], last: ['García', 'Martínez', 'López', 'Sánchez', 'Romero', 'Navarro'] },
-  { first: ['Marko', 'Nikola', 'Stefan', 'Miloš', 'Darko', 'Vuk'], last: ['Jovanović', 'Petrović', 'Ilić', 'Nikolić', 'Marković', 'Đorđević'] },
-  { first: ['Kwame', 'Kofi', 'Emmanuel', 'Samuel', 'Daniel', 'Joseph'], last: ['Mensah', 'Owusu', 'Boateng', 'Asante', 'Appiah', 'Osei'] },
-  { first: ['Mindaugas', 'Lukas', 'Tomas', 'Darius', 'Paulius', 'Žygimantas'], last: ['Kazlauskas', 'Petrauskas', 'Jankauskas', 'Stankevičius', 'Vasiliauskas', 'Žukauskas'] },
-  { first: ['Ilia', 'Giorgi', 'Levan', 'Nika', 'Davit', 'Luka'], last: ['Beridze', 'Kapanadze', 'Gelashvili', 'Mamedashvili', 'Lomidze', 'Tsiklauri'] },
-  { first: ['Erik', 'Jonas', 'Lars', 'Oskar', 'Viktor', 'Emil'], last: ['Johansson', 'Lindqvist', 'Nilsson', 'Berg', 'Holm', 'Svensson'] },
-  { first: ['Kenji', 'Takumi', 'Daiki', 'Ryota', 'Shun', 'Yuto'], last: ['Tanaka', 'Suzuki', 'Watanabe', 'Kobayashi', 'Nakamura', 'Yamamoto'] },
+export const FOREIGN_NAMES: { country: string; gen: string; flag: string; first: string[]; last: string[] }[] = [
+  { country: 'Portugalia', gen: 'Portugalii', flag: '🇵🇹', first: ['João', 'Pedro', 'Rafael', 'Tiago', 'Bruno', 'Diogo'], last: ['Silva', 'Pereira', 'Santos', 'Costa', 'Ferreira', 'Gomes'] },
+  { country: 'Ukraina', gen: 'Ukrainy', flag: '🇺🇦', first: ['Bogdan', 'Andriy', 'Oleksandr', 'Mykola', 'Yaroslav', 'Denys'], last: ['Petrenko', 'Kovalenko', 'Shevchuk', 'Bondarenko', 'Tkachenko', 'Melnyk'] },
+  { country: 'Chorwacja', gen: 'Chorwacji', flag: '🇭🇷', first: ['Ivan', 'Luka', 'Mateo', 'Josip', 'Ante', 'Mario'], last: ['Horvat', 'Kovačić', 'Babić', 'Marić', 'Jurić', 'Perić'] },
+  { country: 'Czechy', gen: 'Czech', flag: '🇨🇿', first: ['Lukáš', 'Tomáš', 'Jakub', 'Ondřej', 'Martin', 'Petr'], last: ['Novák', 'Svoboda', 'Dvořák', 'Černý', 'Procházka', 'Kučera'] },
+  { country: 'Senegal', gen: 'Senegalu', flag: '🇸🇳', first: ['Mamadou', 'Ibrahima', 'Moussa', 'Cheikh', 'Abdoulaye', 'Ousmane'], last: ['Diallo', 'Ndiaye', 'Sow', 'Diop', 'Camara', 'Traoré'] },
+  { country: 'Hiszpania', gen: 'Hiszpanii', flag: '🇪🇸', first: ['Sergio', 'Pablo', 'Álvaro', 'Iker', 'Jorge', 'Raúl'], last: ['García', 'Martínez', 'López', 'Sánchez', 'Romero', 'Navarro'] },
+  { country: 'Serbia', gen: 'Serbii', flag: '🇷🇸', first: ['Marko', 'Nikola', 'Stefan', 'Miloš', 'Darko', 'Vuk'], last: ['Jovanović', 'Petrović', 'Ilić', 'Nikolić', 'Marković', 'Đorđević'] },
+  { country: 'Ghana', gen: 'Ghany', flag: '🇬🇭', first: ['Kwame', 'Kofi', 'Emmanuel', 'Samuel', 'Daniel', 'Joseph'], last: ['Mensah', 'Owusu', 'Boateng', 'Asante', 'Appiah', 'Osei'] },
+  { country: 'Litwa', gen: 'Litwy', flag: '🇱🇹', first: ['Mindaugas', 'Lukas', 'Tomas', 'Darius', 'Paulius', 'Žygimantas'], last: ['Kazlauskas', 'Petrauskas', 'Jankauskas', 'Stankevičius', 'Vasiliauskas', 'Žukauskas'] },
+  { country: 'Gruzja', gen: 'Gruzji', flag: '🇬🇪', first: ['Ilia', 'Giorgi', 'Levan', 'Nika', 'Davit', 'Luka'], last: ['Beridze', 'Kapanadze', 'Gelashvili', 'Mamedashvili', 'Lomidze', 'Tsiklauri'] },
+  { country: 'Szwecja', gen: 'Szwecji', flag: '🇸🇪', first: ['Erik', 'Jonas', 'Lars', 'Oskar', 'Viktor', 'Emil'], last: ['Johansson', 'Lindqvist', 'Nilsson', 'Berg', 'Holm', 'Svensson'] },
+  { country: 'Japonia', gen: 'Japonii', flag: '🇯🇵', first: ['Kenji', 'Takumi', 'Daiki', 'Ryota', 'Shun', 'Yuto'], last: ['Tanaka', 'Suzuki', 'Watanabe', 'Kobayashi', 'Nakamura', 'Yamamoto'] },
 ]
 
 export const CLUB_PREFIXES = [
