@@ -1556,6 +1556,8 @@ function startNewSeasonWorld(s: GameState): void {
   })
   drawCups(s)
   s.playoffs = []
+  // raporty z kończącego się sezonu zostają do obejrzenia ostatniego meczu
+  s.prevReports = s.reports.slice(0, 8)
   s.reports = []
 }
 

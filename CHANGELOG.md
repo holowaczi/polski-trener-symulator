@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.8.2 (alfa) · 21 października 2026
+
+- **Ostatni mecz bez okienka.** Mecz przed oknem transferowym, końcem sezonu albo zwolnieniem wyświetla się na liście meczów jak każdy inny. Na dolnym pasku zamiast „Rozegraj mecz” jest „Przejdź do okna transferowego”, „Zakończ sezon” albo „Dalej”.
+
 ## 0.8.1 (alfa) · 21 października 2026
 
 - **Kupno nie przerzuca już do zakładki Umowy.** Po podpisaniu zawodnika z umową na sezon zostajesz na liście „Kupno”. Nowy nabytek nie liczy się też do umów do przedłużenia, bo i tak porozmawiacie o nim dopiero w kolejnym oknie.

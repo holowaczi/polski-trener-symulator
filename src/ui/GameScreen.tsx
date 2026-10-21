@@ -81,9 +81,10 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   return (
     <main className="game">
       <Header s={s} />
-      {s.phase === 'hiring' && <HiringView s={s} act={act} />}
-      {s.phase === 'seasonEnd' && <SeasonEndView s={s} act={act} />}
-      {team && (s.phase === 'season' || s.phase === 'transfer' || s.phase === 'event') && (
+      {showLast && <LastMatchView s={s} onContinue={() => setSeenSeq(lastSeq)} />}
+      {!showLast && s.phase === 'hiring' && <HiringView s={s} act={act} />}
+      {!showLast && s.phase === 'seasonEnd' && <SeasonEndView s={s} act={act} />}
+      {!showLast && team && (s.phase === 'season' || s.phase === 'transfer' || s.phase === 'event') && (
         <>
           <nav className="tabs" aria-label="Sekcje">
             {TABS.filter((t) => t.id !== 'transfery' || s.phase === 'transfer').map((t) => (
@@ -134,22 +135,46 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
         </>
       )}
       {s.phase === 'event' && s.pendingEvent && <EventModal s={s} act={act} />}
-      {showLast && (
-        <div className="modal-bg">
-          <div className="modal last-match" role="dialog" aria-modal="true">
-            <div className="modal-tag">
-              Ostatni mecz {s.phase === 'transfer' ? 'przed oknem transferowym' : s.phase === 'seasonEnd' ? 'sezonu' : s.phase === 'hiring' ? 'w klubie' : ''}
-            </div>
-            <ReportCard s={s} r={s.lastReport!} latest />
-            <div className="options">
-              <button className="primary" onClick={() => setSeenSeq(lastSeq)}>
-                {s.phase === 'transfer' ? 'Do okna transferowego' : s.phase === 'seasonEnd' ? 'Do podsumowania sezonu' : 'Dalej'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
+  )
+}
+
+/**
+ * Ostatni mecz przed oknem, końcem sezonu albo zwolnieniem: lista meczów wygląda jak zwykle,
+ * a na dolnym pasku zamiast „Rozegraj mecz” jest przejście dalej.
+ */
+function LastMatchView({ s, onContinue }: { s: GameState; onContinue: () => void }) {
+  const last = s.lastReport!
+  const base = s.phase === 'seasonEnd' && !s.reports.length ? (s.prevReports ?? []) : s.reports
+  const reports = [last, ...base.filter((r) => r.seq !== last.seq)].slice(0, 8)
+  const [note, label] =
+    s.phase === 'transfer'
+      ? ['Przerwa w rozgrywkach. Okno transferowe czeka.', 'Przejdź do okna transferowego']
+      : s.phase === 'seasonEnd'
+        ? ['To był ostatni mecz sezonu.', 'Zakończ sezon']
+        : ['To był Twój ostatni mecz w tym klubie.', 'Dalej']
+  return (
+    <>
+      <section className="panel">
+        <div className="reports">
+          {reports.map((r, i) => (
+            <ReportCard key={r.seq ?? i} s={s} r={r} latest={i === 0} />
+          ))}
+        </div>
+      </section>
+      <div className="playbar">
+        <div className="playbar-info small">
+          <span className="playbar-next">
+            <b>{note}</b>
+          </span>
+        </div>
+        <div className="playbar-controls">
+          <button className="primary play" onClick={onContinue}>
+            {label}
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 

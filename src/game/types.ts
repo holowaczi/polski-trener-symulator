@@ -409,6 +409,8 @@ export interface GameState {
   ending?: CareerEnding
   /** ostatni mecz trenera: pokazujemy go, nawet gdy zaraz po nim otwiera się okno albo kończy sezon */
   lastReport?: MatchReport
+  /** ostatnie raporty poprzedniego sezonu: lista meczów zostaje widoczna, dopóki gracz nie przejdzie do podsumowania */
+  prevReports?: MatchReport[]
   /** europejskie puchary klubu gracza w bieżącym sezonie */
   euro?: EuroRun
   /** kto gra w Europie w kolejnym sezonie: miejsca 1–3 Ekstraklasy i zdobywca Pucharu Polski */
