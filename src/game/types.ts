@@ -94,6 +94,8 @@ export interface Team {
   region?: string
   /** gość etapu centralnego Pucharu Polski spoza województwa gracza (opis do drabinki) */
   guest?: string
+  /** forma z ostatnich wyników (-3..3), dodawana do siły w meczu */
+  form?: number
   /** rywal z europejskich pucharów: kraj klubu */
   country?: string
 }

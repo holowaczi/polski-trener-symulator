@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.8.3 (alfa) · 21 października 2026
+
+- **Seria zwycięstw nie robi już z Twojej drużyny innej ligi.** Dotąd forma i morale po kilku wygranych dokładały składowi nawet 6–7 punktów siły, więc czołowy klub Ekstraklasy szybko grał na 86–87, a rywale stali w miejscu. Teraz forma waży mniej, a morale samo wraca w stronę spokojnego środka zamiast stać na 100.
+- **Rywale też łapią formę.** Kluby prowadzone przez komputer po zwycięstwach grają mocniej, po porażkach słabiej. Na pasku najbliższego meczu siła rywala uwzględnia jego formę.
+- Mocne kluby wolniej tracą przewagę między sezonami, więc czołówka Ekstraklasy nie rozpływa się w średniaków po roku czy dwóch.
+
 ## 0.8.2 (alfa) · 21 października 2026
 
 - **Ostatni mecz bez okienka.** Mecz przed oknem transferowym, końcem sezonu albo zwolnieniem wyświetla się na liście meczów jak każdy inny. Na dolnym pasku zamiast „Rozegraj mecz” jest „Przejdź do okna transferowego”, „Zakończ sezon” albo „Dalej”.

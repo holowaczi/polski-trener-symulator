@@ -2,17 +2,24 @@ import { FORMATIONS, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS } from './da
 import { pickIncident } from './commentary'
 import type { Rng } from './rng'
 import type { Formation, GameState, MatchReport, Player, PlayerRating, Position } from './types'
-import { adjustCoach, adjustTrust, club, formatMoney, isAvailable, news, setMorale } from './util'
+import { adjustCoach, adjustTrust, club, formatMoney, isAvailable, news, setMorale, teamPower, updateTeamForm } from './util'
 import { clamp, playerValue, shortName } from './world'
 import { addDirt, DIRT_PROMISE, trackBurnout } from './endings'
 
 export const BENCH_SIZE = 7
+/** ile punktów siły daje jeden stopień formy (-3..3) */
+const FORM_WEIGHT = 1.1
+/** morale 90 daje +1 do siły, morale 30 to -1 */
+const MORALE_DIV = 30
+/** morale wraca w stronę spokojnego środka, żeby po serii zwycięstw nie stało w miejscu na 100 */
+const MORALE_CALM = 65
 const MAX_SUBS = 5
 
 // ---------- skład ----------
 
 export function effectiveSkill(p: Player): number {
-  return p.skill + p.form * 1.5 + (p.morale - 60) / 20
+  // forma i morale pomagają, ale nie tak, żeby seria zwycięstw robiła z drużyny inną ligę
+  return p.skill + p.form * FORM_WEIGHT + (p.morale - 60) / MORALE_DIV
 }
 
 /** najlepsza jedenastka pod ustawienie + 7 rezerwowych */
@@ -191,7 +198,7 @@ export const HOME_ADV = 1.5
 const DRAW_PULL = [0.05, 0.06, 0.06, 0.07, 0.07, 0.08, 0.09, 0.1, 0.1, 0.11]
 
 export function aiStrength(rng: Rng, s: GameState, teamId: number): number {
-  return s.teams[teamId].strength + rng.normal(0, 2.5)
+  return teamPower(s.teams[teamId]) + rng.normal(0, 2.5)
 }
 
 // ---------- mecz drużyny gracza ----------
@@ -260,7 +267,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   let subsUsed = 0
   const events: { minute: number; text: string }[] = []
 
-  let oppStr = s.teams[opp].strength + rng.normal(0, 2)
+  let oppStr = teamPower(s.teams[opp]) + rng.normal(0, 2)
   if (cup) {
     // magia pucharu: niżej notowany gra z większym sercem
     const d = s.teams[opp].level - level
@@ -446,6 +453,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
 
   // skutki dla drużyny i trenera
   const pts = myGoals > oppGoals ? 3 : myGoals === oppGoals ? 1 : 0
+  updateTeamForm(s.teams[opp], oppGoals - myGoals)
   s.streak.push(pts === 3 ? 'W' : pts === 1 ? 'D' : 'L')
   if (s.streak.length > 10) s.streak.shift()
   if (!cup) {
@@ -532,7 +540,7 @@ function applyMatchToPlayer(rng: Rng, s: GameState, x: OnPitch, rating: number):
   let form = (recent - 6.4) * 1.6
   if (p.traits.includes('imprezowicz')) form += rng.normal(0, 0.8)
   p.form = clamp(Math.round(form), -3, 3)
-  setMorale(p, (rating - 6.3) * 4)
+  setMorale(p, (rating - 6.3) * 3 + (MORALE_CALM - p.morale) * 0.15)
   developFromMatch(p, rating)
 
   const notes: string[] = []

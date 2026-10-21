@@ -28,7 +28,7 @@ import {
 } from '../game/engine'
 import { previewStrength } from '../game/match'
 import { careerScore, multiplierOf } from '../game/score'
-import { wageBill } from '../game/util'
+import { teamPower, wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { ConfirmButton, CupView, MatchView, ReportCard, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 import { ClubView, CoachCard } from './profiles'
@@ -275,7 +275,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   const euroComp = info?.euro ? pendingEuroMatch(s, info.week)?.comp : undefined
   if (info) {
     const f = info.league ?? info.cup ?? info.playoff ?? info.euro!
-    oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
+    oppStr = Math.round(teamPower(s.teams[f.home === s.clubId ? f.away : f.home]) * 10) / 10
     label = vs(f)
   }
   const comp = !info

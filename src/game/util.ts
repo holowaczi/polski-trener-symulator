@@ -81,6 +81,18 @@ export function nudgeForm(p: Player, delta: number): void {
   p.form = clamp(Math.round((recent - 6.4) * 1.6), -3, 3)
 }
 
+/** siła drużyny komputera w meczu: stała siła plus forma z ostatnich wyników */
+export function teamPower(t: Team): number {
+  return t.strength + (t.form ?? 0)
+}
+
+/** forma drużyny komputera: zwycięstwa ją podnoszą, porażki obniżają, z czasem wraca do zera (jak u zawodników gracza) */
+export function updateTeamForm(t: Team | undefined, goalDiff: number): void {
+  if (!t) return
+  const result = goalDiff > 0 ? 0.8 : goalDiff < 0 ? -0.8 : 0
+  t.form = clamp(Math.round(((t.form ?? 0) * 0.75 + result) * 10) / 10, -3, 3)
+}
+
 /** tabela z rozegranych meczów: punkty, bilans bramek, bramki zdobyte */
 export function computeTable(lg: Pick<League, 'teamIds' | 'rounds'>): TableRow[] {
   const rows = new Map<number, TableRow>()

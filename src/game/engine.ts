@@ -8,7 +8,7 @@ import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLim
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
 import type { CareerEnding, Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, MatchReport, Player, Position, TableRow } from './types'
-import { adjustCoach, adjustTrust, club, clubLeague, computeTable, formatMoney, news, setMorale, wageBill, withRng } from './util'
+import { adjustCoach, adjustTrust, club, clubLeague, computeTable, formatMoney, news, setMorale, updateTeamForm, wageBill, withRng } from './util'
 import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
 import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
 import {
@@ -489,6 +489,8 @@ function playAiFixture(rng: Rng, s: GameState, f: Fixture | CupTie, cup = false)
   const r = simulateScore(rng, hs, as, level)
   f.hg = r.hg
   f.ag = r.ag
+  updateTeamForm(s.teams[f.home], r.hg - r.ag)
+  updateTeamForm(s.teams[f.away], r.ag - r.hg)
 }
 
 function hasClubMatch(s: GameState, week: number): boolean {
@@ -1464,7 +1466,9 @@ export function endSeason(s: GameState): void {
   withRng(s, (rng) => {
     for (const team of Object.values(s.teams)) {
       const base = LEVELS[team.level].base
-      team.strength = Math.round(team.strength + (base + (team.id % 7) - 3 - team.strength) * 0.2 + rng.normal(0, 2.5))
+      // silne kluby powoli wracają do średniej ligi, ale nie tracą od razu całej przewagi
+      team.strength = Math.round(team.strength + (base + (team.id % 7) - 3 - team.strength) * 0.12 + rng.normal(0, 2.5))
+      team.form = undefined
     }
     if (t) {
       summary.push(...returnSentDown(s))
