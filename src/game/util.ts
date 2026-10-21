@@ -1,5 +1,5 @@
 import { Rng } from './rng'
-import type { GameState, League, Player, Team } from './types'
+import type { GameState, League, Player, TableRow, Team } from './types'
 import { clamp, leagueOf } from './world'
 
 /** Uruchamia funkcję z generatorem, którego stan zapisywany jest z powrotem w grze. */
@@ -79,4 +79,41 @@ export function nudgeForm(p: Player, delta: number): void {
   p.ratings = p.ratings.map((r) => clamp(r + delta * 0.45, 3, 10))
   const recent = p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length
   p.form = clamp(Math.round((recent - 6.4) * 1.6), -3, 3)
+}
+
+/** tabela z rozegranych meczów: punkty, bilans bramek, bramki zdobyte */
+export function computeTable(lg: Pick<League, 'teamIds' | 'rounds'>): TableRow[] {
+  const rows = new Map<number, TableRow>()
+  for (const id of lg.teamIds) rows.set(id, { teamId: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 })
+  for (const round of lg.rounds) {
+    for (const f of round) {
+      if (f.hg === undefined || f.ag === undefined) continue
+      const h = rows.get(f.home)
+      const a = rows.get(f.away)
+      if (!h || !a) continue
+      h.p++
+      a.p++
+      h.gf += f.hg
+      h.ga += f.ag
+      a.gf += f.ag
+      a.ga += f.hg
+      if (f.hg > f.ag) {
+        h.w++
+        h.pts += 3
+        a.l++
+      } else if (f.hg < f.ag) {
+        a.w++
+        a.pts += 3
+        h.l++
+      } else {
+        h.d++
+        a.d++
+        h.pts++
+        a.pts++
+      }
+    }
+  }
+  return [...rows.values()].sort(
+    (x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf || x.teamId - y.teamId,
+  )
 }

@@ -14,6 +14,13 @@ export function loadGame(): GameState | null {
     for (const p of s.squad) if (p.contract === undefined) p.contract = 1 + ((p.id * 7 + p.age) % 3)
     // zapisy sprzed narodowości: kraj zgadujemy z nazwiska
     for (const p of [...s.squad, ...(s.reserveSquad ?? []), ...s.transferList.map((x) => x.player)]) p.nation ??= nationOf(p)
+    // zapisy z 0.7.0: faza ligowa była jednym wynikiem; taką przygodę z Europą kończymy, następna będzie już pełna
+    const run = s.euro as (GameState['euro'] & { leagueWeek?: number }) | undefined
+    if (run && (run.leagueWeek !== undefined || (run.league && !run.league.teamIds))) {
+      run.league = undefined
+      run.result ??= 'Europa (stary zapis)'
+      run.done = true
+    }
     return s
   } catch {
     return null

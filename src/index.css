@@ -1481,18 +1481,6 @@ blockquote {
   background: var(--cup);
   color: #fff;
 }
-.report.cup {
-  border-top-color: var(--cup);
-  border-right-color: var(--cup);
-  border-bottom-color: var(--cup);
-  background: var(--cup-bg);
-}
-.report.cup.latest {
-  background: var(--cup-bg);
-}
-.report.cup .score b {
-  color: var(--cup);
-}
 .callout-bad {
   border-left: 4px solid var(--bad);
 }
@@ -1505,18 +1493,6 @@ blockquote {
 .comp-tag.playoff {
   background: var(--playoff);
   color: #fff;
-}
-.report.playoff {
-  border-top-color: var(--playoff);
-  border-right-color: var(--playoff);
-  border-bottom-color: var(--playoff);
-  background: var(--playoff-bg);
-}
-.report.playoff.latest {
-  background: var(--playoff-bg);
-}
-.report.playoff .score b {
-  color: var(--playoff);
 }
 .table tr.playoff-row td:first-child {
   box-shadow: inset 3px 0 var(--playoff);
@@ -1945,22 +1921,6 @@ blockquote cite::before {
   --euro: #1f5fae;
   --euro-bg: rgba(31, 95, 174, 0.12);
 }
-.comp-tag.euro {
-  background: var(--euro);
-  color: #fff;
-}
-.report.euro {
-  border-top-color: var(--euro);
-  border-right-color: var(--euro);
-  border-bottom-color: var(--euro);
-  background: var(--euro-bg);
-}
-.report.euro.latest {
-  background: var(--euro-bg);
-}
-.report.euro .score b {
-  color: var(--euro);
-}
 .euro-stage {
   border-left: 4px solid var(--euro);
   padding-left: 12px;
@@ -1985,4 +1945,124 @@ blockquote cite::before {
 .euro-ties .loss {
   color: var(--bad);
   font-weight: 600;
+}
+
+/* raporty: kolor rozgrywek na górze, wynik po lewej i w plakietce */
+:root {
+  --comp-liga: #4f6378;
+  --comp-lm: #1f4fb8;
+  --comp-le: #e2701a;
+  --comp-lke: #138a4a;
+}
+.report {
+  --comp: var(--comp-liga);
+  border-top: 4px solid var(--comp);
+  border-left-width: 6px;
+}
+.report.comp-pp {
+  --comp: var(--cup);
+}
+.report.comp-po {
+  --comp: var(--playoff);
+}
+.report.comp-LM {
+  --comp: var(--comp-lm);
+}
+.report.comp-LE {
+  --comp: var(--comp-le);
+}
+.report.comp-LKE {
+  --comp: var(--comp-lke);
+}
+.report .comp-tag {
+  background: var(--comp);
+  color: #fff;
+}
+.comp-tag.liga {
+  background: var(--comp-liga);
+  color: #fff;
+}
+.comp-tag.euro-LM {
+  background: var(--comp-lm);
+  color: #fff;
+}
+.comp-tag.euro-LE {
+  background: var(--comp-le);
+  color: #fff;
+}
+.comp-tag.euro-LKE {
+  background: var(--comp-lke);
+  color: #fff;
+}
+.report-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.result-badge {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 6px;
+  color: #fff;
+}
+.report.win .result-badge {
+  background: var(--good);
+}
+.report.draw .result-badge {
+  background: var(--warn);
+}
+.report.loss .result-badge {
+  background: var(--bad);
+}
+.report.win .score b {
+  color: var(--good);
+}
+.report.draw .score b {
+  color: var(--warn);
+}
+.report.loss .score b {
+  color: var(--bad);
+}
+.euro-stage.comp-LM {
+  border-left-color: var(--comp-lm);
+}
+.euro-stage.comp-LE {
+  border-left-color: var(--comp-le);
+}
+.euro-stage.comp-LKE {
+  border-left-color: var(--comp-lke);
+}
+.euro-fixtures {
+  margin: 6px 0;
+  padding-left: 0;
+  list-style: none;
+}
+.euro-fixtures li {
+  padding: 2px 0;
+}
+.euro-fixtures .win,
+.euro-ties .win {
+  color: var(--good);
+}
+.euro-fixtures .draw {
+  color: var(--warn);
+}
+.euro-fixtures .loss {
+  color: var(--bad);
+}
+.euro-table tr.zone-top td:first-child {
+  box-shadow: inset 3px 0 var(--good);
+}
+.euro-table tr.zone-mid td:first-child {
+  box-shadow: inset 3px 0 var(--warn);
+}
+.euro-table tr.me td {
+  font-weight: 700;
+  background: var(--surface-2);
 }

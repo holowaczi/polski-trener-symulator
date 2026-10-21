@@ -174,17 +174,16 @@ export interface EuroTie {
   won?: boolean
 }
 
-/** faza ligowa jako jeden wynik: bilans meczów i miejsce w tabeli 36 drużyn */
+/** faza ligowa: 36 drużyn, każda gra 8 meczów (w Lidze Konferencji 6) z różnymi rywalami, jedna wspólna tabela */
 export interface EuroLeague {
   comp: EuroComp
-  games: number
-  w: number
-  d: number
-  l: number
-  gf: number
-  ga: number
-  pts: number
-  rank: number
+  teamIds: number[]
+  /** kolejki fazy ligowej: mecze wszystkich drużyn */
+  rounds: Fixture[][]
+  /** tydzień sezonu każdej kolejki */
+  weeks: number[]
+  /** miejsce klubu gracza po ostatniej kolejce */
+  rank?: number
   /** gracz widział już okienko z wynikiem */
   shown?: boolean
 }
@@ -196,8 +195,6 @@ export interface EuroRun {
   /** rozgrywki, w których klub gra teraz (po odpadnięciu z eliminacji może spaść niżej) */
   comp: EuroComp
   ties: EuroTie[]
-  /** tydzień fazy ligowej, gdy klub się do niej dostał */
-  leagueWeek?: number
   league?: EuroLeague
   done?: boolean
   champion?: boolean
@@ -259,6 +256,10 @@ export interface MatchReport {
   euro?: boolean
   /** wynik dwumeczu po rewanżu, np. „Dwumecz: Legia 3:2 Dinamo Split” */
   agg?: string
+  /** które europejskie rozgrywki: od nich zależy kolor raportu */
+  comp?: EuroComp
+  /** etap wojewódzki Pucharu Polski */
+  regional?: boolean
   /** numer kolejny meczu trenera w karierze */
   seq?: number
   /** klub trenera w tym meczu (po zwolnieniu klubId już go nie wskazuje) */

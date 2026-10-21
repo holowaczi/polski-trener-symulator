@@ -76,6 +76,36 @@ describe('europejskie puchary', () => {
     expect(foreign.length).toBe(qualified ? 1 : 0)
   })
 
+  it('faza ligowa: 36 prawdziwych klubów, każdy mecz osobno i jedna tabela', () => {
+    let checked = 0
+    for (let seed = 1; seed <= 30 && checked < 3; seed++) {
+      const s = europeanStart(seed, seed % 4)
+      let leagueReports = 0
+      let guard = 0
+      while (s.season === 1 && guard++ < 500) {
+        if (s.phase === 'transfer') finishTransfers(s)
+        else if (s.phase === 'event') resolveEvent(s, 0)
+        else if (s.phase === 'season') {
+          playNext(s)
+          if (s.reports[0]?.cupName?.includes('Faza ligowa') && s.reports[0] === s.lastReport && s.reports[0].comp) leagueReports++
+        } else break
+      }
+      const lp = s.euro?.league
+      if (!lp) continue
+      checked++
+      expect(lp.teamIds).toHaveLength(36)
+      expect(new Set(lp.teamIds).size).toBe(36)
+      for (const round of lp.rounds) expect(round).toHaveLength(18)
+      const rivals = lp.rounds.map((r) => r.find((f) => f.home === s.euro!.teamId || f.away === s.euro!.teamId)!)
+      expect(new Set(rivals.map((f) => (f.home === s.euro!.teamId ? f.away : f.home))).size).toBe(lp.rounds.length)
+      expect(leagueReports).toBe(lp.rounds.length)
+      expect(lp.rank).toBeGreaterThan(0)
+      // prawdziwe kluby, np. z Anglii czy Hiszpanii w Lidze Mistrzów
+      expect(lp.teamIds.slice(1).every((id) => s.teams[id]?.country)).toBe(true)
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
+
   it('mecze europejskie mają własne raporty', () => {
     const s = europeanStart(11)
     let euroMatches = 0

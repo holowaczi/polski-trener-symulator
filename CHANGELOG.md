@@ -1,5 +1,23 @@
 # Zmiany
 
+## 0.8.0 (alfa) · 21 października 2026
+
+Europa na serio. Zamiast fikcyjnych klubów i fazy ligowej w jednym okienku jest Arsenal na wyjeździe i tabela, w której Lech siedzi między Bayernem a Barceloną.
+
+### Europejskie puchary
+- **Prawdziwe kluby.** Prawie 200 drużyn z całej Europy, od Linfield i KÍ Klaksvík po Real Madryt i Manchester City. Każda ma swoją siłę, więc w eliminacjach Ligi Konferencji trafia się Islandia, a w Lidze Mistrzów elita. Strzelcy rywali mają nazwiska z ich kraju.
+- **Faza ligowa mecz po meczu.** 36 drużyn, osiem kolejek w Lidze Mistrzów i Lidze Europy, sześć w Lidze Konferencji. Każdy mecz grasz osobno, z raportem i ocenami, a pozostałe mecze kolejki rozgrywają się obok. Jedna wspólna tabela: miejsca 1–8 dają 1/8 finału, 9–24 baraże. Dwie ostatnie kolejki Ligi Mistrzów i Ligi Europy są po przerwie zimowej, jak w styczniu.
+- Za każde zwycięstwo w fazie ligowej jest premia od UEFA.
+- Rywale w fazie pucharowej pochodzą z czołówki tabeli fazy ligowej, więc w ćwierćfinale może czekać ktoś, kto już raz Was ograł.
+- Zakładka **Puchary** pokazuje terminarz fazy ligowej z wynikami i pełną tabelę 36 drużyn ze strefami awansu.
+
+### Raporty z meczów
+- **Każde rozgrywki mają swój kolor:** liga grafitowy, Puchar Polski złoty, baraże fioletowy, Liga Mistrzów niebieski, Liga Europy pomarańczowy, Liga Konferencji zielony. Kolor jest na górnej krawędzi raportu i w etykiecie, także na pasku najbliższego meczu.
+- **Wynik widać od razu:** plakietka „Wygrana”, „Remis” albo „Porażka” (przy karnych z dopiskiem), lewa krawędź i wynik w kolorze zielonym, żółtym albo czerwonym.
+
+### Poprawki
+- Kariera zapisana w 0.7.0 w trakcie przygody z Europą wczytuje się bez błędu. Ta jedna przygoda się kończy, kolejna jest już w nowej wersji.
+
 ## 0.7.0 (alfa) · 21 października 2026
 
 Mistrzostwo Polski przestało być końcem drogi. Teraz po tytule trzeba jeszcze przeżyć lot do Kazachstanu.

@@ -4,13 +4,13 @@ import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
 import { club, clubLeague, computeTable, cupsOf, directPromotion, formatMoney, hasPlayoffs, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
 import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, roleIfSigned, ROLE_LABEL, sellPlayer, signingLimit, squadRoles, type SquadRole } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
-import type { Cup, CupTie, EuroRun, EuroTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
+import type { Cup, CupTie, EuroLeague, EuroRun, EuroTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
 import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { isPolish, nationInfo, nationOf, playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
-import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, LEAGUE_WEEK, STAGE_NAME } from '../game/europe'
+import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, euroTable, STAGE_NAME } from '../game/europe'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
 export function ConfirmButton(props: {
@@ -247,18 +247,23 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
   const me = r.me ?? s.clubId
   const mine = r.home === me ? r.hg - r.ag : r.ag - r.hg
   const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
+  // kolor rozgrywek: liga, Puchar Polski, baraże, Liga Mistrzów, Liga Europy, Liga Konferencji
+  const compClass = r.playoff ? 'comp-po' : r.euro ? `comp-${r.comp ?? 'LKE'}` : r.cup ? 'comp-pp' : 'comp-liga'
   return (
-    <article className={`report ${tone} ${latest ? 'latest' : ''} ${r.playoff ? 'playoff' : r.euro ? 'euro' : r.cup ? 'cup' : ''}`}>
+    <article className={`report ${tone} ${latest ? 'latest' : ''} ${compClass}`}>
       <div className="report-head">
-        {r.playoff ? (
-          <span className="comp-tag playoff">⚔️ {r.cupName ?? 'Baraże'}</span>
-        ) : r.euro ? (
-          <span className="comp-tag euro">🌍 {r.cupName ?? 'Europa'}</span>
-        ) : r.cup ? (
-          <span className="comp-tag cup">🏆 {r.cupName ?? 'Puchar Polski'}</span>
-        ) : (
-          <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
-        )}
+        <div className="report-top">
+          {r.playoff ? (
+            <span className="comp-tag">⚔️ {r.cupName ?? 'Baraże'}</span>
+          ) : r.euro ? (
+            <span className="comp-tag">{r.comp ? COMP_ICON[r.comp] : '🌍'} {r.cupName ?? 'Europa'}</span>
+          ) : r.cup ? (
+            <span className="comp-tag">🏆 {r.cupName ?? 'Puchar Polski'}</span>
+          ) : (
+            <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
+          )}
+          <span className="result-badge">{mine > 0 ? 'Wygrana' : mine < 0 ? 'Porażka' : r.pens ? `Remis · karne ${(pensWinner(r.pens) === 'home') === (r.home === me) ? 'wygrane' : 'przegrane'}` : 'Remis'}</span>
+        </div>
         <div className="score">
           <span className={r.pens && pensWinner(r.pens) === 'home' ? 'pens-win' : ''}>{teamName(s, r.home)}</span>
           <b>
@@ -1073,6 +1078,90 @@ function EuroTieRow({ s, run, t }: { s: GameState; run: EuroRun; t: EuroTie }) {
   )
 }
 
+/** faza ligowa: nasze kolejki i tabela 36 drużyn */
+function EuroLeagueView({ s, run, lp }: { s: GameState; run: EuroRun; lp: EuroLeague }) {
+  const me = run.teamId
+  const table = euroTable(lp)
+  const myRow = table.find((r) => r.teamId === me)
+  const pos = table.findIndex((r) => r.teamId === me) + 1
+  const played = myRow?.p ?? 0
+  return (
+    <>
+      <b>Faza ligowa {COMP_GEN[lp.comp]}</b>
+      <div className="small">
+        {played ? (
+          <>
+            {lp.rank !== undefined ? 'Na koniec' : `Po ${played} z ${lp.weeks.length} kolejek`}: <b>{pos}. miejsce</b>, {myRow!.pts} pkt, bilans {myRow!.w}-{myRow!.d}-{myRow!.l}, bramki{' '}
+            {myRow!.gf}:{myRow!.ga}
+            {lp.rank !== undefined && (
+              <span className={lp.rank <= 24 ? 'win' : 'loss'}>
+                {' '}
+                · {lp.rank <= 8 ? 'prosto do 1/8 finału' : lp.rank <= 24 ? 'baraże o 1/8 finału' : 'odpadnięcie'}
+              </span>
+            )}
+          </>
+        ) : (
+          <>Miejsca 1–8 dają 1/8 finału, 9–24 baraże, reszta odpada.</>
+        )}
+      </div>
+      <ol className="euro-fixtures small">
+        {lp.rounds.map((round, i) => {
+          const f = round.find((x) => x.home === me || x.away === me)!
+          const home = f.home === me
+          const opp = s.teams[home ? f.away : f.home]
+          const res = f.hg === undefined ? undefined : home ? f.hg - f.ag! : f.ag! - f.hg
+          return (
+            <li key={i}>
+              <span className="muted">{i + 1}. kol. (tydz. {lp.weeks[i]})</span> {home ? 'u siebie' : 'wyjazd'}: {opp ? `${countryFlag(opp.country ?? '')} ${opp.name}` : '?'}{' '}
+              {f.hg !== undefined && (
+                <b className={res! > 0 ? 'win' : res! < 0 ? 'loss' : 'draw'}>{home ? `${f.hg}:${f.ag}` : `${f.ag}:${f.hg}`}</b>
+              )}
+            </li>
+          )
+        })}
+      </ol>
+      <details open={played > 0}>
+        <summary className="small">Tabela fazy ligowej</summary>
+        <div className="scroll-x">
+          <table className="table euro-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th className="left">Drużyna</th>
+                <th>M</th>
+                <th>Bramki</th>
+                <th>Pkt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {table.map((r, i) => {
+                const t = s.teams[r.teamId]
+                const zone = i < 8 ? 'zone-top' : i < 24 ? 'zone-mid' : 'zone-out'
+                return (
+                  <tr key={r.teamId} className={`${zone} ${r.teamId === me ? 'me' : ''}`}>
+                    <td>{i + 1}</td>
+                    <td className="left">
+                      {t?.country ? countryFlag(t.country) : '🇵🇱'} {t?.name ?? '?'}
+                    </td>
+                    <td>{r.p}</td>
+                    <td>
+                      {r.gf}:{r.ga}
+                    </td>
+                    <td>
+                      <b>{r.pts}</b>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="small muted">Zielony pasek: 1/8 finału. Żółty: baraże. Każda drużyna gra z różnymi rywalami, więc tabela jest jedna dla wszystkich.</p>
+      </details>
+    </>
+  )
+}
+
 function EuroSection({ s }: { s: GameState }) {
   const run = s.euro && s.euro.teamId === s.clubId && s.euro.season === s.season ? s.euro : undefined
   const spots = s.euroSpots ?? []
@@ -1095,7 +1184,7 @@ function EuroSection({ s }: { s: GameState }) {
   const ko = run.ties.filter((t) => !qual.includes(t))
   const lp = run.league
   return (
-    <section className="euro-stage">
+    <section className={`euro-stage comp-${run.comp}`}>
       <h3>
         🌍 {COMP_ICON[run.comp]} {COMP_NAME[run.comp]}
       </h3>
@@ -1104,30 +1193,16 @@ function EuroSection({ s }: { s: GameState }) {
         {qual.map((t, i) => (
           <EuroTieRow key={`q${i}`} s={s} run={run} t={t} />
         ))}
-        {run.leagueWeek !== undefined && (
+        {lp && (
           <li>
-            <b>Faza ligowa {COMP_GEN[lp?.comp ?? run.comp]}</b>
-            <div className="small">
-              {lp ? (
-                <>
-                  Bilans {lp.w}-{lp.d}-{lp.l}, bramki {lp.gf}:{lp.ga}, {lp.pts} pkt · <b>{lp.rank}. miejsce</b> na 36{' '}
-                  <span className={lp.rank <= 24 ? 'win' : 'loss'}>
-                    · {lp.rank <= 8 ? 'prosto do 1/8 finału' : lp.rank <= 24 ? 'baraże o 1/8 finału' : 'odpadnięcie'}
-                  </span>
-                </>
-              ) : (
-                <>
-                  Rozstrzygnie się po tygodniu {LEAGUE_WEEK}: jeden wynik z całej jesieni. Miejsca 1–8 dają 1/8 finału, 9–24 baraże.
-                </>
-              )}
-            </div>
+            <EuroLeagueView s={s} run={run} lp={lp} />
           </li>
         )}
         {ko.map((t, i) => (
           <EuroTieRow key={`k${i}`} s={s} run={run} t={t} />
         ))}
       </ul>
-      <p className="small muted">Eliminacje i faza pucharowa to dwumecze. Przy remisie w dwumeczu są od razu karne. Finał to jeden mecz.</p>
+      <p className="small muted">Eliminacje i faza pucharowa to dwumecze. Przy remisie w dwumeczu są od razu karne. Faza ligowa to osobne mecze z różnymi rywalami (w Lidze Konferencji sześć, w pozostałych osiem). Finał to jeden mecz.</p>
     </section>
   )
 }

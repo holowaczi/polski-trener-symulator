@@ -32,6 +32,7 @@ import { wageBill } from '../game/util'
 import type { GameState, JobOffer } from '../game/types'
 import { ConfirmButton, CupView, MatchView, ReportCard, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 import { ClubView, CoachCard } from './profiles'
+import { COMP_ICON, pendingEuroMatch } from '../game/europe'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
@@ -246,6 +247,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
   const isCup = !!info?.cup
   const isPlayoff = !!info?.playoff
   const isEuro = !!info?.euro
+  const euroComp = info?.euro ? pendingEuroMatch(s, info.week)?.comp : undefined
   if (info) {
     const f = info.league ?? info.cup ?? info.playoff ?? info.euro!
     oppStr = s.teams[f.home === s.clubId ? f.away : f.home].strength
@@ -256,7 +258,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
     : isPlayoff
       ? `⚔️ ${playoffRoundLabel(s, info.week) ?? 'Baraże'}`
       : isEuro
-        ? `🌍 ${cupRoundLabel(s, info.week) ?? 'Europa'}`
+        ? `${euroComp ? COMP_ICON[euroComp] : '🌍'} ${cupRoundLabel(s, info.week) ?? 'Europa'}`
         : isCup
         ? `🏆 ${cupRoundLabel(s, info.week) ?? 'Puchar'}`
         : 'Liga'
@@ -266,7 +268,7 @@ function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Auto
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? 'euro' : isCup ? 'cup' : ''}`}>{comp}</span>} <b>{label}</b>
+          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? `euro-${euroComp ?? 'LKE'}` : isCup ? 'cup' : 'liga'}`}>{comp}</span>} <b>{label}</b>
         </span>
 
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>

@@ -3,12 +3,12 @@ import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
-import { closeEuro, drawEuro, euroLeagueEvent, euroLegForWeek, euroResult, euroRoundLabel, euroSpotsFor, pendingEuroLeg, playEuroForWeek, resolveEuroLeague, COMP_GEN } from './europe'
+import { closeEuro, drawEuro, euroLeagueEvent, euroMatchForWeek, euroResult, euroRoundLabel, euroSpotsFor, pendingEuroMatch, playEuroForWeek, resolveEuroLeague, COMP_GEN } from './europe'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
 import type { Rng } from './rng'
 import type { CareerEnding, Cup, CupTie, Playoff, Fixture, GameState, GoalType, JobOffer, League, License, MatchReport, Player, Position, TableRow } from './types'
-import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news, setMorale, wageBill, withRng } from './util'
+import { adjustCoach, adjustTrust, club, clubLeague, computeTable, formatMoney, news, setMorale, wageBill, withRng } from './util'
 import { parentRaid, parentTeam, refreshReserves, returnSentDown } from './reserves'
 import { leagueRegion, teamRegion, thirdGroupOf } from './regions'
 import {
@@ -28,7 +28,7 @@ import {
   nationOf,
 } from './world'
 
-export { club, clubLeague, formatMoney } from './util'
+export { club, clubLeague, computeTable, formatMoney } from './util'
 import {
   ASSISTANT_CHOICE,
   BURNOUT_END,
@@ -468,41 +468,6 @@ export function setAutoLineup(s: GameState, auto: boolean): void {
 
 // ---------- tabela ----------
 
-export function computeTable(lg: League): TableRow[] {
-  const rows = new Map<number, TableRow>()
-  for (const id of lg.teamIds) rows.set(id, { teamId: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 })
-  for (const round of lg.rounds) {
-    for (const f of round) {
-      if (f.hg === undefined || f.ag === undefined) continue
-      const h = rows.get(f.home)
-      const a = rows.get(f.away)
-      if (!h || !a) continue
-      h.p++
-      a.p++
-      h.gf += f.hg
-      h.ga += f.ag
-      a.gf += f.ag
-      a.ga += f.hg
-      if (f.hg > f.ag) {
-        h.w++
-        h.pts += 3
-        a.l++
-      } else if (f.hg < f.ag) {
-        a.w++
-        a.pts += 3
-        h.l++
-      } else {
-        h.d++
-        a.d++
-        h.pts++
-        a.pts++
-      }
-    }
-  }
-  return [...rows.values()].sort(
-    (x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf || x.teamId - y.teamId,
-  )
-}
 
 export function clubPosition(s: GameState): number | undefined {
   const lg = clubLeague(s)
@@ -530,7 +495,7 @@ function hasClubMatch(s: GameState, week: number): boolean {
   if (s.clubId === null) return false
   const lg = clubLeague(s)!
   if (week < lg.rounds.length) return true
-  return cupTieForWeek(s, week) !== undefined || playoffTieForWeek(s, week) !== undefined || euroLegForWeek(s, week) !== undefined
+  return cupTieForWeek(s, week) !== undefined || playoffTieForWeek(s, week) !== undefined || euroMatchForWeek(s, week) !== undefined
 }
 
 // ---------- baraże ----------
@@ -679,7 +644,7 @@ function pendingCupTie(s: GameState, week: number): CupTie | undefined {
 export function playWeek(s: GameState): void {
   if (s.phase !== 'season') return
   const week = s.round
-  const splitCup = !!pendingLeagueFixture(s, week) && (!!pendingCupTie(s, week) || !!pendingEuroLeg(s, week))
+  const splitCup = !!pendingLeagueFixture(s, week) && (!!pendingCupTie(s, week) || !!pendingEuroMatch(s, week))
   withRng(s, (rng) => {
     for (const lg of s.leagues) {
       const round = lg.rounds[week]
@@ -732,6 +697,7 @@ function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
     if (mine) {
       const rep = playClubMatch(rng, s, t, true)
       rep.cupName = `${cupName} · ${roundName(cup, idx)}`
+      if (regional) rep.regional = true
       if (final) rep.trophy = cupName
       t.hg = rep.hg
       t.ag = rep.ag
@@ -876,8 +842,8 @@ export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; c
     if (cup) return { week: w, cup }
     const po = playoffTieForWeek(s, w)
     if (po && po.tie.winner === undefined) return { week: w, playoff: po.tie }
-    const eu = pendingEuroLeg(s, w)
-    if (eu) return { week: w, euro: eu.tie.legs[eu.idx] }
+    const eu = pendingEuroMatch(s, w)
+    if (eu) return { week: w, euro: eu.fixture }
   }
   return undefined
 }

@@ -1,4 +1,4 @@
-import { FORMATIONS, FIRST_NAMES, LAST_NAMES, LEVELS } from './data'
+import { FORMATIONS, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS } from './data'
 import { pickIncident } from './commentary'
 import type { Rng } from './rng'
 import type { Formation, GameState, MatchReport, Player, PlayerRating, Position } from './types'
@@ -212,6 +212,13 @@ interface OnPitch {
 
 const MENTALITY = { obrona: { att: -3, def: 3 }, balans: { att: 0, def: 0 }, atak: { att: 3, def: -3 } }
 
+/** strzelec rywala: w Europie z nazwiskiem z jego kraju (albo z dowolnego, gdy kraju nie mamy w spisie) */
+function opponentScorer(rng: Rng, country?: string): string {
+  if (!country) return randomSurname(rng)
+  const n = FOREIGN_NAMES.find((x) => x.country === country) ?? rng.pick(FOREIGN_NAMES)
+  return `${rng.pick(n.first)[0]}. ${rng.pick(n.last)}`
+}
+
 function randomSurname(rng: Rng): string {
   return `${rng.pick(FIRST_NAMES)[0]}. ${rng.pick(LAST_NAMES)}`
 }
@@ -334,7 +341,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     }
     if (rng.chance(lOpp * pushOpp)) {
       oppGoals++
-      events.push({ minute, text: `${minute}' ⚽ ${randomSurname(rng)} (${s.teams[opp].name})` })
+      events.push({ minute, text: `${minute}' ⚽ ${opponentScorer(rng, s.teams[opp].country)} (${s.teams[opp].name})` })
     }
     // kartki i kontuzje: ok. 0,6 żółtej i 0,03 bezpośredniej czerwieni na mecz dla całej drużyny
     for (const x of active()) {
