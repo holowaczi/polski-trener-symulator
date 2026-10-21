@@ -11,6 +11,7 @@ import {
   clubPosition,
   cupRoundLabel,
   playoffRoundLabel,
+  continueBreak,
   finishTransfers,
   formatMoney,
   goalLabel,
@@ -65,7 +66,7 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   useEffect(() => {
     if (!auto.running) return
     if (s.phase === 'event') return
-    if (s.phase !== 'season') {
+    if (s.phase !== 'season' || s.breakPending) {
       setAuto((a) => ({ ...a, running: false }))
       return
     }
@@ -264,6 +265,30 @@ const SPEEDS = [
 ]
 
 function PlayBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: AutoState; setAuto: (a: AutoState) => void }) {
+  if (s.breakPending) return <BreakBar s={s} act={act} />
+  return <MatchBar s={s} act={act} auto={auto} setAuto={setAuto} />
+}
+
+/** po ostatnim meczu przed oknem albo końcem sezonu: zakładki dalej działają, a dalej idzie się z paska */
+function BreakBar({ s, act }: { s: GameState; act: Act }) {
+  const window = s.breakPending === 'okno'
+  return (
+    <div className="playbar">
+      <div className="playbar-info small">
+        <span className="playbar-next">
+          <b>{window ? 'Przerwa zimowa. Okno transferowe czeka.' : 'To był ostatni mecz sezonu.'}</b>
+        </span>
+      </div>
+      <div className="playbar-controls">
+        <button className="primary play" onClick={() => act((g) => continueBreak(g))}>
+          {window ? 'Przejdź do okna transferowego' : 'Zakończ sezon'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: AutoState; setAuto: (a: AutoState) => void }) {
   const info = nextMatchInfo(s)
   const mine = previewStrength(s)
   let label = 'Koniec sezonu'

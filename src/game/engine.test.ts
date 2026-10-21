@@ -6,6 +6,8 @@ import { acceptBid, buyPlayer } from './market'
 import { acceptDemand, canNegotiate } from './contracts'
 import {
   acceptOffer,
+  continueBreak,
+  playWeek,
   computeTable,
   finishTransfers,
   newGame,
@@ -195,9 +197,37 @@ describe('szybka symulacja', () => {
       else if (s.phase === 'hiring') acceptOffer(s, s.offers[0].teamId)
       const msg = simulateToBreak(s)
       expect(msg).toMatch(/^Przesymulowano/)
+      // symulacja staje na ostatnim meczu przed oknem albo końcem sezonu, dalej idzie się przyciskiem
+      if (s.breakPending) continueBreak(s)
       expect(['transfer', 'seasonEnd', 'hiring']).toContain(s.phase)
       expect(s.pendingEvent).toBeUndefined()
     }
+  })
+})
+
+describe('przerwa po ostatnim meczu', () => {
+  it('przed oknem i końcem sezonu gra czeka na gracza, a sezon jest jeszcze ten sam', () => {
+    const s = newGame({ firstName: 'Test', lastName: 'Bot', age: 30, region: 'śląskie', seed: 5 })
+    acceptOffer(s, s.offers[0].teamId)
+    finishTransfers(s)
+    const seen: string[] = []
+    let guard = 0
+    while (s.phase !== 'seasonEnd' && s.phase !== 'hiring' && guard++ < 300) {
+      if (s.phase === 'event') resolveEvent(s, 0)
+      else if (s.phase === 'transfer') finishTransfers(s)
+      else if (s.breakPending) {
+        seen.push(s.breakPending)
+        const season = s.season
+        const reports = s.reports.length
+        expect(s.phase).toBe('season')
+        // kliknięcie „Rozegraj” nic nie rozgrywa, dopiero przejście dalej
+        playWeek(s)
+        expect(s.reports.length).toBe(reports)
+        expect(s.season).toBe(season)
+        continueBreak(s)
+      } else playNext(s)
+    }
+    if (s.phase === 'seasonEnd') expect(seen).toEqual(['okno', 'koniec'])
   })
 })
 
@@ -282,6 +312,7 @@ describe('baraże', () => {
     while (s.phase !== 'seasonEnd' && guard++ < 50) {
       if (s.phase === 'transfer') finishTransfers(s)
       else if (s.phase === 'hiring') acceptOffer(s, s.offers[0].teamId)
+      else if (s.breakPending) continueBreak(s)
       else simulateToBreak(s)
     }
     expect(s.lastPlayoffs?.length).toBe(2)
@@ -347,6 +378,7 @@ describe('rezerwy', () => {
     while ((s.phase as string) !== 'seasonEnd' && guard++ < 50) {
       if (s.phase === 'event') resolveEvent(s, 0)
       else if (s.phase === 'transfer') finishTransfers(s)
+      else if (s.breakPending) continueBreak(s)
       else simulateToBreak(s)
     }
     const last = s.history[s.history.length - 1]

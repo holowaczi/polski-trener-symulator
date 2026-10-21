@@ -1,5 +1,10 @@
 # Zmiany
 
+## 0.8.4 (alfa) · 21 października 2026
+
+- **Po ostatnim meczu sezonu wszystkie zakładki dalej działają.** Sezon kończy się dopiero po kliknięciu „Zakończ sezon” na dolnym pasku, więc można spokojnie obejrzeć końcową tabelę, kadrę, puchary i wieści. Tak samo przed przerwą zimową: okno otwiera się dopiero po „Przejdź do okna transferowego”.
+- Szybka symulacja i tryb automatyczny zatrzymują się na tym ostatnim meczu, zamiast przeskakiwać prosto do okna albo podsumowania.
+
 ## 0.8.3 (alfa) · 21 października 2026
 
 - **Seria zwycięstw nie robi już z Twojej drużyny innej ligi.** Dotąd forma i morale po kilku wygranych dokładały składowi nawet 6–7 punktów siły, więc czołowy klub Ekstraklasy szybko grał na 86–87, a rywale stali w miejscu. Teraz forma waży mniej, a morale samo wraca w stronę spokojnego środka zamiast stać na 100.

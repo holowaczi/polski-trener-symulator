@@ -411,6 +411,8 @@ export interface GameState {
   ending?: CareerEnding
   /** ostatni mecz trenera: pokazujemy go, nawet gdy zaraz po nim otwiera się okno albo kończy sezon */
   lastReport?: MatchReport
+  /** po ostatnim meczu przed oknem albo końcem sezonu: gra czeka, aż gracz sam przejdzie dalej */
+  breakPending?: 'okno' | 'koniec'
   /** ostatnie raporty poprzedniego sezonu: lista meczów zostaje widoczna, dopóki gracz nie przejdzie do podsumowania */
   prevReports?: MatchReport[]
   /** europejskie puchary klubu gracza w bieżącym sezonie */

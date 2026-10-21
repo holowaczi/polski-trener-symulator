@@ -644,7 +644,7 @@ function pendingCupTie(s: GameState, week: number): CupTie | undefined {
  * najpierw kolejka ligowa, przy następnym kliknięciu mecz pucharowy. Każdy mecz osobno.
  */
 export function playWeek(s: GameState): void {
-  if (s.phase !== 'season') return
+  if (s.phase !== 'season' || s.breakPending) return
   const week = s.round
   const splitCup = !!pendingLeagueFixture(s, week) && (!!pendingCupTie(s, week) || !!pendingEuroMatch(s, week))
   withRng(s, (rng) => {
@@ -788,14 +788,14 @@ function afterWeek(s: GameState): void {
   }
   const lg = clubLeague(s)!
   if (!s.winterWindowDone && s.round >= Math.ceil(lg.rounds.length / 2)) {
+    // okno otwiera się dopiero po kliknięciu: najpierw można obejrzeć mecz, tabelę i resztę
     s.winterWindowDone = true
-    openWindow(s)
-    news(s, 'Przerwa zimowa. Okno transferowe otwarte, obóz w Turcji odwołany z braku środków.')
+    s.breakPending = 'okno'
     return
   }
   drawPlayoffs(s)
   if (isSeasonOver(s)) {
-    endSeason(s)
+    s.breakPending = 'koniec'
     return
   }
   // wynik fazy ligowej w Europie pokazujemy w okienku, zamiast zwykłego zdarzenia
@@ -850,7 +850,22 @@ export function nextMatchInfo(s: GameState): { week: number; league?: Fixture; c
   return undefined
 }
 
+/** przerwa po ostatnim meczu przed oknem albo końcem sezonu: gracz przechodzi dalej sam */
+export function continueBreak(s: GameState): void {
+  const b = s.breakPending
+  if (!b || s.phase !== 'season') return
+  s.breakPending = undefined
+  if (b === 'okno') {
+    openWindow(s)
+    news(s, 'Przerwa zimowa. Okno transferowe otwarte, obóz w Turcji odwołany z braku środków.')
+  } else endSeason(s)
+}
+
 export function playNext(s: GameState): void {
+  if (s.breakPending) {
+    continueBreak(s)
+    return
+  }
   let info = nextMatchInfo(s)
   // klub pauzuje w ostatniej kolejce, a baraże jeszcze nierozlosowane: gramy kolejkę bez nas i sprawdzamy, czy w nich jesteśmy
   const lv = club(s)?.level
@@ -860,7 +875,7 @@ export function playNext(s: GameState): void {
   }
   if (s.phase !== 'season') return
   if (!info) {
-    endSeason(s)
+    s.breakPending = 'koniec'
     return
   }
   while (s.round < info.week && s.phase === 'season') playWeek(s)
@@ -869,7 +884,7 @@ export function playNext(s: GameState): void {
 
 export function playUntilBreak(s: GameState): void {
   let guard = 0
-  while (s.phase === 'season' && guard++ < 40) playNext(s)
+  while (s.phase === 'season' && !s.breakPending && guard++ < 40) playNext(s)
 }
 
 function plural(n: number, one: string, few: string, many: string): string {
@@ -887,7 +902,8 @@ export function simulateToBreak(s: GameState): string {
   let played = 0
   let decided = 0
   let guard = 0
-  while ((s.phase === 'season' || s.phase === 'event') && guard++ < 200) {
+  // symulacja zatrzymuje się na ostatnim meczu przed oknem albo końcem sezonu
+  while ((s.phase === 'season' || s.phase === 'event') && !s.breakPending && guard++ < 200) {
     if (s.phase === 'event') {
       const pe = s.pendingEvent!
       const choice = pe.eventId === 'bid' ? 1 : (ASSISTANT_CHOICE[pe.eventId] ?? withRng(s, (rng) => rng.int(0, pe.options.length - 1)))
@@ -900,7 +916,7 @@ export function simulateToBreak(s: GameState): string {
     }
   }
   const where =
-    s.phase === 'transfer' ? 'do okna transferowego' : s.phase === 'seasonEnd' ? 'do końca sezonu' : s.phase === 'hiring' ? 'do zwolnienia' : s.phase === 'retired' ? 'do końca kariery' : 'dalej'
+    s.phase === 'transfer' || s.breakPending === 'okno' ? 'do okna transferowego' : s.phase === 'seasonEnd' || s.breakPending === 'koniec' ? 'do końca sezonu' : s.phase === 'hiring' ? 'do zwolnienia' : s.phase === 'retired' ? 'do końca kariery' : 'dalej'
   return `Przesymulowano ${where}: ${played} ${plural(played, 'mecz', 'mecze', 'meczów')}${decided ? `, asystent rozstrzygnął ${decided} ${plural(decided, 'sprawę', 'sprawy', 'spraw')}` : ''}.`
 }
 
@@ -1147,6 +1163,7 @@ function euroOf(s: GameState) {
 }
 
 function leaveClub(s: GameState): void {
+  s.breakPending = undefined
   s.clubId = null
   s.squad = []
   s.reserveSquad = undefined
@@ -1347,6 +1364,7 @@ function agePlayers(rng: Rng, s: GameState): string[] {
 }
 
 export function endSeason(s: GameState): void {
+  s.breakPending = undefined
   const summary: string[] = []
   let backTo: number | undefined
   withRng(s, (rng) => {
