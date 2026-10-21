@@ -763,17 +763,19 @@ type TransferSection = 'umowy' | 'oferty' | 'kupno' | 'sprzedaz'
 
 export function TransferView({ s, act }: { s: GameState; act: Act }) {
   const bill = wageBill(s)
-  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1).length
+  // nowych nabytków nie przedłużysz w tym oknie, więc nie liczą się do umów do rozmowy
+  const talks = s.squad.filter((p) => (p.contract ?? 1) <= 1 && !p.newSigning).length
   const sections: { id: TransferSection; label: string; count?: number }[] = [
     ...(talks ? [{ id: 'umowy' as const, label: 'Umowy', count: talks }] : []),
     ...(s.bids.length ? [{ id: 'oferty' as const, label: 'Oferty', count: s.bids.length }] : []),
     { id: 'kupno', label: 'Kupno', count: s.transferList.length },
     { id: 'sprzedaz', label: 'Sprzedaż' },
   ]
-  const [want, setSec] = useState<TransferSection | null>(null)
+  // zapamiętujemy zakładkę z otwarcia okna: kupno nie może przerzucać do innej sekcji
+  const [want, setSec] = useState<TransferSection>(() => sections[0].id)
   const full = (s.signings ?? 0) >= signingLimit(s)
   const roles = squadRoles(s)
-  const sec = sections.some((x) => x.id === want) ? want! : sections[0].id
+  const sec = sections.some((x) => x.id === want) ? want : sections[0].id
   return (
     <div>
       <div className="chips">

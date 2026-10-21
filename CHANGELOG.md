@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.8.1 (alfa) · 21 października 2026
+
+- **Kupno nie przerzuca już do zakładki Umowy.** Po podpisaniu zawodnika z umową na sezon zostajesz na liście „Kupno”. Nowy nabytek nie liczy się też do umów do przedłużenia, bo i tak porozmawiacie o nim dopiero w kolejnym oknie.
+
 ## 0.8.0 (alfa) · 21 października 2026
 
 Europa na serio. Zamiast fikcyjnych klubów i fazy ligowej w jednym okienku jest Arsenal na wyjeździe i tabela, w której Lech siedzi między Bayernem a Barceloną.
