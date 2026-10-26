@@ -60,6 +60,8 @@ export interface Player {
   minutesBoost?: number
   /** kupiony w tym oknie: o nowej umowie można rozmawiać najwcześniej w kolejnym */
   newSigning?: boolean
+  /** średnia ocen z poprzedniego sezonu: latem na jej podstawie kluby szukają zawodników */
+  lastRating?: number
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -325,14 +327,19 @@ export interface TransferTarget {
   player: Player
   fee: number
   from: string
+  /** czy już próbowano zbić cenę */
+  haggled?: boolean
 }
 
 export interface Bid {
   playerId: number
+  /** klub z naszej piramidy; -1 przy klubie z zagranicy */
   teamId: number
   fee: number
   /** czy już raz negocjowano */
   countered?: boolean
+  /** klub z zagranicy (z listy klubów europejskich) */
+  abroad?: { name: string; country: string }
 }
 
 export interface GameState {

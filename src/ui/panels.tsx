@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Act } from '../App'
 import { FORMATIONS, LEVELS, STYLE_INFO, TRAITS } from '../game/data'
 import { club, clubLeague, computeTable, cupsOf, directPromotion, formatMoney, hasPlayoffs, relegationSlots, retire, setAutoLineup, setPlayerSlot, type SlotState } from '../game/engine'
-import { acceptBid, buyPlayer, counterBid, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, roleIfSigned, ROLE_LABEL, sellPlayer, signingLimit, squadRoles, type SquadRole } from '../game/market'
+import { acceptBid, bidderName, bidTempts, buyPlayer, counterBid, haggleFee, MAX_SQUAD, MIN_SQUAD, rejectBid, releasePlayer, roleIfSigned, ROLE_LABEL, sellPlayer, signingLimit, squadRoles, type SquadRole } from '../game/market'
 import { formationOf, previewStrength, teamBonus } from '../game/match'
 import type { Cup, CupTie, EuroLeague, EuroRun, EuroTie, Formation, GameState, MatchReport, Mentality, Player, PlayerRating, Style } from '../game/types'
 import { avgRating, wageBill, withRng } from '../game/util'
@@ -807,12 +807,20 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
               const p = s.squad.find((x) => x.id === b.playerId)
               if (!p) return null
               return (
-                <div key={b.playerId} className="bid">
+                <div key={b.playerId} className={`bid ${b.abroad ? 'bid-abroad' : ''}`}>
                   <div>
-                    <b>{teamName(s, b.teamId)}</b> chce kupić <b>{playerName(p)}</b> za <b>{formatMoney(b.fee)}</b>
+                    <b>{bidderName(s, b)}</b>
+                    {b.abroad && (
+                      <span className="small muted">
+                        {' '}
+                        ({countryFlag(b.abroad.country)} {b.abroad.country})
+                      </span>
+                    )}{' '}
+                    chce kupić <b>{playerName(p)}</b> za <b>{formatMoney(b.fee)}</b>
                     <div className="small muted">
-                      {ROLE_LABEL[roles.get(p.id) ?? 'out']} · wartość {formatMoney(p.value)} · średnia ocen {avgRating(p)?.toFixed(2) ?? '–'}
-                      {s.teams[b.teamId].level > (club(s)?.level ?? 0) ? ' · zawodnik chciałby grać wyżej' : ''}
+                      {ROLE_LABEL[roles.get(p.id) ?? 'out']} · wartość {formatMoney(p.value)} · średnia ocen {(avgRating(p) ?? p.lastRating)?.toFixed(2) ?? '–'}
+                      {(p.contract ?? 1) <= 1 ? ' · ostatni rok umowy' : ''}
+                      {b.abroad ? ' · zawodnik już pakuje walizki' : bidTempts(s, b) ? ' · zawodnik chciałby grać wyżej' : ''}
                     </div>
                   </div>
                   <div className="row">
@@ -820,7 +828,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                       Sprzedaj
                     </button>
                     <button className="tiny" disabled={b.countered} onClick={() => act((g) => counterBid(g, b.playerId))}>
-                      Żądaj +40%
+                      Żądaj +30%
                     </button>
                     <button className="tiny ghost" onClick={() => act((g) => rejectBid(g, b.playerId))}>
                       Odrzuć
@@ -830,6 +838,10 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
               )
             })}
           </div>
+          <p className="small muted">
+            Kluby patrzą na oceny z bieżącego sezonu, a latem z poprzedniego. Zagranica płaci najlepiej, ale odrzucona oferta z zagranicy mocno psuje humor zawodnikowi.
+            Biedniejszy klub nie podbije oferty ponad to, co ma na koncie.
+          </p>
         </>
       )}
 
@@ -863,7 +875,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
             </tr>
           </thead>
           <tbody>
-            {s.transferList.map(({ player: p, fee, from }) => {
+            {s.transferList.map(({ player: p, fee, from, haggled }) => {
               const overWage = bill + p.wage > s.wageLimit
               const fit = roleIfSigned(s, p)
               return (
@@ -892,6 +904,11 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   </td>
                   <td className={overWage ? 'warn-text' : ''} data-label="Pensja">{formatMoney(p.wage)}</td>
                   <td className="cell-action">
+                    {fee > 0 && (
+                      <button className="tiny" disabled={haggled} title={haggled ? 'Już próbowałeś' : 'Raz można spróbować zbić cenę o 20%'} onClick={() => act((g) => haggleFee(g, p.id))}>
+                        −20%
+                      </button>
+                    )}
                     <button
                       className="tiny primary"
                       disabled={fee > s.budget || overWage || s.squad.length >= MAX_SQUAD || full}

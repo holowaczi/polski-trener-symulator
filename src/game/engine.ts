@@ -1335,6 +1335,8 @@ function agePlayers(rng: Rng, s: GameState): string[] {
     p.potential = Math.max(p.potential, p.skill)
     p.goals = 0
     p.assists = 0
+    // latem kluby patrzą na poprzedni sezon, bo nowy jeszcze się nie zaczął
+    p.lastRating = p.apps >= 5 ? Math.round((p.ratingSum / p.apps) * 100) / 100 : undefined
     p.apps = 0
     p.ratingSum = 0
     p.yellows = 0

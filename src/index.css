@@ -1335,6 +1335,11 @@ blockquote {
 .bid .row {
   margin: 0;
 }
+/* oferta z zagranicy: kolor Europy na lewej krawędzi */
+.bid.bid-abroad {
+  border-left: 4px solid var(--euro);
+  background: var(--euro-bg);
+}
 
 /* ---------- telefon: tabele jako karty ---------- */
 @media (max-width: 640px) {

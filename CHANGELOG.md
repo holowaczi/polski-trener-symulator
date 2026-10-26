@@ -1,5 +1,24 @@
 # Zmiany
 
+## 0.9.0 (alfa) · 26 października 2026
+
+Telefon w oknie transferowym dzwoni teraz także z zagranicy. Czasem to Víkingur Reykjavík, czasem Ajax, ale zawsze płacą lepiej niż sąsiad z ligi.
+
+### Oferty z zagranicy
+- **Kluby z Europy zgłaszają się po dobrych piłkarzy.** Patrzą na zawodników, którzy grają na poziomie co najmniej I ligi i mają dobre oceny, a u młodych liczy się też potencjał. Kupiec jest zawsze trochę mocniejszy od zawodnika: gwiazda II ligi dostanie telefon z Islandii albo Cypru, lider Ekstraklasy z Belgii, Holandii, a nawet z Anglii.
+- **Płacą nieźle:** zwykle półtora do dwóch razy więcej niż wartość zawodnika, a bogate ligi jeszcze więcej. Kontroferta +30% przechodzi częściej niż u nas.
+- Sprzedaż za granicę dodaje trenerowi reputacji, a duży przelew cieszy zarząd. Odrzucona oferta z zagranicy mocno psuje humor zawodnikowi, który już oglądał mieszkania.
+- Latem do dwóch ofert z zagranicy, zimą najwyżej jedna. Oferty z zagranicy mają w oknie kolor Europy, flagę i kraj klubu.
+
+### Bardziej realistyczne transfery
+- **Latem kluby oceniają zawodników po poprzednim sezonie.** Dotąd na początku sezonu nikt nie miał ocen, więc oferty były losowe. Teraz piłkarz pamięta swoją zeszłoroczną średnią.
+- **Oferty krajowe zależą od tego, ile kupca stać.** Klub z II ligi nie wyłoży miliona, a gdy nie stać go nawet na połowę wartości, w ogóle nie dzwoni. Częściej odzywają się kluby z najwyższej ligi, w której zawodnik by się przydał.
+- **Umowa ma znaczenie:** za zawodnika w ostatnim roku kontraktu kluby dają wyraźnie mniej, za świeżo przedłużonego więcej. Dobre oceny podbijają cenę.
+- **Kontroferta to teraz +30%**, a biedniejszy klub odpada od razu, jeśli tyle nie ma na koncie.
+- **Na rynku można raz zbić cenę o 20%** przyciskiem „−20%”. Połowa klubów się zgadza, reszta mówi „albo wcale”.
+- Obcokrajowcy na rynku często grają w klubie ze swojego kraju i wtedy kosztują trochę więcej, bo trzeba ich jeszcze przenieść.
+- Latem do czterech ofert za Twoich zawodników, zimą dwie.
+
 ## 0.8.4 (alfa) · 21 października 2026
 
 - **Po ostatnim meczu sezonu wszystkie zakładki dalej działają.** Sezon kończy się dopiero po kliknięciu „Zakończ sezon” na dolnym pasku, więc można spokojnie obejrzeć końcową tabelę, kadrę, puchary i wieści. Tak samo przed przerwą zimową: okno otwiera się dopiero po „Przejdź do okna transferowego”.
