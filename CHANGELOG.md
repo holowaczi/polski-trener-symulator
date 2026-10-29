@@ -1,5 +1,15 @@
 # Zmiany
 
+## 0.10.0 (alfa) · 29 października 2026
+
+Kariera nie znika już razem z nową wersją gry. Trener może zmienić telefon, a nawet wyczyścić przeglądarkę, i dalej prowadzić swoją Unię Lisowice.
+
+### Zapisy, które nie giną
+- **Stare kariery wczytują się w nowych wersjach.** Gra przenosi zapis do nowej wersji krok po kroku, zamiast go kasować. Kariera z 0.9.0 gra dalej w 0.10.0, a każda kolejna wersja dostaje swoją przeprowadzkę. Nie każda nowość od razu trafi do starej kariery, ale sama kariera zostaje.
+- **Kopia kariery w pliku.** W zakładce Trener i na ekranie startowym jest „💾 Pobierz kopię”, a na starcie „📂 Wczytaj karierę z pliku”. Tak przeniesiesz karierę na inny telefon albo zrobisz kopię przed sprzątaniem przeglądarki.
+- **Zapis jest kilka razy mniejszy.** Długa kariera zajmuje ułamek dawnego miejsca, więc nie wpada w limit przeglądarki. Gra zapisuje się chwilę po ostatnim kliknięciu i od razu, gdy zamykasz kartę albo przełączasz aplikację.
+- **Koniec z cichą porażką.** Gdy przeglądarka nie przyjmie zapisu (brak miejsca, tryb prywatny), na górze ekranu pojawia się ostrzeżenie z radą, żeby pobrać kopię. Zapis, którego nie da się wczytać, nie przepada: gra odkłada go na bok, mówi dlaczego i pozwala go pobrać.
+
 ## 0.9.0 (alfa) · 26 października 2026
 
 Telefon w oknie transferowym dzwoni teraz także z zagranicy. Czasem to Víkingur Reykjavík, czasem Ajax, ale zawsze płacą lepiej niż sąsiad z ligi.

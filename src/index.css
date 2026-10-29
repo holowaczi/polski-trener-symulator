@@ -2071,3 +2071,51 @@ blockquote cite::before {
   font-weight: 700;
   background: var(--surface-2);
 }
+
+/* ---------- zapis gry ---------- */
+.file-button {
+  display: inline-block;
+  position: relative;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.file-button:hover,
+.file-button:focus-within {
+  border-color: var(--accent);
+}
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.save-problem {
+  border-color: var(--bad);
+}
+.save-alert {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 560px);
+  z-index: 40;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--bad);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  font-size: 0.92rem;
+}
+.save-alert button {
+  margin-left: auto;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}

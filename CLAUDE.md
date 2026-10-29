@@ -13,6 +13,10 @@ Przy każdej wypuszczanej zmianie podbij wersję automatycznie:
 
 Za każdym razem dopisz wpis na górze `CHANGELOG.md` (po polsku, w tym samym stylu) i zaktualizuj numer w `package-lock.json` (`npm install --package-lock-only`).
 
+## Zapisy
+
+Kariera graczy nie może zniknąć po aktualizacji. Gdy zmieniasz kształt `GameState`, podbij `SAVE_VERSION` w `engine.ts` i dopisz migrację w `src/game/migrate.ts` (nigdy nie kasuj zapisu). Przy każdym wydaniu, które zmienia zapis, dorzuć plik z kariery w trakcie sezonu do `src/game/fixtures/` i do `FIXTURES` w `migrate.test.ts`.
+
 ## Sprawdzanie
 
 - typy: `npx tsc --noEmit -p tsconfig.app.json` (samo `-p .` niczego nie sprawdza)

@@ -45,7 +45,7 @@ import {
   unemployedEnding,
 } from './endings'
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 /** najdłuższa liga ma 34 kolejki; krótsze kończą wcześniej */
 export const SEASON_WEEKS = 36
 

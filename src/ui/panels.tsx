@@ -10,6 +10,7 @@ import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } fr
 import { isPolish, nationInfo, nationOf, playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
+import { downloadText, exportFileName, exportSave } from './save'
 import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, euroTable, STAGE_NAME } from '../game/europe'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
@@ -1322,6 +1323,14 @@ export function CareerView({ s, act }: { s: GameState; act: Act }) {
           </ul>
         </>
       )}
+      <h3>Zapis gry</h3>
+      <p className="muted small">
+        Gra zapisuje się sama w tej przeglądarce. Kopia w pliku przyda się, gdy zmieniasz telefon, czyścisz przeglądarkę albo po prostu nie ufasz
+        technice. Wczytasz ją na ekranie startowym.
+      </p>
+      <p>
+        <button onClick={() => downloadText(exportFileName(s), exportSave(s))}>💾 Pobierz kopię kariery</button>
+      </p>
       <ConfirmButton
         className="ghost"
         label="Zakończ karierę"

@@ -6,15 +6,31 @@ import { licenseCovers, START_LICENSES, startMultiplier } from '../game/score'
 import type { GameState, License } from '../game/types'
 import { bottomLevel, leagueOf } from '../game/world'
 import { teamRegion } from '../game/regions'
-import { loadRecords } from './save'
+import { brokenSaveText, downloadText, exportFileName, exportSave, importSave, loadRecords } from './save'
 
 interface Props {
   saved: GameState | null
+  /** zapis był, ale się nie wczytał */
+  loadProblem?: string
   onStart: (s: GameState) => void
   onContinue: () => void
 }
 
-export function StartScreen({ saved, onStart, onContinue }: Props) {
+export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) {
+  const [importProblem, setImportProblem] = useState<string | undefined>()
+  const broken = useMemo(() => (loadProblem ? brokenSaveText() : null), [loadProblem])
+
+  const importFile = async (file: File | undefined) => {
+    if (!file) return
+    const r = importSave(await file.text())
+    if (!r.state) {
+      setImportProblem(r.problem)
+      return
+    }
+    if (saved && saved.phase !== 'retired' && !window.confirm('Wczytanie kopii zastąpi karierę zapisaną w tej przeglądarce. Wczytać?')) return
+    onStart(r.state)
+  }
+
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [age, setAge] = useState(32)
@@ -81,6 +97,16 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         <p className="muted small">Prawdziwe kluby sezonu 2026/27, od Ekstraklasy po B-klasę. Województwo decyduje o grupie III ligi i o lokalnych ligach.</p>
       </header>
 
+      {loadProblem && (
+        <section className="card save-problem" role="alert">
+          <h2>Kłopot z zapisem</h2>
+          <p>{loadProblem}</p>
+          {broken && (
+            <button onClick={() => downloadText('zapis-do-ratowania.json', broken)}>Pobierz ten zapis</button>
+          )}
+        </section>
+      )}
+
       {saved && saved.phase !== 'retired' && (
         <section className="card">
           <h2>Kontynuuj karierę</h2>
@@ -88,9 +114,12 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
             {saved.coach.firstName} {saved.coach.lastName}, sezon {saved.season}
             {saved.clubId !== null ? `, ${saved.teams[saved.clubId].name}` : ', bez klubu'}
           </p>
-          <button className="primary" onClick={onContinue}>
-            Wróć do gry
-          </button>
+          <div className="row">
+            <button className="primary" onClick={onContinue}>
+              Wróć do gry
+            </button>
+            <button onClick={() => downloadText(exportFileName(saved), exportSave(saved))}>💾 Pobierz kopię</button>
+          </div>
         </section>
       )}
 
@@ -188,6 +217,28 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
         </p>
       </section>
 
+      <section className="card">
+        <h2>Kopia z pliku</h2>
+        <p className="muted small">Masz kopię kariery z innego telefonu albo sprzed czyszczenia przeglądarki? Wczytaj ją tutaj.</p>
+        <label className="file-button">
+          📂 Wczytaj karierę z pliku
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={(e) => {
+              setImportProblem(undefined)
+              void importFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+        </label>
+        {importProblem && (
+          <p className="warn-text" role="alert">
+            {importProblem}
+          </p>
+        )}
+      </section>
+
       {records.length > 0 && (
         <section className="card">
           <h2>Twoje rekordy</h2>
@@ -222,7 +273,7 @@ export function StartScreen({ saved, onStart, onContinue }: Props) {
           budżety i pensje są zmyślone.
         </p>
         <p>
-          Gra działa w całości w przeglądarce. Zapis kariery trzymamy tylko w pamięci Twojej przeglądarki (localStorage) i nie wysyłamy go nigdzie.
+          Gra działa w całości w przeglądarce. Zapis kariery trzymamy tylko w pamięci Twojej przeglądarki (localStorage) i nie wysyłamy go nigdzie. Kopię w pliku pobierasz sam i sam decydujesz, gdzie ją trzymasz.
         </p>
         </details>
       </footer>
