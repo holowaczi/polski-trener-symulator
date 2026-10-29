@@ -15,7 +15,7 @@ const TIPS: Record<TipId, { title: string; text: string }> = {
   },
   meters: {
     title: 'Liczniki na górze',
-    text: 'Zarząd poniżej 12 to zwolnienie, chyba że jesteś w czołówce tabeli. Szatnia poniżej 15 to bunt i gorsza gra, a kibice poniżej 15 psują humor prezesowi. Stres rośnie po porażkach i złych decyzjach, a długo trzymany wysoko kończy się u lekarza.',
+    text: 'Zarząd za nisko to zwolnienie (zwykle poniżej 12, ale niecierpliwy prezes wylewa szybciej), chyba że jesteś w czołówce tabeli. Szatnia poniżej 15 to bunt i gorsza gra, a kibice poniżej 15 psują humor prezesowi. Stres rośnie po porażkach i złych decyzjach, a długo trzymany wysoko kończy się u lekarza.',
   },
   event: {
     title: 'Zdarzenie',
@@ -123,9 +123,18 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'Liczniki: Zarząd, Szatnia, Kibice, Stres',
     body: [
-      'Zarząd to cierpliwość prezesa. Spada po porażkach, łataniu dziur w budżecie i złych decyzjach. Poniżej 12 jesteś zwolniony, chyba że drużyna jest w czołowej jednej trzeciej tabeli.',
+      'Zarząd to cierpliwość prezesa. Spada po porażkach, łataniu dziur w budżecie i złych decyzjach. Zwykle poniżej 12 jesteś zwolniony (próg zależy od prezesa, zobaczysz go w zakładce Klub), chyba że drużyna jest w czołowej jednej trzeciej tabeli.',
       'Szatnia to humor piłkarzy i wpływa na siłę drużyny. Poniżej 15 zaczyna się bunt i gra „na trenera”. Kibice poniżej 15 wieszają transparenty i dokładają nerwów prezesowi.',
       'Stres rośnie po porażkach i ciężkich zdarzeniach. Długo trzymany bardzo wysoko zbiera wypalenie (widać je w zakładce Trener). Wtedy pomaga urlop albo sanatorium, a ignorowanie lekarza kończy karierę.',
+    ],
+  },
+  {
+    title: 'Prezes, rywal, ulubieniec i przemowa',
+    body: [
+      'Każdy klub ma prezesa z charakterem: biznesmen szybko traci cierpliwość, ale daje na transfery, samorządowiec jest cierpliwy i słucha kibiców, były piłkarz przeżywa każdy wynik, a przedsiębiorca z masarnią płaci za kiełbasę. Opis znajdziesz w zakładce Klub.',
+      'Klub ma też rywala zza miedzy. Derby mocniej ruszają kibicami, zarządem i Twoimi nerwami, a gazety piszą o nich grubszą czcionką.',
+      'Co sezon szatnia wybiera ulubieńca (💛 w Kadrze). Posadzisz go na dłużej na ławce, szatnia się upomni. Sprzedasz go, będzie żałoba.',
+      'Nad listą meczów wybierasz przemowę w przerwie: „Spokojnie, panowie” pomaga dowieźć prowadzenie, wściekłość pomaga odrabiać straty, a kiełbasa po meczu poprawia humor szatni. Domyślnie decyduje asystent.',
     ],
   },
   {

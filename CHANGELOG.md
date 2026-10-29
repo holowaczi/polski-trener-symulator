@@ -1,5 +1,31 @@
 # Zmiany
 
+## 0.12.0 (alfa) · 29 października 2026
+
+Sezon nabiera charakteru. Prezes ma swoje humory, sąsiedzi zza miedzy swoje transparenty, a szatnia swojego ulubieńca.
+
+### Przemowa w przerwie
+- **Nad listą meczów wybierasz przemowę:** „Spokojnie, panowie” pomaga dowieźć prowadzenie, wściekłość rusza drużynę do odrabiania strat (ale zostawia dziury i podnosi kartki), a „Kiełbasa po meczu” daje trochę lepszą grę i humor szatni, za to kosztuje. Domyślnie decyduje asystent, także w trybie automatycznym.
+- W relacji z meczu w 46. minucie widać, co powiedziałeś w szatni. Krzyk przy prowadzeniu szatnia zapamiętuje.
+
+### Derby i rywale
+- **Każdy klub ma rywala:** drużynę z tego samego miasta, a jak takiej nie ma, odwiecznego wroga z województwa. Widać go w zakładce Klub.
+- Derby mają ognistą etykietę 🔥 w raporcie i na pasku meczu. Rywal gra z większym sercem, a wynik mocniej rusza kibicami, zarządem i Twoimi nerwami.
+
+### Prezes z charakterem
+- **Biznesmen, samorządowiec, były piłkarz albo przedsiębiorca z masarnią.** Każdy ma inny próg cierpliwości (biznesmen zwalnia wcześniej, samorządowiec później), inaczej reaguje na prośby o transfery i pensje i inaczej przeżywa wyniki. Samorządowiec słucha kibiców, bo to wyborcy.
+- Prezes przedstawia się po zatrudnieniu, a w zakładce Klub widać, kim jest i przy ilu punktach relacji zwalnia.
+
+### Lokalna prasa
+- **Po każdym meczu nagłówek:** od Gazety Gminnej i forum kibiców, przez Tygodnik Powiatowy i Portal Regionalny, po Kurier Sportowy, Sport Wieczorem i studio telewizyjne w Ekstraklasie.
+
+### Ulubieniec szatni
+- **Co sezon szatnia wybiera ulubieńca** z własną historią (ciasto od mamy, akordeon w autokarze, parodia prezesa). W Kadrze ma 💛.
+- Jego gole cieszą szatnię i kibiców, trzy mecze na ławce to wizyta kapitana w gabinecie, a sprzedaż to żałoba w szatni.
+
+### Nowe zdarzenia
+- **9 zdarzeń o nowych postaciach:** urodziny i plotki o ulubieńcu, prowokacje i murale rywali, koszulki z reklamą masarni, tabelka KPI od biznesmena, spot wyborczy samorządowca i taktyka prezesa-piłkarza na tablicy.
+
 ## 0.11.0 (alfa) · 29 października 2026
 
 Nowy trener nie musi już uczyć się wszystkiego metodą prezesa, czyli na błędach.

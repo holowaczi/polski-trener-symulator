@@ -3,6 +3,7 @@ import type { GameState, Player, TraitId } from './types'
 import { addModifier, adjustCoach, adjustTrust, nudgeForm, setMorale } from './util'
 import { addDirt, DIRT_SCANDAL } from './endings'
 import { isPolish } from './world'
+import { presidentOf, rivalId } from './character'
 
 export interface EventCtx {
   s: GameState
@@ -22,7 +23,7 @@ export interface GameEvent {
   /** zdarzenie dotyczy zawodnika: dowolnego, z cechą albo spełniającego warunek */
   player?: 'any' | TraitId | ((p: Player, s: GameState) => boolean)
   condition?: (s: GameState) => boolean
-  /** {p} imię i nazwisko, {ps} skrót, {kraj} kraj zawodnika w dopełniaczu („reprezentacji Polski”), {ocena} średnia ocen, {mecze} mecze bez gry, {klub}, {miasto}, {trener} */
+  /** {p} imię i nazwisko, {ps} skrót, {kraj} kraj zawodnika w dopełniaczu („reprezentacji Polski”), {ocena} średnia ocen, {mecze} mecze bez gry, {klub}, {miasto}, {trener}, {rywal} rywal z ligi, {prezes} prezes klubu */
   text: string
   options: { label: string; apply: (c: EventCtx) => string }[]
 }
@@ -57,6 +58,8 @@ const paySelf = (s: GameState, c: number) => {
   coach(s, 0, 0, -c)
   return true
 }
+/** ulubieniec szatni w bieżącym sezonie */
+const isFavorite = (p: Player, s: GameState) => s.favorite?.playerId === p.id && s.favorite.season === s.season
 const last3 = (s: GameState) => s.streak.slice(-3).join('')
 const median = (s: GameState) => [...s.squad].sort((a, b) => b.skill - a.skill)[Math.min(13, s.squad.length - 1)]?.skill ?? 0
 /** umiejętność n-tego najlepszego zawodnika kadry */
@@ -4131,6 +4134,313 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s }) => {
           trust(s, 1, 0, 3)
           return 'Koszulki z podpisami poszły na licytacji za wysokie kwoty. Dobra sprawa, zero ryzyka kontuzji.'
+        },
+      },
+    ],
+  },
+  // ---------- ulubieniec szatni, rywal, prezes z charakterem ----------
+  {
+    id: 'ulub_urodziny',
+    weight: 2,
+    once: true,
+    player: (p, s) => isFavorite(p, s),
+    text: '{p}, ulubieniec szatni, ma urodziny i zaprasza całą drużynę na grilla w czwartek. W sobotę mecz.',
+    options: [
+      {
+        label: 'Idźcie, ale do 22:00',
+        apply: ({ s, rng }) => {
+          trust(s, 0, 5, 0)
+          if (rng.chance(0.35)) {
+            mod(s, 'Grill u ulubieńca', -1, 1)
+            return 'Do 22:00 nikt nie wyszedł. O 2:00 też nie. W sobotę nogi jak z waty, ale atmosfera złota.'
+          }
+          return 'Wszyscy wrócili o 22:05. Wzruszyłeś się bardziej niż jubilat.'
+        },
+      },
+      {
+        label: 'Tort w szatni po treningu',
+        apply: ({ s, p }) => {
+          trust(s, 0, 3, 0)
+          setMorale(p!, 8)
+          return 'Tort od mamy {ps}. Kierownik drużyny zjadł trzy kawałki i twierdzi, że to dla zdrowia.'
+        },
+      },
+      {
+        label: 'Zakaz. Jutro trening',
+        apply: ({ s, p }) => {
+          trust(s, 1, -5, 0)
+          setMorale(p!, -10)
+          return 'Szatnia patrzy na Ciebie jak na urzędnika skarbowego. {ps} obchodzi urodziny sam, z ładowarką do telefonu.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'ulub_plotka',
+    weight: 1.5,
+    cooldown: 40,
+    player: (p, s) => isFavorite(p, s),
+    text: 'Lokalny portal plotkuje, że {p} myśli o odejściu. W szatni nerwowo, kibice pytają na forum.',
+    options: [
+      {
+        label: 'Publicznie: „Zostaje i koniec”',
+        apply: ({ s, p }) => {
+          setMorale(p!, 10)
+          trust(s, 0, 3, 3)
+          return '{ps} dziękuje za zaufanie. Portal pisze sprostowanie drobnym drukiem na dole strony.'
+        },
+      },
+      {
+        label: '„Nikt nie jest niezastąpiony”',
+        apply: ({ s, p }) => {
+          setMorale(p!, -12)
+          trust(s, 2, -4, -2)
+          return 'Prezes kiwa głową z uznaniem. Szatnia przez tydzień rozmawia ciszej niż zwykle.'
+        },
+      },
+      {
+        label: 'Daj mu opaskę kapitana na najbliższy mecz',
+        apply: ({ s, p }) => {
+          setMorale(p!, 15)
+          trust(s, 0, 4, 2)
+          mod(s, 'Kapitan z serca', 1, 1)
+          return '{ps} z opaską kapitana. Mama na trybunach płacze, a plotka umiera śmiercią naturalną.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'ulub_parodia',
+    weight: 1.5,
+    once: true,
+    player: (p, s) => isFavorite(p, s),
+    text: '{p} wrzucił do internetu nagranie, na którym parodiuje prezesa. 40 tysięcy wyświetleń w jeden dzień. Prezes też obejrzał.',
+    options: [
+      {
+        label: 'Kara i przeprosiny',
+        apply: ({ s, p }) => {
+          setMorale(p!, -10)
+          trust(s, 4, -5, -1)
+          return '{ps} przeprasza prezesa z kamienną twarzą. Nagranie ma już 80 tysięcy wyświetleń.'
+        },
+      },
+      {
+        label: 'Śmiej się razem z nim',
+        apply: ({ s, p }) => {
+          setMorale(p!, 8)
+          trust(s, -5, 4, 3)
+          return 'Szatnia Cię kocha, prezes mniej. Na następnym zebraniu zarządu siedzisz najdalej od kawy.'
+        },
+      },
+      {
+        label: 'Niech sparodiuje też trenera rywali',
+        apply: ({ s }) => {
+          trust(s, -2, 3, 5)
+          coach(s, 2, 1)
+          return 'Druga część ma 150 tysięcy wyświetleń. Rywale nie są zachwyceni, kibice są.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'rywal_prowokacja',
+    weight: 1.5,
+    cooldown: 40,
+    condition: (s) => rivalId(s) !== undefined,
+    text: 'Trener {rywal} w gazecie: „{klub}? Nie kojarzę. To jakaś drużyna oldbojów?”.',
+    options: [
+      {
+        label: 'Odpowiedz ostro',
+        apply: ({ s }) => {
+          trust(s, -1, 2, 5)
+          coach(s, 4)
+          mod(s, 'Zemsta za słowa', 1, 2)
+          return 'Twoja odpowiedź trafia na okładkę. Drużyna trenuje, jakby jutro były derby.'
+        },
+      },
+      {
+        label: 'Przemilcz',
+        apply: ({ s }) => {
+          trust(s, 2, 0, -2)
+          return 'Klasa. Kibice uważają, że trochę za dużo klasy.'
+        },
+      },
+      {
+        label: 'Wyślij mu kosz kiełbasy z bilecikiem „Na pocieszenie”',
+        apply: ({ s }) => {
+          if (!paySelf(s, 200)) {
+            trust(s, 0, 1, 2)
+            return 'Na kosz Cię nie stać, wysłałeś więc samą kartkę. Też zabolało.'
+          }
+          trust(s, 0, 2, 5)
+          return 'Kosz dotarł. Zdjęcie bileciku obiegło całe województwo.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'rywal_mural',
+    weight: 1.2,
+    cooldown: 50,
+    condition: (s) => rivalId(s) !== undefined,
+    text: 'Kibice {rywal} nocą wymalowali na ogrodzeniu Waszego stadionu wielki napis. Nie da się go zacytować w rodzinnej grze.',
+    options: [
+      {
+        label: 'Zamalować na koszt klubu',
+        apply: ({ s }) => {
+          const c = money(s, 60)
+          if (!pay(s, c)) {
+            trust(s, 0, 2, 1)
+            return 'W kasie pusto, więc zamalowujecie sami w sobotę rano. Integracja jak na obozie.'
+          }
+          trust(s, 1, 0, 1)
+          return `Ekipa malarska kosztowała ${k(c)}. Po tygodniu na ogrodzeniu pojawił się nowy napis.`
+        },
+      },
+      {
+        label: 'Zostaw jako motywację',
+        apply: ({ s }) => {
+          trust(s, -2, 4, 3)
+          coach(s, 2)
+          return 'Codziennie rano drużyna przechodzi obok napisu. Na treningu nikt nie odpuszcza.'
+        },
+      },
+      {
+        label: 'Zgłoś na policję',
+        apply: ({ s }) => {
+          trust(s, 2, 0, -3)
+          return 'Policja spisała protokół i obiecała przejrzeć monitoring. Kamera od trzech lat nie działa.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'prezes_masarnia_koszulki',
+    weight: 2,
+    once: true,
+    condition: (s) => presidentOf(s)?.type === 'masarnia',
+    text: 'Prezes chce, żeby drużyna wyszła na mecz w koszulkach z napisem „Kiełbasa Prezesa: smak zwycięstwa”.',
+    options: [
+      {
+        label: 'Zgoda',
+        apply: ({ s }) => {
+          s.budget += money(s, 80)
+          trust(s, 5, -2, 2)
+          return `Klub dostaje ${k(money(s, 80))} od sponsora. Zawodnicy pachną wędzarnią, kibice są zachwyceni.`
+        },
+      },
+      {
+        label: 'Tylko na rozgrzewkę',
+        apply: ({ s }) => {
+          s.budget += money(s, 30)
+          trust(s, 1, 0, 1)
+          return 'Kompromis. Prezes dorzuca trochę grosza i pół kilo kabanosów dla sztabu.'
+        },
+      },
+      {
+        label: 'Odmów',
+        apply: ({ s }) => {
+          trust(s, -6, 2, 0)
+          return 'Prezes obrażony. Na najbliższym grillu kiełbasa dla trenera była wyraźnie przypalona.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'prezes_biznesmen_kpi',
+    weight: 2,
+    once: true,
+    condition: (s) => presidentOf(s)?.type === 'biznesmen',
+    text: 'Prezes przysyła tabelkę KPI: posiadanie piłki, przebiegnięte kilometry i „wskaźnik zaangażowania kibica”. Chce raport co poniedziałek.',
+    options: [
+      {
+        label: 'Rób raporty',
+        apply: ({ s }) => {
+          trust(s, 6, 0, 0)
+          coach(s, 5)
+          return 'Co poniedziałek siedzisz do nocy nad Excelem. Prezes zachwycony wykresem kołowym.'
+        },
+      },
+      {
+        label: 'Zatrudnij studenta do raportów',
+        apply: ({ s }) => {
+          if (!paySelf(s, 1_500)) {
+            trust(s, 2, 0, 0)
+            coach(s, 4)
+            return 'Na studenta Cię nie stać. Robisz raporty sam, z pomocą syna kierownika drużyny.'
+          }
+          trust(s, 4, 0, 0)
+          return 'Student robi raporty szybciej niż Ty taktykę. Prezes chce go zatrudnić w firmie.'
+        },
+      },
+      {
+        label: '„Panie prezesie, to piłka, a nie hurtownia”',
+        apply: ({ s }) => {
+          trust(s, -7, 3, 0)
+          return 'Prezes zapisuje coś w notesie. Pewnie nie jest to pochwała.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'prezes_samorzadowiec_spot',
+    weight: 2,
+    once: true,
+    condition: (s) => presidentOf(s)?.type === 'samorzadowiec',
+    text: 'Zbliżają się wybory. Prezes-samorządowiec chce nagrać z drużyną spot wyborczy na tle trybuny.',
+    options: [
+      {
+        label: 'Nagrajcie',
+        apply: ({ s }) => {
+          trust(s, 7, -3, -3)
+          return 'Spot leci w lokalnej telewizji. Drużyna macha do kamery jak na komunii.'
+        },
+      },
+      {
+        label: 'Tylko Ty, bez zawodników',
+        apply: ({ s }) => {
+          trust(s, 3, 1, -1)
+          coach(s, 2)
+          return 'Stoisz obok prezesa i uśmiechasz się na komendę. Sąsiedzi pytają, czy też kandydujesz.'
+        },
+      },
+      {
+        label: 'Odmów: klub jest apolityczny',
+        apply: ({ s }) => {
+          trust(s, -7, 2, 3)
+          return 'Kibice biją brawo. Prezes liczy, ilu kibiców głosuje.'
+        },
+      },
+    ],
+  },
+  {
+    id: 'prezes_pilkarz_tablica',
+    weight: 2,
+    cooldown: 50,
+    condition: (s) => presidentOf(s)?.type === 'pilkarz',
+    text: 'Prezes, były piłkarz, wchodzi na odprawę i rozrysowuje ustawienie na tablicy. „Za moich czasów grało się 4-2-4 i każdy wiedział, gdzie biec”.',
+    options: [
+      {
+        label: 'Posłuchaj i zagraj po jego',
+        apply: ({ s }) => {
+          trust(s, 6, -3, 0)
+          mod(s, 'Taktyka prezesa', -1, 1)
+          return 'Prezes zachwycony. Drużyna na boisku trochę mniej.'
+        },
+      },
+      {
+        label: 'Wysłuchaj i zrób swoje',
+        apply: ({ s }) => {
+          trust(s, -3, 2, 0)
+          return 'Prezes wychodzi, mrucząc coś o „teoretykach z kursów”.'
+        },
+      },
+      {
+        label: 'Niech poprowadzi rozgrzewkę',
+        apply: ({ s }) => {
+          trust(s, 4, 1, 1)
+          coach(s, 1)
+          return 'Prezes prowadzi rozgrzewkę w starych korkach. Naciągnął mięsień, ale jest szczęśliwy.'
         },
       },
     ],

@@ -3,6 +3,7 @@ import { expireContracts, seasonContracts } from './contracts'
 import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
+import { fireThreshold, newPresident, PRESIDENT_INFO, presidentOf, rivalId } from './character'
 import { closeEuro, drawEuro, euroLeagueEvent, euroMatchForWeek, euroResult, euroRoundLabel, euroSpotsFor, pendingEuroMatch, playEuroForWeek, resolveEuroLeague, COMP_GEN } from './europe'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
@@ -432,6 +433,10 @@ export function takeJob(s: GameState, offer: JobOffer): void {
     s.regionalCup = withRng(s, (rng) => drawRegionalCup(rng, s))
   if (s.round === 0) withRng(s, (rng) => drawEuro(rng, s))
   news(s, `${s.coach.firstName} ${s.coach.lastName} nowym trenerem ${team.name}! Cel: ${goalLabel(s.goal, team.level).toLowerCase()}.`)
+  if (s.president?.teamId !== team.id) {
+    s.president = withRng(s, (rng) => newPresident(rng, team))
+    news(s, `Prezes ${s.president.name} (${PRESIDENT_INFO[s.president.type].label.toLowerCase()}) wita Cię w klubie.`)
+  }
   s.phase = s.round === 0 ? 'transfer' : 'season'
 }
 
@@ -764,12 +769,13 @@ function afterWeek(s: GameState): void {
   coverDeficit(s)
   if (s.clubId === null) return
   if (forcedEnding(s)) return
-  if (s.trust.board < 12) {
+  const fireAt = fireThreshold(s)
+  if (s.trust.board < fireAt) {
     // prezes może być wściekły, ale lidera tabeli zwolnić nie wypada
     const pos = clubPosition(s)
     const size = clubLeague(s)!.teamIds.length
-    if (pos !== undefined && pos <= Math.ceil(size / 3) && s.trust.board >= 5) {
-      s.trust.board = 15
+    if (pos !== undefined && pos <= Math.ceil(size / 3) && s.trust.board >= fireAt - 7) {
+      s.trust.board = fireAt + 3
       news(s, 'Prezes chciał Cię zwolnić, ale ktoś pokazał mu tabelę. Na razie zostajesz.')
     } else {
       fire(s, 'Prezes zadzwonił w niedzielę o 7 rano. Dziękujemy za współpracę.')
@@ -1034,6 +1040,11 @@ export function fillText(s: GameState, text: string, p?: Player): string {
     .replace(/\{klub\}/g, t?.name ?? 'klub')
     .replace(/\{miasto\}/g, t?.town ?? 'miasto')
     .replace(/\{trener\}/g, `${s.coach.firstName} ${s.coach.lastName}`)
+    .replace(/\{rywal\}/g, () => {
+      const r = rivalId(s)
+      return r !== undefined ? s.teams[r].name : 'rywali'
+    })
+    .replace(/\{prezes\}/g, () => presidentOf(s)?.name ?? 'prezes')
 }
 
 export function resolveEvent(s: GameState, optionIndex: number): string {
@@ -1069,7 +1080,7 @@ export function resolveEvent(s: GameState, optionIndex: number): string {
   s.phase = s.resumePhase ?? 'season'
   s.resumePhase = undefined
   if (s.clubId !== null && forcedEnding(s)) return text
-  if (s.clubId !== null && s.trust.board < 12) fire(s, 'Po tej akcji zarząd nie miał wyjścia. Kluczyki do szatni na biurko.')
+  if (s.clubId !== null && s.trust.board < fireThreshold(s)) fire(s, 'Po tej akcji zarząd nie miał wyjścia. Kluczyki do szatni na biurko.')
   return text
 }
 

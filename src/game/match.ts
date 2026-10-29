@@ -5,6 +5,19 @@ import type { Formation, GameState, MatchReport, Player, PlayerRating, Position 
 import { adjustCoach, adjustTrust, club, formatMoney, isAvailable, news, setMorale, teamPower, updateTeamForm } from './util'
 import { clamp, playerValue, shortName } from './world'
 import { addDirt, DIRT_PROMISE, trackBurnout } from './endings'
+import {
+  assistantSpeech,
+  derbyAftermath,
+  favoriteAfterMatch,
+  isDerby,
+  matchHeadline,
+  pickFavorite,
+  PRESIDENT_INFO,
+  presidentOf,
+  speechAftermath,
+  speechEffect,
+  type Speech,
+} from './character'
 
 export const BENCH_SIZE = 7
 /** ile punktów siły daje jeden stopień formy (-3..3) */
@@ -268,6 +281,13 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   const events: { minute: number; text: string }[] = []
 
   let oppStr = teamPower(s.teams[opp]) + rng.normal(0, 2)
+  pickFavorite(rng, s)
+  // derby: rywal zza miedzy gra z większym sercem, a trener nie śpi przed meczem
+  const derby = isDerby(s, opp)
+  if (derby) {
+    oppStr += 1
+    adjustCoach(s, { stress: 2 })
+  }
   if (cup) {
     // magia pucharu: niżej notowany gra z większym sercem
     const d = s.teams[opp].level - level
@@ -279,6 +299,11 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   if (incident?.day && incPlayer) incPlayer.day += incident.day
   const bonus = teamBonus(s, xi).total + (incident?.str ?? 0)
   const ment = MENTALITY[s.tactic.mentality]
+  // przemowa w przerwie działa na drugą połowę
+  const speechChoice = s.tactic.speech ?? 'asystent'
+  let speech: Exclude<Speech, 'asystent'> | undefined
+  let half = { att: 0, def: 0, cards: 1 }
+  let diffAtHalf = 0
   let oppRed = 0
   const myGoalsArr: number[] = []
   let oppGoals = 0
@@ -287,8 +312,8 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   const active = () => pitch.filter((x) => x.to === 90 && !x.red && !x.injured)
   const strengthNow = () => {
     const ls = lineStrength(active().map((x) => ({ p: x.p, v: effectiveSkill(x.p) + x.day * 2 })))
-    let att = ls.att + bonus + ment.att
-    const def = ls.def + bonus + ment.def
+    let att = ls.att + bonus + ment.att + half.att
+    const def = ls.def + bonus + ment.def + half.def
     if (s.tactic.style === 'kontra' && oppStr > (att + def) / 2 + 2) att += 2
     return { att, def }
   }
@@ -314,6 +339,13 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   let lMe = 0
   let lOpp = 0
   for (let minute = 1; minute <= 90; minute++) {
+    if (minute === 46) {
+      diffAtHalf = myGoals - oppGoals
+      speech = speechChoice === 'asystent' ? assistantSpeech(diffAtHalf) : speechChoice
+      const eff = speechEffect(speech, diffAtHalf)
+      half = { att: eff.att, def: eff.def, cards: eff.cards }
+      events.push({ minute, text: `46' 🗣️ Przerwa${speechChoice === 'asystent' ? ' (asystent)' : ''}: ${eff.text}` })
+    }
     if ((minute - 1) % 15 === 0) {
       const { att, def } = strengthNow()
       const home = isHome ? HOME_ADV : -HOME_ADV
@@ -353,7 +385,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     // kartki i kontuzje: ok. 0,6 żółtej i 0,03 bezpośredniej czerwieni na mecz dla całej drużyny
     for (const x of active()) {
       const narwany = x.p.traits.includes('narwany')
-      if (rng.chance(narwany ? 0.0016 : 0.0006)) {
+      if (rng.chance((narwany ? 0.0016 : 0.0006) * half.cards)) {
         x.yellow++
         if (x.yellow >= 2) {
           x.red = true
@@ -464,9 +496,11 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
   const expected = 1 / (1 + Math.exp(-(myStr - oppStr + (isHome ? HOME_ADV : -HOME_ADV)) / 6))
   const actual = pts === 3 ? 1 : pts === 1 ? 0.45 : 0
   const surprise = actual - expected
+  const pres = PRESIDENT_INFO[presidentOf(s)?.type ?? 'masarnia']
+  const fansDelta = surprise * 7 + (isHome && pts === 3 ? 1 : 0) + (myGoals >= 4 ? 2 : 0)
   adjustTrust(s, {
-    board: surprise * 6,
-    fans: surprise * 7 + (isHome && pts === 3 ? 1 : 0) + (myGoals >= 4 ? 2 : 0),
+    board: surprise * 6 * pres.resultWeight + fansDelta * pres.fansWeight,
+    fans: fansDelta,
     squad: pts === 3 ? 1 : pts === 0 ? -1 : 0,
   })
   adjustCoach(s, { stress: pts === 3 ? -3 : pts === 0 ? 4 + (surprise < -0.5 ? 2 : 0) : 0 })
@@ -505,7 +539,15 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     }
     lines.push(`${incident.text} Skutek: ${incident.effect}.`)
   }
+  if (derby) lines.push(derbyAftermath(s, pts))
+  if (speech) {
+    const note = speechAftermath(s, speech, diffAtHalf, pts, Math.max(50, Math.round(LEVELS[level].budget / 5000) * 50))
+    if (note) lines.push(note)
+  }
+  favoriteAfterMatch(s, played, new Set(pitch.filter((x) => x.goals > 0).map((x) => x.p.id)), isAvailable)
   trackBurnout(s)
+  const topScorer = [...pitch].sort((a, b) => b.goals - a.goals)[0]
+  const headline = matchHeadline(rng, s, { opp, my: myGoals, their: oppGoals, derby, scorer: topScorer?.goals ? topScorer.p.lastName : undefined, level })
   const best = [...ratings].sort((a, b) => b.rating - a.rating)[0]
   // jedna pochwała w gazecie na mecz, i to tylko za naprawdę wielki występ
   if (best && best.rating >= 8.5) news(s, `${best.name} z oceną ${best.rating.toFixed(1)}. Lokalna gazeta pisze o nim na pierwszej stronie.`)
@@ -522,6 +564,8 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
     ratings,
     myStrength: { att: Math.round(startStr.att * 10) / 10, def: Math.round(startStr.def * 10) / 10 },
     oppStrength: Math.round(oppStr * 10) / 10,
+    derby: derby || undefined,
+    headline,
   }
 }
 

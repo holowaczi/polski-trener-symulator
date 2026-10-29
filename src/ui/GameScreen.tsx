@@ -35,6 +35,7 @@ import { ConfirmButton, CupView, MatchView, ReportCard, NewsView, CareerView, Sq
 import { ClubView, CoachCard } from './profiles'
 import { COMP_ICON, pendingEuroMatch } from '../game/europe'
 import { HowToPlay, Tip } from './help'
+import { isDerby } from '../game/character'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
@@ -311,6 +312,7 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
   const mine = previewStrength(s)
   let label = 'Koniec sezonu'
   let oppStr: number | undefined
+  let derby = false
   const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
   const isCup = !!info?.cup
   const isPlayoff = !!info?.playoff
@@ -320,6 +322,7 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
     const f = info.league ?? info.cup ?? info.playoff ?? info.euro!
     oppStr = Math.round(teamPower(s.teams[f.home === s.clubId ? f.away : f.home]) * 10) / 10
     label = vs(f)
+    derby = isDerby(s, f.home === s.clubId ? f.away : f.home)
   }
   const comp = !info
     ? undefined
@@ -336,7 +339,8 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? `euro-${euroComp ?? 'LKE'}` : isCup ? 'cup' : 'liga'}`}>{comp}</span>} <b>{label}</b>
+          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? `euro-${euroComp ?? 'LKE'}` : isCup ? 'cup' : 'liga'}`}>{comp}</span>}{' '}
+          {derby && <span className="comp-tag derby">🔥 Derby</span>} <b>{label}</b>
         </span>
 
         <span className="playbar-str muted" title={`Ty: atak ${mine.att}, obrona ${mine.def}`}>

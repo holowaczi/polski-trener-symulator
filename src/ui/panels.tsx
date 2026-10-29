@@ -11,6 +11,7 @@ import { isPolish, nationInfo, nationOf, playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
 import { downloadText, exportFileName, exportSave } from './save'
+import { favoriteStory, SPEECHES, type Speech } from '../game/character'
 import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, euroTable, STAGE_NAME } from '../game/europe'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
@@ -204,11 +205,32 @@ function RatingsTable({ ratings }: { ratings: PlayerRating[] }) {
   )
 }
 
-export function MatchView({ s }: { s: GameState; act: Act }) {
+export function MatchView({ s, act }: { s: GameState; act: Act }) {
   const reports = s.reports.slice(0, 8)
   const bonus = teamBonus(s, previewStrength(s).xi)
+  const speech = s.tactic.speech ?? 'asystent'
   return (
     <div className="reports">
+      {s.phase === 'season' && !s.breakPending && (
+        <label className="speech">
+          <span>🗣️ Przemowa w przerwie</span>
+          <select
+            value={speech}
+            onChange={(e) =>
+              act((g) => {
+                g.tactic.speech = e.target.value as Speech
+              })
+            }
+          >
+            {SPEECHES.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+          <small className="muted">{SPEECHES.find((x) => x.id === speech)!.hint}</small>
+        </label>
+      )}
       {s.modifiers.length > 0 && (
         <div className="chips" aria-label="Aktywne efekty">
           {s.modifiers.map((m) => (
@@ -263,6 +285,7 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
           ) : (
             <span className="comp-tag">Liga · kolejka {r.round + 1}</span>
           )}
+          {r.derby && <span className="comp-tag derby">🔥 Derby</span>}
           <span className="result-badge">{mine > 0 ? 'Wygrana' : mine < 0 ? 'Porażka' : r.pens ? `Remis · karne ${(pensWinner(r.pens) === 'home') === (r.home === me) ? 'wygrane' : 'przegrane'}` : 'Remis'}</span>
         </div>
         <div className="score">
@@ -272,6 +295,7 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
           </b>
           <span className={r.pens && pensWinner(r.pens) === 'away' ? 'pens-win' : ''}>{teamName(s, r.away)}</span>
         </div>
+        {r.headline && <div className="headline">📰 {r.headline}</div>}
         {r.agg && <div className="pens-line">{r.agg}</div>}
         {r.pens && (
           <div className="pens-line">
@@ -521,7 +545,12 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                 </td>
                 <td className="left cell-name">
                   <div>
-                    {playerName(p)} <Flag p={p} /> <Status p={p} />
+                    {playerName(p)} <Flag p={p} /> {s.favorite?.playerId === p.id && s.favorite.season === s.season && (
+                      <span className="chip fav-chip" title={`Ulubieniec szatni: ${favoriteStory(s)}`}>
+                        💛 ulubieniec
+                      </span>
+                    )}{' '}
+                    <Status p={p} />
                   </div>
                   <Traits p={p} />
                 </td>

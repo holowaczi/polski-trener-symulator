@@ -1,3 +1,4 @@
+import type { Favorite, President, Speech } from './character'
 export type Position = 'BR' | 'OBR' | 'POM' | 'NAP'
 
 export type TraitId =
@@ -72,6 +73,8 @@ export interface Tactic {
   formation: Formation
   mentality: Mentality
   style: Style
+  /** przemowa w przerwie (domyślnie decyduje asystent) */
+  speech?: Speech
 }
 
 export interface Lineup {
@@ -280,6 +283,10 @@ export interface MatchReport {
   ratings: PlayerRating[]
   myStrength: { att: number; def: number }
   oppStrength: number
+  /** mecz z rywalem zza miedzy */
+  derby?: boolean
+  /** nagłówek z lokalnej prasy */
+  headline?: string
 }
 
 /** efekt czasowy: zmienia siłę drużyny przez kilka meczów */
@@ -408,6 +415,10 @@ export interface GameState {
   figurant?: number
   /** wybrany start kariery: od niego zależy mnożnik punktów */
   start?: StartInfo
+  /** prezes obecnego klubu */
+  president?: President
+  /** ulubieniec szatni w bieżącym sezonie */
+  favorite?: Favorite
   /** wypalenie: rośnie, gdy trener długo gra pod bardzo wysokim stresem */
   burnout?: number
   /** „brudy”: afery i obietnice bez pokrycia, które dziennikarze zbierają do teczki */

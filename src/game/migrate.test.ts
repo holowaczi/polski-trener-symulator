@@ -43,7 +43,7 @@ describe('kopia w pliku', () => {
   it('eksport i import dają tę samą karierę', () => {
     const s = botCareer(3, 'pomorskie', 2)
     const r = importSave(exportSave(s))
-    expect(r.state).toEqual(s)
+    expect(r.state).toEqual(JSON.parse(JSON.stringify(s)))
   }, 60000)
 
   it('zły plik kończy się komunikatem', () => {

@@ -2,6 +2,7 @@ import { LEVELS } from './data'
 import type { Rng } from './rng'
 import type { GameState } from './types'
 import { adjustCoach, adjustTrust, club, clubLeague, formatMoney, news } from './util'
+import { PRESIDENT_INFO, presidentOf } from './character'
 
 /**
  * Prośba do prezesa o pieniądze na transfery albo większy limit pensji.
@@ -28,7 +29,7 @@ function weeksSinceAsk(s: GameState): number {
 }
 
 /** ocena szans: to samo liczy się przy prośbie, tylko bez losowania */
-export function askOutlook(s: GameState, position?: number): AskOutlook {
+export function askOutlook(s: GameState, position?: number, kind?: BoardAsk): AskOutlook {
   const reasons: string[] = []
   let mood = s.trust.board
   reasons.push(`relacje z zarządem: ${s.trust.board}/100`)
@@ -51,6 +52,15 @@ export function askOutlook(s: GameState, position?: number): AskOutlook {
     mood -= asks * 12
     reasons.push(`prośby w tym sezonie: ${asks} (−${asks * 12})`)
   }
+  const pres = presidentOf(s)
+  if (pres && kind) {
+    const info = PRESIDENT_INFO[pres.type]
+    const d = kind === 'transfery' ? info.askTransfer : info.askWages
+    if (d) {
+      mood += d
+      reasons.push(`${info.label.toLowerCase()} ${kind === 'transfery' ? 'i transfery' : 'i pensje'}: ${d > 0 ? '+' : ''}${d}`)
+    }
+  }
   const since = weeksSinceAsk(s)
   const waitWeeks = Math.max(0, ASK_COOLDOWN - since)
   mood = Math.max(0, Math.min(100, Math.round(mood)))
@@ -61,7 +71,7 @@ export function askOutlook(s: GameState, position?: number): AskOutlook {
 export function askBoard(rng: Rng, s: GameState, kind: BoardAsk, position?: number): string {
   const t = club(s)
   if (!t) return ''
-  const o = askOutlook(s, position)
+  const o = askOutlook(s, position, kind)
   if (o.waitWeeks > 0) {
     adjustTrust(s, { board: -4 })
     return `Prezes: „Panie trenerze, przecież dopiero co rozmawialiśmy”. Wróć za ${o.waitWeeks} ${o.waitWeeks === 1 ? 'tydzień' : 'tygodnie'}. Zarząd jest poirytowany.`

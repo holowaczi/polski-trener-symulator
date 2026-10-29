@@ -7,6 +7,7 @@ import { BURNOUT_END, DIRT_END } from '../game/endings'
 import type { GameState } from '../game/types'
 import { wageBill, withRng } from '../game/util'
 import { parentTeam, reserveTeamName } from '../game/reserves'
+import { favoritePlayer, favoriteStory, PRESIDENT_INFO, presidentOf, rivalId } from '../game/character'
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0)
 
@@ -35,6 +36,10 @@ export function ClubView({ s, act }: { s: GameState; act: Act }) {
   const bill = wageBill(s)
   const expiring = s.squad.filter((p) => (p.contract ?? 1) <= 1).length
   const o = askOutlook(s, pos)
+  const pres = presidentOf(s)
+  const presInfo = pres ? PRESIDENT_INFO[pres.type] : undefined
+  const rival = rivalId(s)
+  const fav = favoritePlayer(s)
   return (
     <div className="profile">
       <h2>{t.name}</h2>
@@ -62,6 +67,23 @@ export function ClubView({ s, act }: { s: GameState; act: Act }) {
         <dd>
           {s.squad.length} zawodników, średnia wieku {avg(s.squad.map((p) => p.age)).toFixed(1)}
         </dd>
+        {rival !== undefined && (
+          <>
+            <dt>Rywal</dt>
+            <dd>
+              🔥 {s.teams[rival].name}
+              {s.teams[rival].town === t.town ? ' (derby miasta)' : ''}. Mecze z nim mocniej ruszają kibicami, zarządem i nerwami.
+            </dd>
+          </>
+        )}
+        {fav && (
+          <>
+            <dt>Ulubieniec szatni</dt>
+            <dd>
+              💛 {fav.firstName} {fav.lastName}: {favoriteStory(s)}. Posadzisz go na dłużej na ławce, szatnia się upomni.
+            </dd>
+          </>
+        )}
         <dt>Kończące się umowy</dt>
         <dd>{expiring ? `${expiring} (ostatni rok albo wygasłe)` : 'brak'}</dd>
         {reserveTeamName(s) && (
@@ -87,6 +109,15 @@ export function ClubView({ s, act }: { s: GameState; act: Act }) {
       </dl>
 
       <h3>Gabinet prezesa</h3>
+      {pres && presInfo && (
+        <p>
+          Prezes {pres.name} · <span className="president-type">{presInfo.label}</span>
+          <br />
+          <span className="small muted">
+            {presInfo.desc} Zwalnia, gdy relacje z zarządem spadną poniżej {presInfo.fireAt}.
+          </span>
+        </p>
+      )}
       <p>
         <b>{o.label}</b> <span className="muted small">(nastrój {o.mood}/100)</span>
       </p>
