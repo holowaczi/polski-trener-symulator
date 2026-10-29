@@ -17,6 +17,7 @@ import {
   clamp,
   generatePlayer,
   generateSquad,
+  clubPedigree,
   generateWorld,
   leagueOf,
   makeFixtures,
@@ -92,8 +93,9 @@ export function directPromotion(s: GameState, level: number): number {
 }
 
 /** czy drużyna może awansować (rezerwy nie wyżej niż II liga i zawsze poniżej pierwszej drużyny) */
-function canGoUp(s: GameState, teamId: number, level: number): boolean {
+function canGoUp(s: GameState, teamId: number, level: number, blocked?: Set<number>): boolean {
   if (!s.teams[teamId].reserve) return true
+  if (blocked?.has(teamId)) return false
   if (level + 1 > RESERVE_MAX_LEVEL) return false
   // rezerwy nie mogą grać na tym samym poziomie co pierwsza drużyna ani wyżej
   const parent = parentTeam(s, teamId)
@@ -127,6 +129,20 @@ export interface PromotionPlan {
  * więc liczba drużyn się nie zmienia.
  */
 export function promotionPlan(s: GameState, tables: Map<League, TableRow[]>): PromotionPlan {
+  // rezerwy nie awansują na poziom, na który właśnie spada ich pierwsza drużyna: wtedy liczymy jeszcze raz bez nich
+  const blocked = new Set<number>()
+  for (;;) {
+    const plan = planOnce(s, tables, blocked)
+    const clash = [...plan.up].filter((id) => {
+      const parent = parentTeam(s, id)
+      return !!parent && !blocked.has(id) && (plan.down.has(parent.id) || plan.gone.has(parent.id)) && s.teams[id].level + 1 >= parent.level - 1
+    })
+    if (!clash.length) return plan
+    clash.forEach((id) => blocked.add(id))
+  }
+}
+
+function planOnce(s: GameState, tables: Map<League, TableRow[]>, blocked: Set<number>): PromotionPlan {
   const up = new Set<number>()
   const down = new Set<number>()
   const gone = new Set<number>()
@@ -161,7 +177,7 @@ export function promotionPlan(s: GameState, tables: Map<League, TableRow[]>): Pr
     for (const lg of groupsAt(s, level)) {
       const eligible = tables
         .get(lg)!
-        .filter((r) => canGoUp(s, r.teamId, level))
+        .filter((r) => canGoUp(s, r.teamId, level, blocked))
         .map((r) => r.teamId)
       let ids: number[]
       if (!hasPlayoffs(s, level)) ids = eligible.slice(0, k)
@@ -194,14 +210,25 @@ export function promotionPlan(s: GameState, tables: Map<League, TableRow[]>): Pr
       const below = level > 0 && groupsAt(s, level - 1).some((l) => level - 1 >= 5 || leagueRegion(s, l) === leagueRegion(s, lg))
       // najniższa klasa: braki uzupełniają nowe kluby, nadmiar się wycofuje
       if (!below && !extra.has(lg)) extra.set(lg, Math.max(0, nUp - inbox.get(lg)!.length))
-      const n = Math.max(0, inbox.get(lg)!.length + (extra.get(lg) ?? 0) - nUp)
-      downCount.set(lg, n)
-      if (!n) continue
-      const rel = tables
+      // rezerwy, których pierwsza drużyna spada na ich poziom albo niżej, spadają z automatu
+      const forced = tables
         .get(lg)!
         .map((r) => r.teamId)
-        .filter((id) => !up.has(id))
-        .slice(-n)
+        .filter((id) => {
+          const parent = !up.has(id) ? parentTeam(s, id) : undefined
+          return !!parent && parent.level + (up.has(parent.id) ? 1 : 0) - (down.has(parent.id) || gone.has(parent.id) ? 1 : 0) <= level
+        })
+      const natural = Math.max(0, inbox.get(lg)!.length + (extra.get(lg) ?? 0) - nUp)
+      // gdy rezerw do zrzucenia jest więcej niż miejsc spadkowych, braki uzupełniają nowe kluby, żeby grupa nie zmalała
+      if (forced.length > natural) extra.set(lg, (extra.get(lg) ?? 0) + forced.length - natural)
+      const n = Math.max(forced.length, natural)
+      downCount.set(lg, n)
+      if (!n) continue
+      const rest = tables
+        .get(lg)!
+        .map((r) => r.teamId)
+        .filter((id) => !up.has(id) && !forced.includes(id))
+      const rel = [...forced, ...rest.slice(rest.length - (n - forced.length))]
       for (const id of rel) {
         outs.get(lg)!.push(id)
         const t = level > 0 ? target(level - 1, id, 'down', lg) : undefined
@@ -1493,9 +1520,6 @@ export function endSeason(s: GameState): void {
 
   // awanse i spadki we wszystkich ligach i grupach
   for (const m of plan.moves) m.lg.teamIds = m.lg.teamIds.filter((id) => !m.out.includes(id)).concat(m.in)
-  withRng(s, (rng) => {
-    for (const n of plan.newcomers) n.lg.teamIds.push(...newcomerTeams(rng, s, n.lg, n.count))
-  })
   for (const id of plan.up) {
     s.teams[id].level++
     s.teams[id].strength += 2
@@ -1504,11 +1528,18 @@ export function endSeason(s: GameState): void {
     s.teams[id].level--
     s.teams[id].strength -= 2
   }
+  // nowi dopiero po przesunięciach: rezerwy wracają tylko poniżej nowego poziomu pierwszej drużyny, a świeży spadkowicz nie wraca od razu
+  withRng(s, (rng) => {
+    for (const n of plan.newcomers) n.lg.teamIds.push(...newcomerTeams(rng, s, n.lg, n.count, plan.down))
+  })
   withRng(s, (rng) => {
     for (const team of Object.values(s.teams)) {
       const base = LEVELS[team.level].base
+      // wielka marka ciągnie w górę: kibice, stadion i pieniądze zostają nawet po spadku
+      const pedigree = clubPedigree(team.name)
+      const pull = pedigree ? Math.max(0, Math.min(10, (pedigree - base) * 0.7)) : 0
       // silne kluby powoli wracają do średniej ligi, ale nie tracą od razu całej przewagi
-      team.strength = Math.round(team.strength + (base + (team.id % 7) - 3 - team.strength) * 0.12 + rng.normal(0, 2.5))
+      team.strength = Math.round(team.strength + (base + pull + (team.id % 7) - 3 - team.strength) * 0.12 + rng.normal(0, 2.5))
       team.form = undefined
     }
     if (t) {

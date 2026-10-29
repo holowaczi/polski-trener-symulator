@@ -1916,6 +1916,14 @@ blockquote cite::before {
   font-weight: 400;
   color: var(--muted);
 }
+.role-sub {
+  display: block;
+  margin-top: 2px;
+}
+.table td.wrap {
+  white-space: normal;
+  min-width: 90px;
+}
 .flag {
   font-size: 0.9em;
   cursor: default;
@@ -2307,4 +2315,60 @@ blockquote cite::before {
 }
 .badges-box .badges {
   margin-top: 12px;
+}
+
+/* szerokie tabele z transferów składają się w karty już na tablecie i małym laptopie */
+@media (max-width: 920px) {
+  .table.stack-md thead {
+    display: none;
+  }
+  .table.stack-md,
+  .table.stack-md tbody {
+    display: block;
+  }
+  .table.stack-md tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table.stack-md td {
+    display: block;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    background: transparent !important;
+    font-size: 0.82rem;
+  }
+  .table.stack-md td[data-label]::before {
+    content: attr(data-label) ' ';
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .table.stack-md td.cell-name {
+    flex: 1 1 50%;
+    min-width: 0;
+    font-size: 0.95rem;
+    white-space: normal;
+  }
+  .table.stack-md td.cell-action {
+    margin-left: auto;
+  }
+  .table.stack-md tr.xi {
+    background: var(--promo);
+  }
+  .table.stack-md tr.bench {
+    background: var(--surface-2);
+  }
+  .table.stack-md tr.me {
+    background: var(--me);
+  }
+  .scroll-x:has(.table.stack-md) {
+    overflow: visible;
+  }
+  .table.stack-md td {
+    font-size: 0.85rem;
+  }
 }

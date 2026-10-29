@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.13.5 (alfa) · 29 października 2026
+
+- **Wielkie marki wracają tam, gdzie ich miejsce.** Lech, Legia, Raków i reszta prawdziwych klubów mają teraz markę, która nie znika po spadku: kibice, stadion i pieniądze ciągną je z powrotem w górę. Dotąd po kilkunastu sezonach połowa Ekstraklasy potrafiła wylądować w III lidze. Teraz po 20 sezonach w Ekstraklasie gra mniej więcej połowa jej obecnych klubów, a z wielkiej szóstki zwykle pięć.
+- **Rezerwy nie grają w jednej lidze z pierwszą drużyną.** Gdy Legia spada do ligi, w której grają jej rezerwy, Legia II spada z automatu o szczebel niżej. Rezerwy nie awansują też tam, gdzie akurat spada ich pierwsza drużyna, i nie wracają z niższych lig ponad nią. Stare zapisy naprawią się same po najbliższym sezonie.
+- **Tabele kupna i sprzedaży mieszczą się na ekranie.** Na tablecie i małym laptopie zawodnicy wyświetlają się jako karty, jak na telefonie, a na szerokim ekranie długie nazwy klubów i „za kogo” w składzie zawijają się do drugiej linii.
+
 ## 0.13.4 (alfa) · 29 października 2026
 
 - **Junior musi zmieścić się w limicie pensji.** Zarząd nie podnosi już limitu na wychowanków. Jeśli junior się nie mieści, nie podpisuje umowy i idzie do sąsiedniego klubu, a podsumowanie sezonu mówi o tym wprost. Chcesz swoich wychowanków, zostaw w pensjach trochę miejsca.

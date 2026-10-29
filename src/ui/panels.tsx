@@ -889,7 +889,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
         rezerw. Kontuzje i kartki pomijamy, bo kiedyś się kończą.
       </p>
       <div className="scroll-x">
-        <table className="table stack">
+        <table className="table stack stack-md">
           <thead>
             <tr>
               <th>Poz.</th>
@@ -919,7 +919,8 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                     <Traits p={p} />
                   </td>
                   <td className="left" data-label="W składzie">
-                    <RoleTag role={fit.role} note={fit.replaces ? `za ${fit.replaces.firstName[0]}. ${fit.replaces.lastName}` : undefined} />
+                    <RoleTag role={fit.role} />
+                    {fit.replaces && <span className="role-sub small muted">za {fit.replaces.firstName[0]}. {fit.replaces.lastName}</span>}
                   </td>
                   <td data-label="Wiek">{p.age}</td>
                   <td data-label="Um.">
@@ -929,7 +930,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
                   <td data-label="Umowa">
                     <Contract p={p} />
                   </td>
-                  <td className="left small" data-label="Skąd">{from}</td>
+                  <td className="left small wrap" data-label="Skąd">{from}</td>
                   <td data-label="Cena">
                     <b>{fee ? formatMoney(fee) : 'za darmo'}</b>
                   </td>
@@ -966,7 +967,7 @@ export function TransferView({ s, act }: { s: GameState; act: Act }) {
         Szybka sprzedaż daje 70% wartości, a zawodnik w ostatnim roku umowy tylko 45%. Lepsze pieniądze dają oferty innych klubów.
       </p>
       <div className="scroll-x">
-        <table className="table stack">
+        <table className="table stack stack-md">
           <thead>
             <tr>
               <th>Poz.</th>

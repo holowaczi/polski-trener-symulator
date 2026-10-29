@@ -2,7 +2,7 @@ import { CLUB_PREFIXES, FIRST_NAMES, FOREIGN_NAMES, LAST_NAMES, LEVELS, POLAND, 
 import { EKSTRAKLASA, III_LIGA, II_LIGA, I_LIGA, REGION_GROUP, REGION_TOWNS, type RealClub } from './realData'
 import { LOWER_LEAGUES } from './lowerData'
 import type { Rng } from './rng'
-import type { Fixture, GameState, League, Player, Position, TraitId } from './types'
+import type { Fixture, GameState, League, Player, Position, Team, TraitId } from './types'
 import { regionOfTown } from './regions'
 
 export function clamp(v: number, min: number, max: number): number {
@@ -138,18 +138,36 @@ export function generateWorld(rng: Rng, state: Pick<GameState, 'teams' | 'league
   for (const r of Object.keys(LOWER_LEAGUES).sort((a, b) => a.localeCompare(b, 'pl'))) if (r !== region) addRegional(5, r)
 }
 
+let pedigrees: Map<string, number> | undefined
+
+/** siła klubu z prawdziwych tabel na starcie gry: miara marki, która nie znika po spadku (rezerwy jej nie mają) */
+export function clubPedigree(name: string): number | undefined {
+  pedigrees ??= new Map(
+    [...EKSTRAKLASA, ...I_LIGA, ...II_LIGA, ...Object.values(III_LIGA).flat()].filter((c) => !c.reserve).map((c) => [c.name, c.strength] as const),
+  )
+  return pedigrees.get(name)
+}
+
+/** rezerwy wracają tylko poniżej swojej pierwszej drużyny */
+function reserveBlocked(s: Pick<GameState, 'teams'>, t: Team, level: number): boolean {
+  if (!t.reserve) return false
+  const name = t.name.replace(/\s+(II|III)(?=\s|$)/, '')
+  const parent = Object.values(s.teams).find((x) => x.name === name && !x.reserve)
+  return !!parent && parent.level <= level
+}
+
 /**
  * Nowe drużyny w grupie spoza świata gry: do IV ligi innego województwa wchodzą kluby z jego okręgówki
  * (najpierw ci, którzy kiedyś z niej spadli), do najniższej klasy nowe kluby ze wsi.
  */
-export function newcomerTeams(rng: Rng, s: Pick<GameState, 'teams' | 'leagues' | 'nextId' | 'coach'>, lg: League, count: number): number[] {
+export function newcomerTeams(rng: Rng, s: Pick<GameState, 'teams' | 'leagues' | 'nextId' | 'coach'>, lg: League, count: number, justDown?: Set<number>): number[] {
   const region = lg.region ?? s.coach.region
   const inLeague = new Set(s.leagues.flatMap((l) => l.teamIds))
   const names = new Set(Object.values(s.teams).map((t) => t.name))
   const level = lg.level
   const ids: number[] = []
   const returning = rng.shuffle(
-    Object.values(s.teams).filter((t) => !inLeague.has(t.id) && !t.guest && t.region === region && t.level === level - 1),
+    Object.values(s.teams).filter((t) => !inLeague.has(t.id) && !justDown?.has(t.id) && !t.guest && t.region === region && t.level === level - 1 && !reserveBlocked(s, t, level)),
   )
   const fresh = level === 5 ? rng.shuffle(lowerTier(4, region)?.groups.flatMap((g) => g.clubs) ?? []).filter((c) => !names.has(c.name) && !c.reserve) : []
   for (let i = 0; i < count; i++) {

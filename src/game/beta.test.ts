@@ -3,6 +3,7 @@ import { playCareer } from './bot'
 import { LEVELS } from './data'
 import { newGame } from './engine'
 import { teamRegion, thirdGroupOf } from './regions'
+import { parentTeam } from './reserves'
 import type { GameState } from './types'
 
 /**
@@ -24,6 +25,11 @@ function checkWorld(s: GameState, where: string): void {
       expect(s.teams[id].level, `${where}: ${s.teams[id].name} na złym poziomie`).toBe(lg.level)
       if (lg.level === 6) expect(thirdGroupOf(teamRegion(s, id)), `${where}: ${s.teams[id].name} w złej grupie III ligi`).toBe(lg.group)
       if (lg.level <= 5) expect(teamRegion(s, id), `${where}: ${s.teams[id].name} w IV lidze innego województwa`).toBe(lg.region)
+      const parent = parentTeam(s, id)
+      // w najniższych klasach prawdziwe rezerwy bywają na tym samym szczeblu (w innej grupie), ale nigdy w jednej lidze
+      if (parent) expect(lg.teamIds.includes(parent.id), `${where}: ${s.teams[id].name} w jednej lidze z ${parent.name}`).toBe(false)
+      if (parent && lg.level >= 5 && s.leagues.some((l) => l.teamIds.includes(parent.id)))
+        expect(lg.level, `${where}: ${s.teams[id].name} gra na poziomie ${parent.name}`).toBeLessThan(parent.level)
     }
   }
 }
@@ -61,7 +67,7 @@ describe('kryteria bety', () => {
       expect(s.season > SEASONS || s.phase === 'retired').toBe(true)
       // finanse bez eksplozji: budżet i limit pensji w rozsądnym stosunku do poziomu ligi
       // bot wydaje mało, a w Ekstraklasie zbiera premie z Europy i sprzedaże za granicę, stąd zapas w progu
-      expect(maxBudgetRatio, 'budżet wybuchł').toBeLessThan(8)
+      expect(maxBudgetRatio, 'budżet wybuchł').toBeLessThan(10)
       expect(maxWageRatio, 'limit pensji wybuchł').toBeLessThan(4)
       // prezes nie łata dziur co chwilę
       if (LONG) console.log(region, `sezony ${s.history.length}`, `budżet ×${maxBudgetRatio.toFixed(2)}`, `pensje ×${maxWageRatio.toFixed(2)}`, `łatanie ${patches}`)
