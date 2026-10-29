@@ -1,5 +1,10 @@
 # Zmiany
 
+## 0.13.3 (alfa) · 29 października 2026
+
+- **Juniorzy nie zatykają już limitu pensji.** Dwóch wychowanków co lato potrafiło wypchnąć pensje ponad limit, a wtedy nie dało się nikogo kupić ani przedłużyć, a na koniec sezonu zarząd jeszcze się obrażał. Teraz, gdy to juniorzy przekraczają limit, zarząd podnosi go o różnicę i mówi to w podsumowaniu sezonu.
+- Wychowankowie zaczynają na umowie juniorskiej: dostają mniej więcej jedną trzecią pensji seniora zamiast połowy. Na lody wystarczy.
+
 ## 0.13.2 (alfa) · 29 października 2026
 
 - **Pieniądze w niższych ligach mają sens.** Kwoty w zdarzeniach rosną teraz z budżetem ligi, a nie z sufitu. Dotąd syn wójta albo kiełbasa z masarni potrafiły w klasie okręgowej przynieść cztery roczne budżety naraz. Teraz to miły dodatek, a nie wygrana w totka.
