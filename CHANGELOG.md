@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.12.1 (alfa) · 29 października 2026
+
+- **72 nowe zdarzenia, w grze jest ich teraz prawie 200.** Najwięcej przybyło w I lidze i Ekstraklasie, gdzie dotąd szybko się powtarzały: kamera w szatni do serialu, dyrektor sportowy z prezentacją na 80 slajdów, superagent młodego talentu, skaut z Holandii na trybunie, lot czarterem z sześciogodzinnym opóźnieniem, prezes z prywatnym samolotem i szwagrem za sterami, hymn ligi śpiewany przez trenerów.
+- Niższe ligi też dostały nowe historie: zalane boisko i wiaderka, autokar z „tylko paskiem”, matura w tygodniu meczowym, wygrana w totka, trybuna rodzinna, kontrola skarbowa i pan Zdzisio z pijawkami.
+- Każda opcja każdego zdarzenia jest teraz sprawdzana automatycznie: nie wpędza klubu ani trenera w debet i nie zostawia w tekście dziur.
+
 ## 0.12.0 (alfa) · 29 października 2026
 
 Sezon nabiera charakteru. Prezes ma swoje humory, sąsiedzi zza miedzy swoje transparenty, a szatnia swojego ulubieńca.
