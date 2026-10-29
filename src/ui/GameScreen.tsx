@@ -34,6 +34,7 @@ import type { GameState, JobOffer } from '../game/types'
 import { ConfirmButton, CupView, MatchView, ReportCard, NewsView, CareerView, SquadView, TableView, TacticView, TransferView } from './panels'
 import { ClubView, CoachCard } from './profiles'
 import { COMP_ICON, pendingEuroMatch } from '../game/europe'
+import { HowToPlay, Tip } from './help'
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
@@ -52,6 +53,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 export function GameScreen({ s, act }: { s: GameState; act: Act }) {
   const [tab, setTab] = useState<Tab>('mecz')
   const [auto, setAuto] = useState<AutoState>({ speed: 1, running: false })
+  const [help, setHelp] = useState(false)
   const team = club(s)
   // ostatni mecz przed oknem, końcem sezonu albo zwolnieniem: pokazujemy go, zanim gra pójdzie dalej
   const [seenSeq, setSeenSeq] = useState(() => s.lastReport?.seq ?? 0)
@@ -81,10 +83,21 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
 
   return (
     <main className="game">
-      <Header s={s} />
+      <Header s={s} onHelp={() => setHelp(true)} />
+      {help && <HowToPlay onClose={() => setHelp(false)} />}
       {showLast && <LastMatchView s={s} onContinue={() => setSeenSeq(lastSeq)} />}
-      {!showLast && s.phase === 'hiring' && <HiringView s={s} act={act} />}
-      {!showLast && s.phase === 'seasonEnd' && <SeasonEndView s={s} act={act} />}
+      {!showLast && s.phase === 'hiring' && (
+        <>
+          <Tip id="hiring" />
+          <HiringView s={s} act={act} />
+        </>
+      )}
+      {!showLast && s.phase === 'seasonEnd' && (
+        <>
+          <Tip id="seasonEnd" />
+          <SeasonEndView s={s} act={act} />
+        </>
+      )}
       {!showLast && team && (s.phase === 'season' || s.phase === 'transfer' || s.phase === 'event') && (
         <>
           <nav className="tabs" aria-label="Sekcje">
@@ -116,6 +129,8 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
               </button>
             </div>
           )}
+          {s.phase === 'transfer' && <Tip id="transfer" />}
+          {s.phase === 'season' && tab === 'mecz' && <Tip id={s.reports.length ? 'meters' : 'firstMatch'} />}
           <section className="panel">
             {tab === 'mecz' && <MatchView s={s} act={act} />}
             {tab === 'tabela' && <TableView s={s} />}
@@ -196,7 +211,7 @@ function Meter({ label, value, invert }: { label: string; value: number; invert?
   )
 }
 
-function Header({ s }: { s: GameState }) {
+function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
   const team = club(s)
   const lg = clubLeague(s)
   // przed pierwszym meczem miejsce w tabeli nic nie znaczy
@@ -221,6 +236,9 @@ function Header({ s }: { s: GameState }) {
         <div className="hud-coach">
           <div className="coach">
             {s.coach.firstName} {s.coach.lastName}
+            <button className="help-btn" onClick={onHelp} title="Jak grać" aria-label="Jak grać">
+              ?
+            </button>
           </div>
           <div className="small muted">
             {lic && !lic.ok ? (
@@ -377,6 +395,7 @@ function EventModal({ s, act }: { s: GameState; act: Act }) {
     <div className="modal-bg">
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-tag">Zdarzenie</div>
+        <Tip id="event" />
         <p className="event-text">{ev.text}</p>
         <div className="options">
           {ev.options.map((o, i) => (

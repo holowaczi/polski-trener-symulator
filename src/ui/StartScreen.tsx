@@ -6,6 +6,7 @@ import { licenseCovers, START_LICENSES, startMultiplier } from '../game/score'
 import type { GameState, License } from '../game/types'
 import { bottomLevel, leagueOf } from '../game/world'
 import { teamRegion } from '../game/regions'
+import { HowToPlay } from './help'
 import { brokenSaveText, downloadText, exportFileName, exportSave, importSave, loadRecords } from './save'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 
 export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) {
   const [importProblem, setImportProblem] = useState<string | undefined>()
+  const [help, setHelp] = useState(false)
   const broken = useMemo(() => (loadProblem ? brokenSaveText() : null), [loadProblem])
 
   const importFile = async (file: File | undefined) => {
@@ -95,7 +97,11 @@ export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) 
         <h1>Polski Trener Symulator</h1>
         <p className="muted">Od C-klasy do Ekstraklasy. Albo do zwolnienia w trzeciej kolejce.</p>
         <p className="muted small">Prawdziwe kluby sezonu 2026/27, od Ekstraklasy po B-klasę. Województwo decyduje o grupie III ligi i o lokalnych ligach.</p>
+        <button className="ghost" onClick={() => setHelp(true)}>
+          📖 Jak grać
+        </button>
       </header>
+      {help && <HowToPlay onClose={() => setHelp(false)} />}
 
       {loadProblem && (
         <section className="card save-problem" role="alert">

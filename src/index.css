@@ -2119,3 +2119,63 @@ blockquote cite::before {
   padding: 2px 8px;
   flex-shrink: 0;
 }
+
+/* ---------- podpowiedzi i „Jak grać” ---------- */
+.tip {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  background: var(--surface);
+  font-size: 0.92rem;
+}
+.tip-title {
+  font-weight: 700;
+  color: var(--accent);
+}
+.tip p {
+  margin: 4px 0 0;
+}
+.tip .row {
+  margin: 8px 0 0;
+}
+.modal .tip {
+  margin: 8px 0;
+  background: var(--surface-2);
+}
+.help-btn {
+  margin-left: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+.modal.help {
+  max-height: 88vh;
+  overflow-y: auto;
+  max-width: 560px;
+}
+.help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.help-head h2 {
+  margin: 0;
+}
+.help details {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+.help summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.help details p {
+  margin: 6px 0;
+}

@@ -1,5 +1,16 @@
 # Zmiany
 
+## 0.11.0 (alfa) · 29 października 2026
+
+Nowy trener nie musi już uczyć się wszystkiego metodą prezesa, czyli na błędach.
+
+### Samouczek
+- **Podpowiedzi przy pierwszym razie:** pierwsza oferta pracy, pierwsze okno transferowe, pierwszy mecz, liczniki po pierwszym meczu, pierwsze zdarzenie i pierwszy koniec sezonu. Każda znika po „Rozumiem”, a „Wyłącz podpowiedzi” chowa wszystkie naraz.
+- Podpowiedzi pamięta przeglądarka, więc przy drugiej karierze już nie wyskakują. W „Jak grać” można je włączyć od nowa.
+
+### Jak grać
+- **Ekran „📖 Jak grać”** na starcie i pod znakiem zapytania przy nazwisku trenera w trakcie gry. Krótko o sezonie, licznikach (kiedy prezes zwalnia, kiedy szatnia się buntuje), licencjach i reputacji, transferach i pieniądzach, punktach kariery i zapisie gry.
+
 ## 0.10.0 (alfa) · 29 października 2026
 
 Kariera nie znika już razem z nową wersją gry. Trener może zmienić telefon, a nawet wyczyścić przeglądarkę, i dalej prowadzić swoją Unię Lisowice.
