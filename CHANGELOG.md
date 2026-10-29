@@ -1,5 +1,13 @@
 # Zmiany
 
+## 0.13.2 (alfa) · 29 października 2026
+
+- **Pieniądze w niższych ligach mają sens.** Kwoty w zdarzeniach rosną teraz z budżetem ligi, a nie z sufitu. Dotąd syn wójta albo kiełbasa z masarni potrafiły w klasie okręgowej przynieść cztery roczne budżety naraz. Teraz to miły dodatek, a nie wygrana w totka.
+- Wielkie umowy sponsorskie (stroje, nazwa stadionu, dotacja z gminy, youtuber) są skromniejsze. Prezes dalej się cieszy, ale już nie kupuje jachtu.
+- Kluby z zagranicy płacą za Twoich zawodników trochę mniej. Dalej wyraźnie więcej niż polskie, tylko bez szaleństwa.
+- Z nadwyżki na koniec sezonu przechodzi najwyżej pół rocznego budżetu. Resztę zjadają długi, premie i nowy samochód służbowy prezesa, a Wieści o tym donoszą.
+- W długich karierach budżet w Ekstraklasie rośnie najwyżej do około sześciu rocznych budżetów zamiast jedenastu.
+
 ## 0.13.1 (alfa) · 29 października 2026
 
 - **Zapis nie przycina gry na słabszym telefonie.** Kariera pakuje się teraz w tle wbudowaną kompresją przeglądarki. Dotąd na wolnym telefonie każdy zapis potrafił zamrozić ekran na prawie sekundę, co w trybie automatycznym było czuć co mecz. Przy zamykaniu karty gra dalej zapisuje się od razu. Zapisy z 0.10–0.13 wczytują się bez zmian.

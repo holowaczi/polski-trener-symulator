@@ -1614,7 +1614,10 @@ export function stayAtClub(s: GameState): void {
   const last = s.history[s.history.length - 1]
   const promoted = !!last && last.clubName === t.name && last.outcome.includes('awans')
   const factor = promoted ? 0.5 : 0.8 + s.trust.board / 250
-  s.budget = Math.round(LEVELS[t.level].budget * factor) + Math.round(Math.max(0, s.budget) * 0.3)
+  // z oszczędności przechodzi 30%, ale najwyżej pół rocznego budżetu: resztę zjadają długi, premie i „inwestycje” prezesa
+  const carry = Math.min(Math.max(0, s.budget) * 0.3, LEVELS[t.level].budget * 0.5)
+  if (carry < Math.max(0, s.budget) * 0.3) news(s, `Z zeszłorocznej nadwyżki zostaje ${formatMoney(Math.round(carry))}. Reszta poszła na długi, premie i nowy samochód służbowy prezesa.`)
+  s.budget = Math.round(LEVELS[t.level].budget * factor + carry)
   s.salary = Math.round(Math.max(s.salary, LEVELS[t.level].salary * (0.8 + s.coach.reputation / 200)) / 1000) * 1000
   // limit pensji rośnie stopniowo, żeby po awansie nie dało się od razu kupić nowej drużyny
   s.wageLimit = promoted ? Math.max(s.wageLimit, Math.min(wageLimitFor(t), Math.round((s.wageLimit * 1.35) / 100) * 100)) : Math.max(s.wageLimit, wageLimitFor(t))

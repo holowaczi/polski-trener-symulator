@@ -3,6 +3,7 @@ import type { GameState, Player, TraitId } from './types'
 import { addModifier, adjustCoach, adjustTrust, isAvailable, nudgeForm, setMorale } from './util'
 import { addDirt, DIRT_SCANDAL } from './endings'
 import { isPolish } from './world'
+import { LEVELS } from './data'
 import { presidentOf, rivalId } from './character'
 
 export interface EventCtx {
@@ -38,8 +39,11 @@ const scandal = (s: GameState, text: string) => {
   addDirt(s, DIRT_SCANDAL)
 }
 const k = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)} tys. zł` : `${v} zł`)
-/** kwota zależna od poziomu ligi */
-const money = (s: GameState, base: number) => Math.round(base * Math.pow(2.2, s.teams[s.clubId!].level))
+/** kwota zależna od poziomu ligi: `base` to tyle złotych w Ekstraklasie na każde 1250 zł budżetu, niżej proporcjonalnie do budżetu ligi */
+const money = (s: GameState, base: number) => {
+  const v = (base * LEVELS[s.teams[s.clubId!].level].budget) / 1250
+  return v >= 10_000 ? Math.round(v / 1000) * 1000 : v >= 1000 ? Math.round(v / 100) * 100 : Math.max(1, Math.round(v))
+}
 /** płaci z budżetu klubu tylko wtedy, gdy klub ma te pieniądze; zwraca, czy zapłacono */
 const pay = (s: GameState, c: number) => {
   if (s.budget < c) return false
@@ -456,7 +460,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Daj synowi szansę',
         apply: ({ s, rng }) => {
-          s.budget += money(s, 3000)
+          s.budget += money(s, 600)
           teamMorale(s, -5)
           mod(s, 'Syn wójta w składzie', -1, 1)
           return rng.chance(0.2)
@@ -483,7 +487,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Zgódź się na kiełbasę',
         apply: ({ s }) => {
-          s.budget += money(s, 2500)
+          s.budget += money(s, 500)
           s.wageLimit = Math.round(s.wageLimit * 1.05)
           trust(s, 5, -3, -2)
           return 'Nowe koszulki zrobiły furorę w internecie. Klub ma więcej pieniędzy na pensje, zawodnicy mniej godności.'
@@ -493,7 +497,7 @@ export const EVENTS: GameEvent[] = [
         label: 'Negocjuj mniejszą kiełbasę',
         apply: ({ s, rng }) => {
           if (rng.chance(0.6)) {
-            s.budget += money(s, 1500)
+            s.budget += money(s, 300)
             return 'Kompromis: kiełbaska na rękawie. Masarnia zostaje.'
           }
           trust(s, -5, 0, 0)
@@ -758,7 +762,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Podpisz umowę sponsorską z kebabem',
         apply: ({ s, p }) => {
-          s.budget += money(s, 1000)
+          s.budget += money(s, 400)
           trust(s, 0, 4, 4)
           setMorale(p!, 10)
           return 'Kebab „U Ahmeda” nowym sponsorem. Darmowe porcje po zwycięstwach.'
@@ -935,7 +939,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Wpuść go do drużyny',
         apply: ({ s, rng }) => {
-          s.budget += money(s, 1200)
+          s.budget += money(s, 400)
           trust(s, 2, -3, 6)
           if (rng.chance(0.3)) {
             scandal(s, 'Youtuber w składzie meczowym')
@@ -1167,7 +1171,7 @@ export const EVENTS: GameEvent[] = [
         apply: ({ s, rng }) => {
           coach(s, 10)
           if (rng.chance(0.6)) {
-            const c = money(s, 3000)
+            const c = money(s, 800)
             s.budget += c
             return `Dotacja przyznana: ${k(c)}! Trener nie spał tydzień.`
           }
@@ -1520,7 +1524,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Bierzemy!',
         apply: ({ s }) => {
-          s.budget += money(s, 3000)
+          s.budget += money(s, 1200)
           s.wageLimit = Math.round(s.wageLimit * 1.08)
           trust(s, 6, 0, -6)
           return '„Kursowo Arena” brzmi okropnie, ale budżet i limit pensji wyglądają pięknie.'
@@ -2086,7 +2090,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Globalna marka',
         apply: ({ s }) => {
-          s.budget += money(s, 1600)
+          s.budget += money(s, 700)
           s.wageLimit = Math.round(s.wageLimit * 1.04)
           trust(s, 5, 2, -2)
           return 'Nowe stroje wyglądają jak szablon z katalogu, ale budżet i limit płac rosną.'
@@ -2095,7 +2099,7 @@ export const EVENTS: GameEvent[] = [
       {
         label: 'Polska firma',
         apply: ({ s }) => {
-          s.budget += money(s, 900)
+          s.budget += money(s, 400)
           trust(s, 1, 0, 6)
           return 'Kolekcja z herbem z lat 70. wyprzedała się w dwa dni. Kibice zachwyceni.'
         },
@@ -2104,11 +2108,11 @@ export const EVENTS: GameEvent[] = [
         label: 'Negocjuj udział w sprzedaży koszulek',
         apply: ({ s, rng }) => {
           if (rng.chance(0.5)) {
-            s.budget += money(s, 2000)
+            s.budget += money(s, 1000)
             trust(s, 6, 0, 2)
             return 'Udział w sprzedaży okazał się żyłą złota. Dział marketingu otwiera szampana bezalkoholowego.'
           }
-          s.budget += money(s, 500)
+          s.budget += money(s, 200)
           trust(s, -3, 0, 0)
           return 'Sprzedaż poniżej prognoz. Magazyn pełen koszulek w rozmiarze XXS.'
         },

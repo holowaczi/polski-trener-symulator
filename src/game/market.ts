@@ -238,10 +238,10 @@ export function makeForeignBid(rng: Rng, p: Player): Bid | undefined {
   const pool = rng.chance(0.75) ? fits.filter((c) => c.strength <= sk + 9) : fits
   const buyer = rng.pick(pool.length ? pool : fits)
   // bogate ligi płacą więcej, a ostatni rok umowy obniża cenę mniej niż u nas, bo zagranica i tak kusi
-  const rich = 1 + Math.max(0, buyer.strength - 80) * 0.06
+  const rich = 1 + Math.max(0, buyer.strength - 80) * 0.04
   const left = p.contract ?? 1
   const contract = left <= 1 ? 0.75 : left === 2 ? 1 : 1.15
-  const fee = p.value * (1.4 + rng.next() * 0.8) * rich * contract
+  const fee = p.value * (1.25 + rng.next() * 0.6) * rich * contract
   return { playerId: p.id, teamId: -1, fee: roundFee(fee), abroad: { name: buyer.name, country: buyer.country } }
 }
 

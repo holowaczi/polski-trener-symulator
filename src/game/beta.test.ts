@@ -60,8 +60,8 @@ describe('kryteria bety', () => {
       // trener dożył końca albo zakończył karierę po swojemu, ale gra się nie zawiesiła
       expect(s.season > SEASONS || s.phase === 'retired').toBe(true)
       // finanse bez eksplozji: budżet i limit pensji w rozsądnym stosunku do poziomu ligi
-      // bot wydaje mało, a w Ekstraklasie zbiera premie z Europy i sprzedaże za granicę, stąd luźny próg
-      expect(maxBudgetRatio, 'budżet wybuchł').toBeLessThan(15)
+      // bot wydaje mało, a w Ekstraklasie zbiera premie z Europy i sprzedaże za granicę, stąd zapas w progu
+      expect(maxBudgetRatio, 'budżet wybuchł').toBeLessThan(8)
       expect(maxWageRatio, 'limit pensji wybuchł').toBeLessThan(4)
       // prezes nie łata dziur co chwilę
       if (LONG) console.log(region, `sezony ${s.history.length}`, `budżet ×${maxBudgetRatio.toFixed(2)}`, `pensje ×${maxWageRatio.toFixed(2)}`, `łatanie ${patches}`)
