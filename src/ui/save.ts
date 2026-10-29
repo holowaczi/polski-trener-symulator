@@ -6,14 +6,36 @@ import type { ScenarioId } from '../game/goals'
 const KEY = 'pts-save'
 /** zapis, którego nie udało się wczytać: zostaje na boku, żeby nowa kariera go nie nadpisała */
 const BROKEN_KEY = 'pts-save-broken'
-/** skompresowany zapis zaczyna się od tego znacznika; stare zapisy to zwykły JSON */
+/** skompresowany zapis zaczyna się od znacznika; stare zapisy to zwykły JSON */
 const LZ_PREFIX = 'lz1:'
+/** gzip z przeglądarki (CompressionStream): nie blokuje gry, więc to podstawowy format */
+const GZ_PREFIX = 'gz1:'
 const FILE_APP = 'polski-trener-symulator'
 
 export type LoadResult = { state: GameState | null; problem?: string }
 
-function decode(raw: string): unknown {
-  const json = raw.startsWith(LZ_PREFIX) ? LZString.decompressFromUTF16(raw.slice(LZ_PREFIX.length)) : raw
+const hasStreams = () => typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined'
+
+async function gzip(text: string): Promise<string> {
+  const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+
+async function gunzip(b64: string): Promise<string> {
+  const bin = atob(b64)
+  const buf = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i)
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+}
+
+async function decode(raw: string): Promise<unknown> {
+  const json = raw.startsWith(GZ_PREFIX)
+    ? await gunzip(raw.slice(GZ_PREFIX.length))
+    : raw.startsWith(LZ_PREFIX)
+      ? LZString.decompressFromUTF16(raw.slice(LZ_PREFIX.length))
+      : raw
   if (!json) throw new Error('pusty zapis')
   return JSON.parse(json)
 }
@@ -26,7 +48,7 @@ function setBroken(raw: string): void {
   }
 }
 
-export function loadGame(): LoadResult {
+export async function loadGame(): Promise<LoadResult> {
   let raw: string | null = null
   try {
     raw = localStorage.getItem(KEY)
@@ -36,7 +58,7 @@ export function loadGame(): LoadResult {
   if (!raw) return { state: null }
   let data: unknown
   try {
-    data = decode(raw)
+    data = await decode(raw)
   } catch {
     setBroken(raw)
     clearSave()
@@ -51,17 +73,41 @@ export function loadGame(): LoadResult {
   return { state: r.state }
 }
 
-/** zapisuje karierę; false, gdy przeglądarka odmówiła (brak miejsca, tryb prywatny) */
-export function saveGame(s: GameState): boolean {
+function store(value: string): boolean {
   try {
-    localStorage.setItem(KEY, LZ_PREFIX + LZString.compressToUTF16(JSON.stringify(s)))
+    localStorage.setItem(KEY, value)
     return true
   } catch {
     return false
   }
 }
 
+/** numer ostatniego zleconego zapisu: starszy zapis, który skończy się później, nie nadpisze nowszego */
+let saveSeq = 0
+
+/** zapis w tle (gzip przeglądarki); false, gdy przeglądarka odmówiła (brak miejsca, tryb prywatny) */
+export async function saveGame(s: GameState): Promise<boolean> {
+  const seq = ++saveSeq
+  const json = JSON.stringify(s)
+  if (!hasStreams()) return store(LZ_PREFIX + LZString.compressToUTF16(json))
+  let packed: string
+  try {
+    packed = GZ_PREFIX + (await gzip(json))
+  } catch {
+    packed = LZ_PREFIX + LZString.compressToUTF16(json)
+  }
+  if (seq !== saveSeq) return true
+  return store(packed)
+}
+
+/** zapis natychmiast, bez czekania: przy zamykaniu karty nie ma czasu na nic w tle */
+export function saveGameNow(s: GameState): boolean {
+  saveSeq++
+  return store(LZ_PREFIX + LZString.compressToUTF16(JSON.stringify(s)))
+}
+
 export function clearSave(): void {
+  saveSeq++
   try {
     localStorage.removeItem(KEY)
   } catch {
@@ -70,17 +116,18 @@ export function clearSave(): void {
 }
 
 /** odłożony uszkodzony zapis jako plik do pobrania (dla ratunku albo zgłoszenia błędu) */
-export function brokenSaveText(): string | null {
+export async function brokenSaveText(): Promise<string | null> {
+  let raw: string | null
   try {
-    const raw = localStorage.getItem(BROKEN_KEY)
-    if (!raw) return null
-    try {
-      return JSON.stringify(decode(raw))
-    } catch {
-      return raw
-    }
+    raw = localStorage.getItem(BROKEN_KEY)
   } catch {
     return null
+  }
+  if (!raw) return null
+  try {
+    return JSON.stringify(await decode(raw))
+  } catch {
+    return raw
   }
 }
 

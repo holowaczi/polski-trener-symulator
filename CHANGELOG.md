@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.13.1 (alfa) · 29 października 2026
+
+- **Zapis nie przycina gry na słabszym telefonie.** Kariera pakuje się teraz w tle wbudowaną kompresją przeglądarki. Dotąd na wolnym telefonie każdy zapis potrafił zamrozić ekran na prawie sekundę, co w trybie automatycznym było czuć co mecz. Przy zamykaniu karty gra dalej zapisuje się od razu. Zapisy z 0.10–0.13 wczytują się bez zmian.
+- Nagłówek po pogromie nie nazywa już Twojej drużyny „gośćmi”, gdy grała na wyjeździe.
+- Nowy test długich karier: kariery po 20 sezonów w ośmiu województwach przechodzą bez błędu, bez debetu, bez klubów w złych grupach i bez ciągłego łatania budżetu przez prezesa.
+
 ## 0.13.0 (alfa) · 29 października 2026
 
 Jest się czym chwalić. Albo przynajmniej jest w czym przegrać na oczach znajomych.

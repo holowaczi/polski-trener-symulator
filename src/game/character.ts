@@ -291,7 +291,7 @@ type HeadlineKind = 'rout' | 'win' | 'draw0' | 'draw' | 'loss' | 'thrashed' | 'd
 
 // nazwy klubów i miast zawsze w mianowniku (podmiot albo po myślniku), bo odmiany nazw nie zgadniemy
 const LOW: Record<HeadlineKind, string[]> = {
-  rout: ['{my} rozjeżdża rywali jak kombajn ściernisko. {wynik}!', '{wynik}! Sołtys potwierdza: świętowanie trwało do rana', 'Pogrom: {my} – {opp} {wynik}. Goście proszą o przełożenie rewanżu na nigdy'],
+  rout: ['{my} rozjeżdża rywali jak kombajn ściernisko. {wynik}!', '{wynik}! Sołtys potwierdza: świętowanie trwało do rana', 'Pogrom: {my} – {opp} {wynik}. Rywale proszą o przełożenie rewanżu na nigdy'],
   win: ['{my} – {opp} {wynik}. {strzelec} bohaterem sobotniego popołudnia', 'Trzy punkty nasze. Bufet notuje rekord sprzedaży', 'Wygrana {wynik}. Kibice: trener wie, co robi'],
   draw0: ['0:0. Najciekawszy był pies, który wbiegł na boisko w 70. minucie', 'Bezbramkowo. Kto wyszedł przed końcem, niczego nie stracił', 'Remis 0:0. Sędzia też się nudził'],
   draw: ['Remis {wynik}. Każdy wraca z punktem i pretensjami', 'Podział punktów. Trener szanuje ten punkt, kibice nie bardzo', '{my} – {opp} {wynik}. Mogło być lepiej, mogło być gorzej'],

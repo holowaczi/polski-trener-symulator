@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { LEVELS, REGIONS } from '../game/data'
 import { newGame } from '../game/engine'
 import { seedFromString } from '../game/rng'
@@ -22,7 +22,10 @@ interface Props {
 export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) {
   const [importProblem, setImportProblem] = useState<string | undefined>()
   const [help, setHelp] = useState(false)
-  const broken = useMemo(() => (loadProblem ? brokenSaveText() : null), [loadProblem])
+  const [broken, setBroken] = useState<string | null>(null)
+  useEffect(() => {
+    if (loadProblem) void brokenSaveText().then(setBroken)
+  }, [loadProblem])
 
   const importFile = async (file: File | undefined) => {
     if (!file) return
