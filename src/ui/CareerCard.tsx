@@ -4,6 +4,7 @@ import { LEVELS } from '../game/data'
 import { careerCard } from '../game/engine'
 import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
 import { saveRecord } from './save'
+import { scenarioDef } from '../game/goals'
 import { levelShort, lowestLevel } from '../game/world'
 import type { GameState, SeasonRecord } from '../game/types'
 import { ShareCard } from './ShareCard'
@@ -216,6 +217,7 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
       multiplier: mult,
       peak: card.peak,
       daily: s.start?.daily,
+      scenario: s.scenario ? scenarioDef(s.scenario.id).title : undefined,
       date: new Date().toISOString().slice(0, 10),
     })
   }, [s, card.name, card.peak, score, mult])
@@ -258,7 +260,7 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
     }
   }, [render])
 
-  const shareText = `${card.name}: ${score.toLocaleString('pl-PL')} pkt kariery, ${card.seasons} ${card.seasons === 1 ? 'sezon' : 'sezonów'}, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}.${card.ending ? ` Koniec: ${card.ending.title.toLowerCase()}.` : ''} #PolskiTrenerSymulator`
+  const shareText = `${card.name}: ${score.toLocaleString('pl-PL')} pkt kariery, ${card.seasons} ${card.seasons === 1 ? 'sezon' : 'sezonów'}, szczyt: ${card.peak}. Trofea: ${card.trophies.length}. Zwolnienia: ${card.fired}.${card.scenario ? ` Wyzwanie: ${card.scenario}.` : ''}${card.ending ? ` Koniec: ${card.ending.title.toLowerCase()}.` : ''} #PolskiTrenerSymulator`
 
   const download = (url: string) => {
     const a = document.createElement('a')
@@ -367,6 +369,24 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
               <dt>Najlepszy podopieczny</dt>
               <dd>
                 {card.bestPlayer.name} ({card.bestPlayer.skill})
+              </dd>
+            </>
+          )}
+          {card.scenario && (
+            <>
+              <dt>Wyzwanie</dt>
+              <dd>{card.scenario}</dd>
+            </>
+          )}
+          {card.badges.length > 0 && (
+            <>
+              <dt>Odznaki</dt>
+              <dd className="badge-row">
+                {card.badges.map((b) => (
+                  <span key={b.id} className="chip" title={b.desc}>
+                    {b.icon} {b.name}
+                  </span>
+                ))}
               </dd>
             </>
           )}

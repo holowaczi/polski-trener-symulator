@@ -7,7 +7,9 @@ import type { GameState, License } from '../game/types'
 import { bottomLevel, leagueOf } from '../game/world'
 import { teamRegion } from '../game/regions'
 import { HowToPlay } from './help'
-import { brokenSaveText, downloadText, exportFileName, exportSave, importSave, loadRecords } from './save'
+import { BADGES, SCENARIOS, type ScenarioId } from '../game/goals'
+import { newScenarioGame } from '../game/scenarioStart'
+import { brokenSaveText, downloadText, exportFileName, exportSave, importSave, loadBadges, loadRecords, loadScenarioRecords } from './save'
 
 interface Props {
   saved: GameState | null
@@ -71,6 +73,8 @@ export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) 
   const pickedLicense: License = daily ? 'UEFA C' : license
   const multiplier = startMultiplier(preview, pickedLicense, pickedTeam)
   const records = useMemo(() => loadRecords(), [])
+  const scenarioRecords = useMemo(() => loadScenarioRecords(), [])
+  const badges = useMemo(() => loadBadges(), [])
 
   const changeLicense = (l: License) => {
     setLicense(l)
@@ -84,11 +88,9 @@ export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) 
     setTeamId(undefined)
   }
 
-  const start = () => {
-    const fn = firstName.trim() || 'Janusz'
-    const ln = lastName.trim() || 'Trenerski'
-    onStart(newGame({ firstName: fn, lastName: ln, age, region, seed: seedNum, license: pickedLicense, teamId: pickedTeam, daily }))
-  }
+  const who = () => ({ firstName: firstName.trim() || 'Janusz', lastName: lastName.trim() || 'Trenerski', age, region, seed: seedNum })
+  const start = () => onStart(newGame({ ...who(), license: pickedLicense, teamId: pickedTeam, daily }))
+  const startScenario = (id: ScenarioId) => onStart(newScenarioGame(who(), id))
 
   return (
     <main className="start">
@@ -245,6 +247,66 @@ export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) 
         )}
       </section>
 
+      <section className="card">
+        <h2>Wyzwania</h2>
+        <p className="muted small">Gotowe starty z jednym celem. Imię, wiek, województwo i ziarno bierzemy z formularza wyżej. Po wyzwaniu kariera toczy się dalej.</p>
+        <div className="scenarios">
+          {SCENARIOS.map((sc) => {
+            const runs = scenarioRecords.filter((r) => r.id === sc.id)
+            const best = runs.filter((r) => r.won).sort((a, b) => a.seasons - b.seasons)[0]
+            return (
+              <div key={sc.id} className={`scenario ${best ? 'done' : ''}`}>
+                <div className="scenario-head">
+                  <span aria-hidden="true">{sc.icon}</span> <b>{sc.title}</b>
+                </div>
+                <p className="small">{sc.desc}</p>
+                <div className="row">
+                  <button onClick={() => startScenario(sc.id)}>Podejmij wyzwanie</button>
+                  {runs.length > 0 && (
+                    <span className="small muted">
+                      {best ? `✅ zaliczone${sc.seasons > 1 ? ` (najszybciej: ${best.seasons} ${best.seasons === 1 ? 'sezon' : 'sez.'})` : ''}` : '❌ jeszcze nie'} · prób: {runs.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="card">
+        <details className="badges-box">
+          <summary>
+            <h2>
+              Odznaki <span className="muted small">{badges.length}/{BADGES.length}</span>
+            </h2>
+            {badges.length ? (
+              <span className="badges-got" aria-hidden="true">
+                {BADGES.filter((b) => badges.includes(b.id))
+                  .map((b) => b.icon)
+                  .join(' ')}
+              </span>
+            ) : (
+              <span className="small muted">Jeszcze żadnej. Stuknij, żeby zobaczyć, za co można je zdobyć.</span>
+            )}
+          </summary>
+        <ul className="badges">
+          {BADGES.map((b) => (
+            <li key={b.id} className={badges.includes(b.id) ? 'got' : ''} title={b.desc}>
+              <span className="badge-icon" aria-hidden="true">
+                {b.icon}
+              </span>
+              <span>
+                <b>{b.name}</b>
+                <br />
+                <span className="small muted">{b.desc}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        </details>
+      </section>
+
       {records.length > 0 && (
         <section className="card">
           <h2>Twoje rekordy</h2>
@@ -252,7 +314,8 @@ export function StartScreen({ saved, loadProblem, onStart, onContinue }: Props) 
             {records.map((r, i) => (
               <li key={i}>
                 <b>{r.score.toLocaleString('pl-PL')} pkt</b> · {r.name} · {r.peak} · ×{r.multiplier}
-                {r.daily ? ' · wyzwanie dnia' : ''} <span className="muted small">{r.date}</span>
+                {r.daily ? ' · wyzwanie dnia' : ''}
+                {r.scenario ? ` · ${r.scenario}` : ''} <span className="muted small">{r.date}</span>
               </li>
             ))}
           </ol>

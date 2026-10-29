@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameState } from './game/types'
-import { clearSave, loadGame, saveGame } from './ui/save'
+import { clearSave, loadGame, recordProgress, saveGame } from './ui/save'
 import { StartScreen } from './ui/StartScreen'
 import { GameScreen } from './ui/GameScreen'
 import { CareerCard } from './ui/CareerCard'
@@ -23,6 +23,7 @@ export default function App() {
     if (!s) return
     pending.current = null
     setSaveFailed(!saveGame(s))
+    recordProgress(s)
   }, [])
 
   useEffect(() => {

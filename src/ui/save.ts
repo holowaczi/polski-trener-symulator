@@ -1,6 +1,7 @@
 import LZString from 'lz-string'
 import { migrateSave } from '../game/migrate'
 import type { GameState } from '../game/types'
+import type { ScenarioId } from '../game/goals'
 
 const KEY = 'pts-save'
 /** zapis, którego nie udało się wczytać: zostaje na boku, żeby nowa kariera go nie nadpisała */
@@ -145,6 +146,8 @@ export interface CareerRecord {
   multiplier: number
   peak: string
   daily?: boolean
+  /** nazwa wyzwania, jeśli kariera zaczęła się od niego */
+  scenario?: string
   date: string
 }
 
@@ -166,5 +169,63 @@ export function saveRecord(r: CareerRecord): void {
     localStorage.setItem(RECORDS_KEY, JSON.stringify(list.slice(0, 10)))
   } catch {
     // jw.
+  }
+}
+
+// ---------- odznaki i wyzwania zebrane na tym urządzeniu ----------
+
+const BADGES_KEY = 'pts-badges'
+const SCENARIOS_KEY = 'pts-scenarios'
+
+export interface ScenarioRecord {
+  run: string
+  id: ScenarioId
+  won: boolean
+  /** po ilu sezonach rozstrzygnięte */
+  seasons: number
+  name: string
+  date: string
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function writeJson(key: string, v: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(v))
+  } catch {
+    // jw.
+  }
+}
+
+export const loadBadges = (): string[] => readJson<string[]>(BADGES_KEY, [])
+export const loadScenarioRecords = (): ScenarioRecord[] => readJson<ScenarioRecord[]>(SCENARIOS_KEY, [])
+
+/** dopisuje nowe odznaki i rozstrzygnięte wyzwanie z bieżącej kariery do kolekcji urządzenia */
+export function recordProgress(s: GameState): void {
+  const have = loadBadges()
+  const fresh = (s.badges ?? []).filter((b) => !have.includes(b))
+  if (fresh.length) writeJson(BADGES_KEY, [...have, ...fresh])
+  const sc = s.scenario
+  if (sc?.result) {
+    const run = `${s.seed}-${sc.id}-${s.coach.firstName}-${s.coach.lastName}`
+    const list = loadScenarioRecords()
+    if (!list.some((r) => r.run === run)) {
+      list.unshift({
+        run,
+        id: sc.id,
+        won: sc.result === 'won',
+        seasons: (sc.at ?? s.season) - sc.from + 1,
+        name: `${s.coach.firstName} ${s.coach.lastName}`,
+        date: new Date().toISOString().slice(0, 10),
+      })
+      writeJson(SCENARIOS_KEY, list.slice(0, 50))
+    }
   }
 }

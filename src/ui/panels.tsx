@@ -12,6 +12,7 @@ import { cupLabel, roundName } from '../game/cup'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
 import { downloadText, exportFileName, exportSave } from './save'
 import { favoriteStory, SPEECHES, type Speech } from '../game/character'
+import { BADGES, scenarioStatus } from '../game/goals'
 import { COMP_GEN, COMP_ICON, COMP_NAME, countryFlag, euroResult, euroTable, STAGE_NAME } from '../game/europe'
 
 /** dwuetapowe potwierdzenie w samym przycisku, bez okienek przeglądarki */
@@ -1308,6 +1309,22 @@ export function CareerView({ s, act }: { s: GameState; act: Act }) {
         {s.coach.license}
         {s.coach.courseLeft > 0 ? ' (na kursie)' : ''} · stres {s.coach.stress}/100
       </p>
+      {s.scenario && <p className={`callout ${s.scenario.result === 'won' ? 'good-text' : s.scenario.result === 'lost' ? 'warn-text' : ''}`}>{scenarioStatus(s)}</p>}
+      {(s.badges?.length ?? 0) > 0 && (
+        <>
+          <h3>Odznaki</h3>
+          <div className="badge-row">
+            {s.badges!.map((id) => {
+              const b = BADGES.find((x) => x.id === id)
+              return b ? (
+                <span key={id} className="chip" title={b.desc}>
+                  {b.icon} {b.name}
+                </span>
+              ) : null
+            })}
+          </div>
+        </>
+      )}
       {s.trophies.length > 0 && (
         <>
           <h3>Trofea</h3>

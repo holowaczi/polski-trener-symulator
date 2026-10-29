@@ -15,6 +15,10 @@ export function playCareer(s: GameState, untilSeason: number, stop?: (s: GameSta
   while (s.phase !== 'retired' && s.season <= untilSeason && !stop?.(s) && guard++ < 50000) {
     switch (s.phase) {
       case 'hiring': {
+        if (!s.offers.length) {
+          waitForOffers(s)
+          break
+        }
         const best = [...s.offers].sort((a, b) => b.level - a.level)[0]
         acceptOffer(s, best.teamId)
         break

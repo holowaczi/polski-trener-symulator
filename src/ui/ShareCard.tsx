@@ -76,7 +76,14 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
   const trophies = allLines.slice(0, maxTrophies)
   const hidden = allLines.slice(maxTrophies).reduce((a, l) => a + l.count, 0)
   const ending = card.ending
-  const multLabel = p.mult !== 1 ? `mnożnik ×${p.mult} za start (${p.startLicense})` : p.daily ? 'wyzwanie dnia' : 'zwykły start ×1'
+  const multLabel = card.scenario
+    ? `wyzwanie: ${card.scenario}`
+    : p.mult !== 1
+      ? `mnożnik ×${p.mult} za start (${p.startLicense})`
+      : p.daily
+        ? 'wyzwanie dnia'
+        : 'zwykły start ×1'
+  const badgeIcons = card.badges.slice(0, 6).map((b) => b.icon).join('') + (card.badges.length > 6 ? ` +${card.badges.length - 6}` : '')
 
   const header = (
     <div className="sc-head">
@@ -94,6 +101,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       </div>
       <div className="sc-sub">
         {card.age} lat · {card.region} · licencja {card.license}
+        {badgeIcons && <span className="sc-badges"> · {badgeIcons}</span>}
       </div>
     </div>
   )

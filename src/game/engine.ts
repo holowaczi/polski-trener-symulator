@@ -4,6 +4,7 @@ import { drawCentralCup, drawRegionalCup, pairUp, roundName } from './cup'
 import { LEVELS, LICENSES, LICENSE_COURSES, RESERVE_MAX_LEVEL, SWAPS } from './data'
 import { EVENTS, type GameEvent } from './events'
 import { fireThreshold, newPresident, PRESIDENT_INFO, presidentOf, rivalId } from './character'
+import { BADGES, checkScenario, matchBadges, scenarioDef, seasonBadges } from './goals'
 import { closeEuro, drawEuro, euroLeagueEvent, euroMatchForWeek, euroResult, euroRoundLabel, euroSpotsFor, pendingEuroMatch, playEuroForWeek, resolveEuroLeague, COMP_GEN } from './europe'
 import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLimitFor } from './market'
 import { aiStrength, autoLineup, playClubMatch, previewStrength, simulateScore } from './match'
@@ -435,6 +436,7 @@ export function takeJob(s: GameState, offer: JobOffer): void {
   news(s, `${s.coach.firstName} ${s.coach.lastName} nowym trenerem ${team.name}! Cel: ${goalLabel(s.goal, team.level).toLowerCase()}.`)
   if (s.president?.teamId !== team.id) {
     s.president = withRng(s, (rng) => newPresident(rng, team))
+    s.presidents = (s.presidents ?? 0) + 1
     news(s, `Prezes ${s.president.name} (${PRESIDENT_INFO[s.president.type].label.toLowerCase()}) wita Cię w klubie.`)
   }
   s.phase = s.round === 0 ? 'transfer' : 'season'
@@ -687,6 +689,7 @@ function pushReport(s: GameState, rep: MatchReport): void {
   rep.me = s.clubId ?? undefined
   s.reports.unshift(rep)
   s.lastReport = rep
+  matchBadges(s, rep)
 }
 
 function playCupRound(rng: Rng, s: GameState, cup: Cup, idx: number): void {
@@ -1162,6 +1165,7 @@ function fire(s: GameState, why: string): void {
   adjustCoach(s, { reputation: -6, stress: 15 })
   news(s, `Zwolnienie z ${t.name}. ${why}`)
   leaveClub(s)
+  checkScenario(s, true)
   s.hiringNote = `${why} Kilka klubów i tak dzwoni, bo trenerów jest mniej niż boisk.`
   s.offers = generateOffers(s, t.level, true, t.id)
   if (!s.offers.length) s.hiringNote = `${why} Telefon milczy. Możesz przeczekać do końca sezonu i liczyć, że ktoś sobie o Tobie przypomni.`
@@ -1459,6 +1463,7 @@ export function endSeason(s: GameState): void {
       fired,
       euro: euro ? { comp: euro.comp, reached: euro.reached } : undefined,
     })
+    seasonBadges(s, lg, table)
     if (euro) summary.push(`Europa: ${euroResult(euro)}.`)
     const spot = s.euroSpots.find((x) => x.teamId === t.id)
     if (spot) summary.push(`Za rok gramy w Europie: eliminacje ${COMP_GEN[spot.comp]}!`)
@@ -1529,6 +1534,9 @@ export function endSeason(s: GameState): void {
     }
   }
 
+  if (!t) seasonBadges(s, undefined, undefined)
+  const sc = checkScenario(s)
+  if (sc) summary.unshift(sc)
   s.lastSeasonSummary = summary
   if (s.coach.age >= 70) {
     endCareer(s, retirementEnding(s))
@@ -1704,6 +1712,8 @@ export function careerCard(s: GameState) {
     reason: s.retireReason ?? '',
     ending: s.ending,
     lastWord: s.ending?.lastWord,
+    badges: (s.badges ?? []).map((id) => BADGES.find((b) => b.id === id)).filter((b) => !!b),
+    scenario: s.scenario ? `${scenarioDef(s.scenario.id).title}${s.scenario.result === 'won' ? ' ✅' : s.scenario.result === 'lost' ? ' ❌' : ''}` : undefined,
   }
 }
 

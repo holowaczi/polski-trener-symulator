@@ -2204,8 +2204,13 @@ blockquote cite::before {
   font-weight: 600;
 }
 .speech select {
-  width: auto;
+  width: 100%;
   min-width: 0;
+}
+@media (max-width: 480px) {
+  .speech {
+    grid-template-columns: 1fr;
+  }
 }
 .speech small {
   grid-column: 1 / -1;
@@ -2217,4 +2222,89 @@ blockquote cite::before {
 }
 .president-type {
   font-weight: 600;
+}
+
+/* ---------- wyzwania i odznaki ---------- */
+.scenarios {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .scenarios {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.scenario {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.scenario.done {
+  border-color: var(--good);
+}
+.scenario p {
+  margin: 6px 0 0;
+}
+.scenario .row {
+  margin: 8px 0 0;
+}
+.badges {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .badges {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.badges li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.badges li.got {
+  opacity: 1;
+  filter: none;
+}
+.badge-icon {
+  font-size: 1.6rem;
+  width: 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badges-box summary {
+  cursor: pointer;
+  list-style: none;
+}
+.badges-box summary::-webkit-details-marker {
+  display: none;
+}
+.badges-box summary h2 {
+  margin-bottom: 4px;
+}
+.badges-box summary h2::after {
+  content: ' ▾';
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.badges-box[open] summary h2::after {
+  content: ' ▴';
+}
+.badges-got {
+  font-size: 1.3rem;
+}
+.badges-box .badges {
+  margin-top: 12px;
 }

@@ -162,6 +162,13 @@ const SECTIONS: { title: string; body: string[] }[] = [
     ],
   },
   {
+    title: 'Wyzwania i odznaki',
+    body: [
+      'Na ekranie startowym są wyzwania: gotowe starty z jednym celem, np. utrzymać beniaminka Ekstraklasy albo uratować klub z I ligi w 10 kolejek. Wynik trafia do kolekcji na tym urządzeniu, a kariera po wyzwaniu toczy się dalej.',
+      'Odznaki zbierasz za rzeczy, którymi warto się pochwalić: awans z klasy C, 5:0 w derbach, trzech prezesów. Lądują na karcie trenera i na ekranie startowym.',
+    ],
+  },
+  {
     title: 'Zapis gry',
     body: [
       'Gra zapisuje się sama w przeglądarce. Kopię kariery w pliku pobierzesz w zakładce Trener i wczytasz na ekranie startowym, np. na innym telefonie.',

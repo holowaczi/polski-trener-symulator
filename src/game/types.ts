@@ -1,4 +1,5 @@
 import type { Favorite, President, Speech } from './character'
+import type { ScenarioState } from './goals'
 export type Position = 'BR' | 'OBR' | 'POM' | 'NAP'
 
 export type TraitId =
@@ -417,6 +418,12 @@ export interface GameState {
   start?: StartInfo
   /** prezes obecnego klubu */
   president?: President
+  /** u ilu prezesów trener już pracował */
+  presidents?: number
+  /** zdobyte odznaki (id z BADGES) */
+  badges?: string[]
+  /** wyzwanie-scenariusz, jeśli kariera zaczęła się od niego */
+  scenario?: ScenarioState
   /** ulubieniec szatni w bieżącym sezonie */
   favorite?: Favorite
   /** wypalenie: rośnie, gdy trener długo gra pod bardzo wysokim stresem */

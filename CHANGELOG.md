@@ -1,5 +1,25 @@
 # Zmiany
 
+## 0.13.0 (alfa) · 29 października 2026
+
+Jest się czym chwalić. Albo przynajmniej jest w czym przegrać na oczach znajomych.
+
+### Wyzwania
+- **Cztery gotowe starty z jednym celem** na ekranie startowym:
+  - 🆕 **Utrzymaj beniaminka:** najsłabszy klub Ekstraklasy, kadra prosto z I ligi i budżet na waciki.
+  - 🚑 **Uratuj klub w 10 kolejek:** przejmujesz drużynę ze strefy spadkowej I ligi po 24. kolejce. Reszta ligi już grała bez Ciebie.
+  - 🏆 **Puchar Polski z IV ligi** w ciągu 5 sezonów, w dowolnym klubie.
+  - 🚀 **Z samego dołu do Ekstraklasy w 10 sezonów.**
+- Postęp widać w zakładce Trener, a wynik w Wieściach, w podsumowaniu sezonu, na karcie trenera i na obrazku do udostępnienia. Po wyzwaniu kariera toczy się dalej.
+- Ekran startowy pamięta, które wyzwania zaliczyłeś, ile było prób i jaki jest najlepszy wynik.
+
+### Odznaki
+- **15 odznak:** od „Awansu z klasy C” i „Pierwszego szczebla”, przez „5:0 w derbach”, „Pogrom” i „Kiełbasę na koszt prezesa”, po „Mistrza Polski”, „Przeżyłem 3 prezesów”, „Licencję na papierze” i „Wiernego jak pies” (8 sezonów w jednym klubie).
+- Zdobyte odznaki widać w zakładce Trener, na karcie trenera i jako ikonki na obrazku do udostępnienia. Ekran startowy zbiera wszystkie odznaki zdobyte na tym urządzeniu.
+
+### Poprawki
+- Przemowa w przerwie mieści się na wąskim ekranie telefonu.
+
 ## 0.12.1 (alfa) · 29 października 2026
 
 - **72 nowe zdarzenia, w grze jest ich teraz prawie 200.** Najwięcej przybyło w I lidze i Ekstraklasie, gdzie dotąd szybko się powtarzały: kamera w szatni do serialu, dyrektor sportowy z prezentacją na 80 slajdów, superagent młodego talentu, skaut z Holandii na trybunie, lot czarterem z sześciogodzinnym opóźnieniem, prezes z prywatnym samolotem i szwagrem za sterami, hymn ligi śpiewany przez trenerów.
