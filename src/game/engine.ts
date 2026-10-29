@@ -1365,23 +1365,20 @@ function agePlayers(rng: Rng, s: GameState): string[] {
   )
   for (const p of retiring) notes.push(`${playerName(p)} (${p.age} l.) kończy karierę. ${rng.pick(level >= 6 ? AFTER_CAREER_PRO : AFTER_CAREER_AMATEUR)}`)
   s.squad = s.squad.filter((p) => !retiring.includes(p))
-  const billBefore = wageBill(s)
   for (let i = 0; i < 2; i++) {
     const pos = rng.pick(['OBR', 'POM', 'NAP', 'POM', 'BR'] as Position[])
     const j = generatePlayer(rng, s, level, pos, { age: rng.int(16, 18), skillOffset: -2 })
     // umowa juniorska: kieszonkowe, a nie pensja seniora
     j.wage = Math.max(100, Math.round((wageFor(j.skill) * 0.3) / 50) * 50)
     j.contract = 3
-    if (s.squad.length < 28) {
-      s.squad.push(j)
-      notes.push(`Z juniorów awansuje ${playerName(j)} (${j.age} l., ${j.pos}).`)
+    if (s.squad.length >= 28) continue
+    // junior też musi zmieścić się w limicie pensji, inaczej zostaje w juniorach i szuka szczęścia gdzie indziej
+    if (wageBill(s) + j.wage > s.wageLimit) {
+      notes.push(`${playerName(j)} (${j.age} l., ${j.pos}) chciał przejść z juniorów do pierwszej drużyny, ale nie mieści się w limicie pensji. Idzie do sąsiedniego klubu, a jego mama już do końca życia nie powie Ci „dzień dobry”.`)
+      continue
     }
-  }
-  // wychowanków nie wybierasz sam, więc nie mogą Ci zablokować limitu pensji: zarząd dopłaca różnicę
-  const bill = wageBill(s)
-  if (bill > s.wageLimit && billBefore <= s.wageLimit) {
-    s.wageLimit = Math.ceil(bill / 100) * 100
-    notes.push(`Zarząd podnosi limit pensji do ${formatMoney(s.wageLimit)}/mies., żeby zmieścić juniorów. „Swoich nie wyrzucimy, ale na lody niech zarabiają sami”.`)
+    s.squad.push(j)
+    notes.push(`Z juniorów awansuje ${playerName(j)} (${j.age} l., ${j.pos}).`)
   }
   s.lineup.xi = s.lineup.xi.filter((id) => s.squad.some((p) => p.id === id))
   s.lineup.bench = s.lineup.bench.filter((id) => s.squad.some((p) => p.id === id))

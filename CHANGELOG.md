@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.13.4 (alfa) · 29 października 2026
+
+- **Junior musi zmieścić się w limicie pensji.** Zarząd nie podnosi już limitu na wychowanków. Jeśli junior się nie mieści, nie podpisuje umowy i idzie do sąsiedniego klubu, a podsumowanie sezonu mówi o tym wprost. Chcesz swoich wychowanków, zostaw w pensjach trochę miejsca.
+
 ## 0.13.3 (alfa) · 29 października 2026
 
 - **Juniorzy nie zatykają już limitu pensji.** Dwóch wychowanków co lato potrafiło wypchnąć pensje ponad limit, a wtedy nie dało się nikogo kupić ani przedłużyć, a na koniec sezonu zarząd jeszcze się obrażał. Teraz, gdy to juniorzy przekraczają limit, zarząd podnosi go o różnicę i mówi to w podsumowaniu sezonu.
