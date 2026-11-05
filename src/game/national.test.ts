@@ -117,6 +117,8 @@ describe('powołania', () => {
     const out = s.squad[s.squad.length - 1]
     releasePlayer(s, out.id)
     expect(s.national!.pool!.some((p) => p.id === out.id)).toBe(true)
+    // zdarzenia potrafią dorzucić kogoś ponad limit
+    while (s.squad.length >= SQUAD_SIZE) releasePlayer(s, s.squad[s.squad.length - 1].id)
     const inn = s.national!.pool![0]
     callUpCandidate(s, inn.id)
     expect(s.squad.some((p) => p.id === inn.id)).toBe(true)

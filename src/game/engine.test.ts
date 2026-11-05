@@ -408,3 +408,26 @@ describe('województwa', () => {
     expect(s.leagues.filter((l) => l.level === 6)).toHaveLength(4)
   })
 })
+
+describe('automatyczna ławka', () => {
+  it('jeden bramkarz i zmiennicy z każdej linii, nawet gdy bramkarze są najlepsi', async () => {
+    const { autoLineup } = await import('./match')
+    const { generatePlayer } = await import('./world')
+    const rng = new Rng(5)
+    const st = { nextId: 1 }
+    const squad = [
+      ...[0, 1, 2, 3].map(() => generatePlayer(rng, st, 5, 'BR', { skillOffset: 30 })),
+      ...[0, 1, 2, 3, 4, 5].map(() => generatePlayer(rng, st, 5, 'OBR')),
+      ...[0, 1, 2, 3, 4, 5].map(() => generatePlayer(rng, st, 5, 'POM')),
+      ...[0, 1, 2, 3, 4].map(() => generatePlayer(rng, st, 5, 'NAP')),
+    ]
+    const { xi, bench } = autoLineup(squad, '4-4-2')
+    expect(xi).toHaveLength(11)
+    expect(bench).toHaveLength(7)
+    const count = (pos: string) => bench.filter((p) => p.pos === pos).length
+    expect(count('BR')).toBe(1)
+    expect(count('OBR')).toBe(2)
+    expect(count('POM')).toBe(2)
+    expect(count('NAP')).toBe(2)
+  })
+})

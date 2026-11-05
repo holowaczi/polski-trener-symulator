@@ -1,5 +1,9 @@
 # Zmiany
 
+## 0.16.1 (alfa) · 5 listopada 2026
+
+- **Ławka z głową.** Asystent ustawia na ławce jednego bramkarza i po dwóch zmienników do obrony, pomocy i ataku. Koniec z trzema bramkarzami na ławce i ani jednym napastnikiem. Działa w klubie i w reprezentacji. Ręcznie ułożona ławka zostaje taka, jak ją ustawisz.
+
 ## 0.16.0 (alfa) · 5 listopada 2026
 
 - **Powołania z listy 50 najlepszych Polaków.** W zakładce Powołania pod kadrą jest lista kandydatów. Sam decydujesz, kto jedzie na zgrupowanie (najwyżej 26), a kogo odsyłasz do klubu. Odesłany nie znika, możesz go powołać znowu, choć humor ma gorszy. Jak nie chcesz się w to bawić, „🧠 Asystent powołuje” wybiera 26 najlepszych według umiejętności, formy i minut w klubie.

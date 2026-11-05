@@ -57,15 +57,22 @@ export function autoLineup(squad: Player[], formation: Formation): { xi: Player[
     rest.splice(rest.indexOf(p), 1)
     xi.push(p)
   }
-  // ławka: zapasowy bramkarz i najlepsi z reszty
+  return { xi, bench: autoBench(rest) }
+}
+
+/** ławka z głową: jeden bramkarz, po dwóch zmienników na każdą linię, a resztę miejsc dostają najlepsi z pola */
+const BENCH_PLAN: Record<Position, number> = { BR: 1, OBR: 2, POM: 2, NAP: 2 }
+
+export function autoBench(rest: Player[]): Player[] {
+  const sorted = [...rest].sort((a, b) => effectiveSkill(b) - effectiveSkill(a))
   const bench: Player[] = []
-  const gk = rest.find((p) => p.pos === 'BR')
-  if (gk) bench.push(gk)
-  for (const p of rest) {
+  for (const pos of ['BR', 'OBR', 'POM', 'NAP'] as Position[]) bench.push(...sorted.filter((p) => p.pos === pos).slice(0, BENCH_PLAN[pos]))
+  // brakuje kogoś z jakiejś linii: wolne miejsca bierze najlepszy z pola, a drugi bramkarz dopiero na końcu
+  for (const p of [...sorted.filter((x) => x.pos !== 'BR'), ...sorted.filter((x) => x.pos === 'BR')]) {
     if (bench.length >= BENCH_SIZE) break
     if (!bench.includes(p)) bench.push(p)
   }
-  return { xi, bench }
+  return bench.slice(0, BENCH_SIZE)
 }
 
 /** skład na mecz: ręczny, z automatycznym łataniem dziur po kontuzjach i kartkach */
