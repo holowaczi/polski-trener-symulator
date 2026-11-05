@@ -51,7 +51,14 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
   let titles = 0
   let promotions = 0
   let relegations = 0
+  let national = 0
   for (const h of s.history) {
+    if (h.national) {
+      // sezon z kadrą liczy się jak sezon w Ekstraklasie, a turniej daje premię za każdą rundę
+      const weight = h.national.side === 'A' ? 1 : 0.5
+      national += Math.round((40 + [0, 40, 90, 160, 260, 400][h.national.reached]) * weight)
+      continue
+    }
     const w = h.level + 1
     seasons += 4 * w
     if (h.position === 1 && !h.fired) titles += 10 * w
@@ -76,6 +83,7 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
     { label: 'Puchar Polski', points: cups },
     { label: 'Puchary wojewódzkie', points: regionalCups },
     { label: 'Europejskie puchary', points: euro },
+    { label: 'Reprezentacja', points: national },
     { label: 'Wygrane mecze', points: s.totalStats.w },
     { label: 'Szczyt kariery', points: peak >= 0 ? 10 * (peak + 1) : 0 },
     { label: 'Zwolnienia', points: -20 * s.totalStats.firedCount },

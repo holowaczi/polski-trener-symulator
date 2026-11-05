@@ -272,12 +272,14 @@ export function ReportCard({ s, r, latest }: { s: GameState; r: MatchReport; lat
   const mine = r.home === me ? r.hg - r.ag : r.ag - r.hg
   const tone = mine > 0 ? 'win' : mine < 0 ? 'loss' : 'draw'
   // kolor rozgrywek: liga, Puchar Polski, baraże, Liga Mistrzów, Liga Europy, Liga Konferencji
-  const compClass = r.playoff ? 'comp-po' : r.euro ? `comp-${r.comp ?? 'LKE'}` : r.cup ? 'comp-pp' : 'comp-liga'
+  const compClass = r.national ? 'comp-nat' : r.playoff ? 'comp-po' : r.euro ? `comp-${r.comp ?? 'LKE'}` : r.cup ? 'comp-pp' : 'comp-liga'
   return (
     <article className={`report ${tone} ${latest ? 'latest' : ''} ${compClass}`}>
       <div className="report-head">
         <div className="report-top">
-          {r.playoff ? (
+          {r.national ? (
+            <span className="comp-tag">🇵🇱 {r.cupName ?? 'Reprezentacja'}</span>
+          ) : r.playoff ? (
             <span className="comp-tag">⚔️ {r.cupName ?? 'Baraże'}</span>
           ) : r.euro ? (
             <span className="comp-tag">{r.comp ? COMP_ICON[r.comp] : '🌍'} {r.cupName ?? 'Europa'}</span>
@@ -481,6 +483,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
   const benchIds = new Set(prev.bench.map((p) => p.id))
   const hasGk = prev.xi.some((p) => p.pos === 'BR')
   const resName = reserveTeamName(s)
+  const nat = !!s.national
   const sorted = [...s.squad].sort((a, b) => {
     const rank = (p: Player) => (xiIds.has(p.id) ? 0 : benchIds.has(p.id) ? 1 : 2)
     return rank(a) - rank(b) || byPos(a, b)
@@ -488,7 +491,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
   return (
     <div>
       <div className="lineup-head">
-        <h2>Skład na mecz</h2>
+        <h2>{nat ? 'Powołani i skład na mecz' : 'Skład na mecz'}</h2>
         <label className="small">
           <input
             type="checkbox"
@@ -504,9 +507,12 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
         <span className="chip">Ławka {prev.bench.length}/7</span>
         <span className="chip">Ustawienie {formationOf(prev.xi)}</span>
         {!hasGk && <span className="chip bad">Brak bramkarza!</span>}
-        <span className="chip" title="Zawodnicy, których może powołać selekcjoner reprezentacji Polski">
-          🇵🇱 Polaków {s.squad.filter(isPolish).length}/{s.squad.length}
-        </span>
+        {!nat && (
+          <span className="chip" title="Zawodnicy, których może powołać selekcjoner reprezentacji Polski">
+            🇵🇱 Polaków {s.squad.filter(isPolish).length}/{s.squad.length}
+          </span>
+        )}
+        {nat && <span className="chip">Powołanych {s.squad.length}</span>}
         <span className="chip">
           Atak {prev.att} · Obrona {prev.def}
         </span>
@@ -526,12 +532,12 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
               <th>Wiek</th>
               <th>Um.</th>
               <th>Pot.</th>
-              <th title="Sezony do końca umowy">Umowa</th>
+              {nat ? <th className="left">Klub</th> : <th title="Sezony do końca umowy">Umowa</th>}
               <th>Forma</th>
               <th>Śr. ocen</th>
               <th>Morale</th>
               <th>G/A/M</th>
-              <th>Pensja</th>
+              {!nat && <th>Pensja</th>}
               <th></th>
             </tr>
           </thead>
@@ -560,9 +566,15 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                   <b>{p.skill}</b>
                 </td>
                 <td className="muted hide-sm" data-label="Pot.">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
-                <td data-label="Umowa">
-                  <Contract p={p} />
-                </td>
+                {nat ? (
+                  <td className="left small wrap" data-label="Klub">
+                    {p.club ?? '–'}
+                  </td>
+                ) : (
+                  <td data-label="Umowa">
+                    <Contract p={p} />
+                  </td>
+                )}
                 <td data-label="Forma">
                   <Form v={p.form} />
                 </td>
@@ -573,7 +585,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                 <td className="hide-sm" data-label="G/A/M">
                   {p.goals}/{p.assists}/{p.apps}
                 </td>
-                <td className="muted hide-sm" data-label="Pensja">{formatMoney(p.wage)}</td>
+                {!nat && <td className="muted hide-sm" data-label="Pensja">{formatMoney(p.wage)}</td>}
                 <td className="cell-action">
                   {resName && (
                     <button className="tiny ghost" disabled={s.squad.length <= MIN_SQUAD} title={`Wyślij do ${resName}`} onClick={() => act((g) => sendDown(g, p.id))}>
@@ -583,8 +595,8 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                   <ConfirmButton
                     className="tiny ghost"
                     disabled={s.squad.length <= MIN_SQUAD}
-                    label="Zwolnij"
-                    confirmLabel={`Odprawa ${formatMoney(p.wage * 3)}?`}
+                    label={nat ? 'Skreśl' : 'Zwolnij'}
+                    confirmLabel={nat ? 'Skreślić z kadry?' : `Odprawa ${formatMoney(p.wage * 3)}?`}
                     onConfirm={() => act((g) => releasePlayer(g, p.id))}
                   />
                 </td>

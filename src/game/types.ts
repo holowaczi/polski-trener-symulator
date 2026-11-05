@@ -64,6 +64,8 @@ export interface Player {
   newSigning?: boolean
   /** średnia ocen z poprzedniego sezonu: latem na jej podstawie kluby szukają zawodników */
   lastRating?: number
+  /** klub zawodnika powołanego do reprezentacji */
+  club?: string
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -104,6 +106,8 @@ export interface Team {
   form?: number
   /** rywal z europejskich pucharów: kraj klubu */
   country?: string
+  /** reprezentacja narodowa (rywal selekcjonera albo sama Polska) */
+  nt?: boolean
 }
 
 export interface Fixture {
@@ -254,6 +258,8 @@ export interface PlayerRating {
 export interface MatchReport {
   round: number
   cup?: boolean
+  /** mecz reprezentacji */
+  national?: boolean
   /** np. „Puchar wojewódzki · 1/8 finału” */
   cupName?: string
   /** mecz barażowy */
@@ -308,9 +314,13 @@ export interface SeasonRecord {
   fired?: boolean
   /** europejskie puchary w tym sezonie: rozgrywki i najdalszy etap (EuroRun.reached) */
   euro?: { comp: EuroComp; reached: number }
+  /** sezon w roli selekcjonera: która reprezentacja i jak daleko zaszła na turnieju (0 = bez awansu, 1 = grupa … 5 = złoto) */
+  national?: { side: NationalSide; reached: number }
 }
 
 export interface JobOffer {
+  /** oferta z PZPN: selekcjoner reprezentacji */
+  national?: NationalSide
   teamId: number
   teamName: string
   level: number
@@ -442,8 +452,42 @@ export interface GameState {
   prevReports?: MatchReport[]
   /** europejskie puchary klubu gracza w bieżącym sezonie */
   euro?: EuroRun
+  /** praca selekcjonera: eliminacje i turniej w bieżącym sezonie */
+  national?: NationalJob
   /** kto gra w Europie w kolejnym sezonie: miejsca 1–3 Ekstraklasy i zdobywca Pucharu Polski */
   euroSpots?: { teamId: number; comp: EuroComp }[]
+}
+
+export type NationalSide = 'A' | 'U21'
+
+/** grupa eliminacyjna albo turniejowa: kolejki grane w podanych tygodniach */
+export interface NatGroup {
+  name: string
+  teamIds: number[]
+  rounds: Fixture[][]
+  weeks: number[]
+}
+
+/** mecz pucharowy turnieju: ćwierćfinał, półfinał, finał */
+export interface NatKo {
+  stage: 'QF' | 'SF' | 'F'
+  week: number
+  tie: CupTie
+}
+
+export interface NationalJob {
+  side: NationalSide
+  /** Polska (albo Polska U21) jako drużyna w grze */
+  teamId: number
+  /** pierwszy sezon w roli selekcjonera */
+  since: number
+  season: number
+  /** turniej tego sezonu, np. „Mistrzostwa Europy 2028” */
+  event: string
+  qual: NatGroup
+  tourn?: { group: NatGroup; ko: NatKo[]; out?: boolean }
+  /** 0 = bez awansu, 1 = faza grupowa, 2 = ćwierćfinał, 3 = półfinał, 4 = finał, 5 = złoto */
+  reached: number
 }
 
 export type EndingKind = 'decyzja' | 'emerytura' | 'wypalenie' | 'skandal' | 'bezrobocie'

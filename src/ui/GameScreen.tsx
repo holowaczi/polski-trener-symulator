@@ -36,6 +36,12 @@ import { ClubView, CoachCard } from './profiles'
 import { COMP_ICON, pendingEuroMatch } from '../game/europe'
 import { HowToPlay, Tip } from './help'
 import { isDerby } from '../game/character'
+import { countryFlag } from '../game/euroClubs'
+import { eventShort, groupTable, SIDE_SHORT } from '../game/national'
+import { NationalTableView } from './NationalView'
+
+/** selekcjoner nie ma transferów, pucharów ani klubu */
+const NATIONAL_TABS: Tab[] = ['mecz', 'tabela', 'kadra', 'taktyka', 'kariera', 'wiesci']
 
 type Tab = 'mecz' | 'tabela' | 'kadra' | 'taktyka' | 'transfery' | 'puchar' | 'klub' | 'wiesci' | 'kariera'
 
@@ -102,7 +108,7 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
       {!showLast && team && (s.phase === 'season' || s.phase === 'transfer' || s.phase === 'event') && (
         <>
           <nav className="tabs" aria-label="Sekcje">
-            {TABS.filter((t) => t.id !== 'transfery' || s.phase === 'transfer').map((t) => (
+            {TABS.filter((t) => (s.national ? NATIONAL_TABS.includes(t.id) : t.id !== 'transfery' || s.phase === 'transfer')).map((t) => (
               <button
                 key={t.id}
                 className={tab === t.id ? 'tab active' : 'tab'}
@@ -116,7 +122,7 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
                   e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
                 }}
               >
-                <span aria-hidden="true">{t.icon}</span> {t.label}
+                <span aria-hidden="true">{t.icon}</span> {s.national && t.id === 'tabela' ? 'Grupa' : s.national && t.id === 'kadra' ? 'Powołania' : t.label}
               </button>
             ))}
           </nav>
@@ -134,13 +140,13 @@ export function GameScreen({ s, act }: { s: GameState; act: Act }) {
           {s.phase === 'season' && tab === 'mecz' && <Tip id={s.reports.length ? 'meters' : 'firstMatch'} />}
           <section className="panel">
             {tab === 'mecz' && <MatchView s={s} act={act} />}
-            {tab === 'tabela' && <TableView s={s} />}
+            {tab === 'tabela' && (s.national ? <NationalTableView s={s} /> : <TableView s={s} />)}
             {tab === 'kadra' && <SquadView s={s} act={act} />}
             {tab === 'taktyka' && <TacticView s={s} act={act} />}
             {tab === 'transfery' && <TransferView s={s} act={act} />}
-            {tab === 'puchar' && <CupView s={s} />}
+            {tab === 'puchar' && !s.national && <CupView s={s} />}
             {tab === 'wiesci' && <NewsView s={s} />}
-            {tab === 'klub' && <ClubView s={s} act={act} />}
+            {tab === 'klub' && !s.national && <ClubView s={s} act={act} />}
             {tab === 'kariera' && (
               <>
                 <CoachCard s={s} />
@@ -212,11 +218,22 @@ function Meter({ label, value, invert }: { label: string; value: number; invert?
   )
 }
 
+/** miejsce Polski w grupie turnieju albo eliminacji */
+function natPosition(s: GameState): number | undefined {
+  const nat = s.national
+  if (!nat) return undefined
+  const g = nat.tourn ? nat.tourn.group : nat.qual
+  const i = groupTable(g).findIndex((r) => r.teamId === s.clubId)
+  return i >= 0 ? i + 1 : undefined
+}
+
 function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
   const team = club(s)
   const lg = clubLeague(s)
   // przed pierwszym meczem miejsce w tabeli nic nie znaczy
-  const pos = s.round > 0 ? clubPosition(s) : undefined
+  const nat = s.national
+  const natPos = nat && s.round > 0 ? natPosition(s) : undefined
+  const pos = nat ? natPos : s.round > 0 ? clubPosition(s) : undefined
   const mult = multiplierOf(s)
   const overWages = wageBill(s) > s.wageLimit
   const lic = licenseStatus(s)
@@ -226,12 +243,17 @@ function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
         <div className="hud-club">
           <div className="hud-kicker">
             Sezon {s.season}
-            {team && s.round > 0 ? ` · kolejka ${s.round}` : ''}
+            {team && s.round > 0 ? (nat ? ` · tydzień ${s.round}` : ` · kolejka ${s.round}`) : ''}
           </div>
           <div className="club">
-            {team ? team.name : 'Bez klubu'}
+            {nat ? `🇵🇱 Selekcjoner: ${SIDE_SHORT[nat.side]}` : team ? team.name : 'Bez klubu'}
             {pos && <span className="pos-badge">{pos}.</span>}
           </div>
+          {nat && (
+            <div className="small muted">
+              {nat.event} · cel: {nat.tourn ? 'wyjść z grupy' : `awans na ${eventShort(nat.event)}`}
+            </div>
+          )}
           {lg && <div className="small muted">{lg.name}{team ? ` · cel: ${goalLabel(s.goal, team.level).toLowerCase()}` : ''}</div>}
         </div>
         <div className="hud-coach">
@@ -256,7 +278,13 @@ function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
           </div>
         </div>
       </div>
-      {team && (
+      {team && nat && (
+        <div className="hud-money small">
+          <span>Pensja {formatMoney(s.salary)} za sezon</span>
+          <span className="muted">Oszczędności {formatMoney(s.coach.savings)}</span>
+        </div>
+      )}
+      {team && !nat && (
         <div className="hud-money small">
           <span>💰 {formatMoney(s.budget)}</span>
           <span className={overWages ? 'warn-text' : ''}>
@@ -266,7 +294,7 @@ function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
         </div>
       )}
       <div className="meters">
-        {team && <Meter label="Zarząd" value={s.trust.board} />}
+        {team && <Meter label={nat ? 'PZPN' : 'Zarząd'} value={s.trust.board} />}
         {team && <Meter label="Szatnia" value={s.trust.squad} />}
         {team && <Meter label="Kibice" value={s.trust.fans} />}
         <Meter label="Stres" value={s.coach.stress} invert />
@@ -313,20 +341,26 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
   let label = 'Koniec sezonu'
   let oppStr: number | undefined
   let derby = false
-  const vs = (f: { home: number; away: number }) => `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${s.teams[f.home === s.clubId ? f.away : f.home].name}`
+  const vs = (f: { home: number; away: number }) => {
+    const o = s.teams[f.home === s.clubId ? f.away : f.home]
+    return `${f.home === s.clubId ? 'u siebie' : 'wyjazd'}: ${o.nt && o.country ? `${countryFlag(o.country)} ` : ''}${o.name}`
+  }
   const isCup = !!info?.cup
   const isPlayoff = !!info?.playoff
   const isEuro = !!info?.euro
+  const isNat = !!info?.national
   const euroComp = info?.euro ? pendingEuroMatch(s, info.week)?.comp : undefined
   if (info) {
-    const f = info.league ?? info.cup ?? info.playoff ?? info.euro!
+    const f = info.league ?? info.cup ?? info.playoff ?? info.euro ?? info.national!
     oppStr = Math.round(teamPower(s.teams[f.home === s.clubId ? f.away : f.home]) * 10) / 10
     label = vs(f)
     derby = isDerby(s, f.home === s.clubId ? f.away : f.home)
   }
   const comp = !info
     ? undefined
-    : isPlayoff
+    : isNat
+      ? `🇵🇱 ${info.label ?? 'Reprezentacja'}`
+      : isPlayoff
       ? `⚔️ ${playoffRoundLabel(s, info.week) ?? 'Baraże'}`
       : isEuro
         ? `${euroComp ? COMP_ICON[euroComp] : '🌍'} ${cupRoundLabel(s, info.week) ?? 'Europa'}`
@@ -339,7 +373,7 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
     <div className="playbar">
       <div className="playbar-info small">
         <span className="playbar-next">
-          {comp && <span className={`comp-tag ${isPlayoff ? 'playoff' : isEuro ? `euro-${euroComp ?? 'LKE'}` : isCup ? 'cup' : 'liga'}`}>{comp}</span>}{' '}
+          {comp && <span className={`comp-tag ${isNat ? 'nat' : isPlayoff ? 'playoff' : isEuro ? `euro-${euroComp ?? 'LKE'}` : isCup ? 'cup' : 'liga'}`}>{comp}</span>}{' '}
           {derby && <span className="comp-tag derby">🔥 Derby</span>} <b>{label}</b>
         </span>
 
@@ -380,9 +414,9 @@ function MatchBar({ s, act, auto, setAuto }: { s: GameState; act: Act; auto: Aut
           {speed.short}
         </button>
         <ConfirmButton
-          label="⏩ Do okna"
+          label={s.national ? '⏩ Do końca' : '⏩ Do okna'}
           confirmLabel="Na pewno?"
-          title="Symuluj do okna transferowego, końca sezonu albo zwolnienia. Zdarzenia rozstrzygnie asystent."
+          title={s.national ? 'Symuluj do końca sezonu albo zwolnienia. Zdarzenia rozstrzygnie asystent.' : 'Symuluj do okna transferowego, końca sezonu albo zwolnienia. Zdarzenia rozstrzygnie asystent.'}
           onConfirm={() => {
             setAuto({ ...auto, running: false })
             act((g) => simulateToBreak(g))
@@ -414,22 +448,22 @@ function EventModal({ s, act }: { s: GameState; act: Act }) {
 }
 
 function OfferCard({ s, o, act }: { s: GameState; o: JobOffer; act: Act }) {
-  const allowed = licenseAllows(s, o.level)
+  const allowed = o.national ? s.coach.license === 'UEFA Pro' : licenseAllows(s, o.level)
   return (
     <div className="offer">
       <div className="offer-head">
         <b>{o.teamName}</b>
-        <span className="pill">{o.leagueName}</span>
+        <span className="pill">{o.national ? 'PZPN' : o.leagueName}</span>
       </div>
       <dl className="offer-facts small">
         <dt>Cel</dt>
-        <dd>{goalLabel(o.goal, o.level)}</dd>
+        <dd>{o.national ? 'Awans na turniej' : goalLabel(o.goal, o.level)}</dd>
         <dt>Pensja</dt>
         <dd>{formatMoney(o.salary)} za sezon</dd>
       </dl>
       <p className="small muted">{o.note}</p>
       <button className="primary" disabled={!allowed} onClick={() => act((g) => acceptOffer(g, o.teamId))}>
-        {allowed ? 'Biorę tę robotę' : `Wymaga ${LEVELS[o.level].license}`}
+        {allowed ? (o.national ? 'Biorę orzełka' : 'Biorę tę robotę') : `Wymaga ${o.national ? 'UEFA Pro' : LEVELS[o.level].license}`}
       </button>
     </div>
   )
@@ -517,7 +551,7 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
         </div>
       )}
 
-      <h3>{team ? 'Oferty z innych klubów' : 'Oferty pracy'}</h3>
+      <h3>{s.national ? 'Oferty z klubów' : team ? 'Oferty z innych klubów' : 'Oferty pracy'}</h3>
       <div className="offers">
         {s.offers.map((o) => (
           <OfferCard key={o.teamId} s={s} o={o} act={act} />
@@ -526,7 +560,7 @@ function SeasonEndView({ s, act }: { s: GameState; act: Act }) {
       <div className="row">
         {team && (
           <button className="primary" disabled={lic && !lic.canStay} onClick={() => act((g) => stayAtClub(g))}>
-            Zostaję w {team.name}
+            {s.national ? 'Zostaję selekcjonerem' : `Zostaję w ${team.name}`}
           </button>
         )}
         {!team && (

@@ -27,6 +27,8 @@ export const MIGRATIONS: Record<number, (s: OldSave) => void> = {
       run.done = true
     }
   },
+  // 4 → 5: reprezentacja (selekcjoner). Nowe pola są opcjonalne, a stara kariera po prostu jeszcze nie dostała telefonu z PZPN
+  4: () => {},
 }
 
 export type MigrateResult = { ok: true; state: GameState; from: number } | { ok: false; problem: string }

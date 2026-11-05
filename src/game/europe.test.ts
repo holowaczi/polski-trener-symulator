@@ -72,7 +72,7 @@ describe('europejskie puchary', () => {
     stayAtClub(s)
     expect(!!s.euro && s.euro.season === s.season).toBe(!!qualified)
     // rywale z poprzedniego sezonu zniknęli
-    const foreign = Object.values(s.teams).filter((t) => t.country)
+    const foreign = Object.values(s.teams).filter((t) => t.country && !t.nt)
     expect(foreign.length).toBe(qualified ? 1 : 0)
   })
 

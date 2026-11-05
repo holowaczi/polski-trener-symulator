@@ -155,6 +155,14 @@ export function releasePlayer(s: GameState, playerId: number): string {
   const p = s.squad.find((x) => x.id === playerId)
   if (!p) return ''
   if (s.squad.length <= MIN_SQUAD) return `Kadra nie może mieć mniej niż ${MIN_SQUAD} zawodników.`
+  if (s.national) {
+    // z kadry się skreśla, a nie zwalnia: zawodnik wraca do klubu
+    setMorale(p, -10)
+    adjustTrust(s, { squad: -1 })
+    const msg = `${playerName(p)} skreślony z kadry. Wraca do klubu i zapowiada, że jeszcze Ci pokaże.${departureEffects(s, p)}`
+    news(s, msg)
+    return msg
+  }
   // rozwiązanie kontraktu kosztuje trzy pensje
   const cost = p.wage * 3
   if (cost > s.budget) return `Odprawa kosztuje ${formatMoney(cost)}, a w kasie jest ${formatMoney(Math.max(0, s.budget))}. Księgowa kręci głową.`

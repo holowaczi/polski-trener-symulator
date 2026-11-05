@@ -70,7 +70,7 @@ const PRIZE = {
 
 /** klub z listy jako drużyna w grze; ten sam klub w jednym sezonie to zawsze ta sama drużyna */
 function teamFor(rng: Rng, s: GameState, c: EuroClub): number {
-  const existing = Object.values(s.teams).find((t) => t.country && t.name === c.name)
+  const existing = Object.values(s.teams).find((t) => t.country && !t.nt && t.name === c.name)
   if (existing) return existing.id
   const id = s.nextId++
   // forma sezonu: ten sam klub raz jest mocniejszy, raz słabszy
@@ -123,7 +123,7 @@ export function drawEuro(rng: Rng, s: GameState): void {
   // już wylosowane dla tego klubu w tym sezonie
   if (s.euro?.season === s.season && s.euro.teamId === s.clubId) return
   // kluby z poprzednich pucharów znikają
-  for (const t of Object.values(s.teams)) if (t.country) delete s.teams[t.id]
+  for (const t of Object.values(s.teams)) if (t.country && !t.nt) delete s.teams[t.id]
   s.euro = undefined
   const spot = s.euroSpots?.find((x) => x.teamId === s.clubId)
   if (!spot || s.round !== 0) return

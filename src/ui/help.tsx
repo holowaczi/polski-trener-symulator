@@ -154,6 +154,14 @@ const SECTIONS: { title: string; body: string[] }[] = [
     ],
   },
   {
+    title: 'Reprezentacja',
+    body: [
+      'Z licencją UEFA Pro i dużą reputacją po sezonie zadzwoni PZPN: najpierw młodzieżówka, a po dobrym turnieju z U21 albo przy reputacji 90+ pierwsza reprezentacja. To pełny etat, więc odchodzisz z klubu.',
+      'Selekcjoner nie kupuje piłkarzy, tylko powołuje 26 najlepszych Polaków z całej ligi. Eliminacje gra się w przerwach na kadrę, dwie najlepsze drużyny z grupy jadą latem na Euro albo mundial. Tam grupa, ćwierćfinał, półfinał i finał.',
+      'Po turnieju możesz zostać na kolejny cykl albo wrócić do klubowej roboty. Brak awansu na turniej prezes PZPN pamięta długo.',
+    ],
+  },
+  {
     title: 'Punkty kariery',
     body: [
       'Punkty dostajesz za sezony (im wyższa liga, tym więcej), mistrzostwa, awanse, puchary, Europę, zwycięstwa i najwyższy szczebel kariery. Spadki odejmują.',

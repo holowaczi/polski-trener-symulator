@@ -26,6 +26,9 @@ export const BADGES: BadgeDef[] = [
   { id: 'kielbasa', icon: '🌭', name: 'Kiełbasa na koszt prezesa', desc: 'Wygraj mecz po przemowie o kiełbasie u prezesa z masarnią.' },
   { id: 'weteran', icon: '🧓', name: 'Weteran ławki', desc: 'Przepracuj 20 sezonów jako trener.' },
   { id: 'jeden_klub', icon: '💍', name: 'Wierny jak pies', desc: 'Przepracuj 8 sezonów w jednym klubie.' },
+  { id: 'selekcjoner', icon: '🦅', name: 'Orzełek na piersi', desc: 'Zostań selekcjonerem reprezentacji Polski (może być młodzieżówka).' },
+  { id: 'wielki_turniej', icon: '✈️', name: 'Bilet na turniej', desc: 'Awansuj z reprezentacją na mistrzostwa.' },
+  { id: 'medal', icon: '🥇', name: 'Kraj oszalał', desc: 'Zdobądź z reprezentacją medal mistrzostw.' },
 ]
 
 const badgeDef = (id: string) => BADGES.find((b) => b.id === id)!
@@ -53,7 +56,10 @@ export function matchBadges(s: GameState, rep: MatchReport): void {
 /** po sezonie, gdy historia sezonu jest już zapisana, a tabela jeszcze ta sama */
 export function seasonBadges(s: GameState, lg: League | undefined, table: { teamId: number; l: number }[] | undefined): void {
   const h = s.history[s.history.length - 1]
-  if (h && !h.fired && h.season === s.season) {
+  if (h?.national && h.season === s.season) {
+    if (h.national.reached >= 1) award(s, 'wielki_turniej')
+    if (h.national.reached >= 4) award(s, 'medal')
+  } else if (h && !h.fired && h.season === s.season) {
     if (h.outcome.includes('awans')) {
       award(s, 'awans_b')
       if (h.level === 0) award(s, 'awans_c')
@@ -62,6 +68,7 @@ export function seasonBadges(s: GameState, lg: League | undefined, table: { team
     const row = table?.find((r) => r.teamId === s.clubId)
     if (lg && row && row.l === 0) award(s, 'niepokonani')
   }
+  if (s.history.some((x) => x.national)) award(s, 'selekcjoner')
   if (s.trophies.some((t) => t.startsWith('Mistrzostwo Polski'))) award(s, 'mistrz_polski')
   if (s.trophies.some((t) => t.startsWith('Puchar Polski ('))) award(s, 'puchar_polski')
   if ((s.figurant ?? 0) >= 1) award(s, 'licencja_na_papierze')

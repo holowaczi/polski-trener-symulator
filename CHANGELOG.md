@@ -1,5 +1,12 @@
 # Zmiany
 
+## 0.14.0 (alfa) · 5 listopada 2026
+
+- **Reprezentacja Polski.** Z licencją UEFA Pro i dużą reputacją po sezonie może zadzwonić PZPN. Najpierw zwykle młodzieżówka U21, a po dobrym turnieju z U21 albo przy reputacji 90+ pierwsza reprezentacja. To pełny etat: odchodzisz z klubu, a po turnieju możesz zostać na kolejny cykl albo wrócić do klubowej roboty.
+- **Eliminacje i turniej.** Sezon selekcjonera to grupa eliminacyjna grana w przerwach na kadrę i, jeśli awansujesz z dwóch pierwszych miejsc, letni turniej: grupa, ćwierćfinał, półfinał i finał z karnymi. Na zmianę Euro i mundial, a młodzieżówka co roku walczy o Euro U21. Wszystko widać w nowej zakładce Grupa.
+- **Powołania zamiast transferów.** Nie kupujesz piłkarzy, tylko wybierasz 26 najlepszych Polaków z klubów w kraju i za granicą. Przy każdym widać klub. Kogoś możesz skreślić, a po sezonie kadra sama się odświeża.
+- Zamiast zarządu rozlicza Cię PZPN. Brak awansu na turniej pamięta długo. Są nowe zdarzenia (wesele za ścianą hotelu przed meczem, reklama chipsów, spór o opaskę kapitana), trzy odznaki (z „Kraj oszalał” za złoto na czele) i punkty kariery za turnieje.
+
 ## 0.13.5 (alfa) · 29 października 2026
 
 - **Wielkie marki wracają tam, gdzie ich miejsce.** Lech, Legia, Raków i reszta prawdziwych klubów mają teraz markę, która nie znika po spadku: kibice, stadion i pieniądze ciągną je z powrotem w górę. Dotąd po kilkunastu sezonach połowa Ekstraklasy potrafiła wylądować w III lidze. Teraz po 20 sezonach w Ekstraklasie gra mniej więcej połowa jej obecnych klubów, a z wielkiej szóstki zwykle pięć.

@@ -2372,3 +2372,29 @@ blockquote cite::before {
     font-size: 0.85rem;
   }
 }
+
+/* reprezentacja */
+:root {
+  --comp-nat: #c8102e;
+}
+.report.comp-nat {
+  --comp: var(--comp-nat);
+}
+.comp-tag.nat {
+  background: var(--comp-nat);
+  color: #fff;
+}
+.nat-fixtures {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 16px;
+}
+.nat-fixtures li {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.nat-week {
+  display: inline-block;
+  min-width: 6.5em;
+  color: var(--muted);
+}

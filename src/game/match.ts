@@ -526,7 +526,7 @@ export function playClubMatch(rng: Rng, s: GameState, f: { home: number; away: n
 
   const lines: string[] = []
   if (incident) {
-    if (incident.budget) {
+    if (incident.budget && !s.national) {
       const amount = Math.round((LEVELS[level].budget * incident.budget) / 100) * 100
       s.budget = Math.max(0, s.budget + amount)
       incident.effect += ` (${amount > 0 ? '+' : ''}${formatMoney(amount)})`

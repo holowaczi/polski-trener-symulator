@@ -5,12 +5,14 @@ import { MIGRATIONS, MIN_SAVE_VERSION, migrateSave } from './migrate'
 import { botCareer, playCareer } from './bot'
 import { exportSave, importSave } from '../ui/save'
 import save090 from './fixtures/save-0.9.0.txt?raw'
+import save0135 from './fixtures/save-0.13.5.txt?raw'
+import save0140 from './fixtures/save-0.14.0.txt?raw'
 
 /**
  * Zapisy z wydanych wersji: każdy musi się wczytać i grać dalej.
  * Przy każdej wersji z nowym kształtem zapisu dorzuć tu plik z kariery w trakcie sezonu.
  */
-const FIXTURES: Record<string, string> = { '0.9.0': save090 }
+const FIXTURES: Record<string, string> = { '0.9.0': save090, '0.13.5': save0135, '0.14.0': save0140 }
 
 const parse = (txt: string) => JSON.parse(LZString.decompressFromBase64(txt.trim())!)
 
