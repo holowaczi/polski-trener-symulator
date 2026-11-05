@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.16.0 (alfa) · 5 listopada 2026
+
+- **Powołania z listy 50 najlepszych Polaków.** W zakładce Powołania pod kadrą jest lista kandydatów. Sam decydujesz, kto jedzie na zgrupowanie (najwyżej 26), a kogo odsyłasz do klubu. Odesłany nie znika, możesz go powołać znowu, choć humor ma gorszy. Jak nie chcesz się w to bawić, „🧠 Asystent powołuje” wybiera 26 najlepszych według umiejętności, formy i minut w klubie.
+- **Kandydaci żyją w klubach.** Co tydzień grają w swoich klubach albo grzeją ławkę: zbierają minuty i oceny, łapią i tracą formę, czasem łapią kontuzję. Młodzi z minutami rosną, starsi powoli słabną. Zimą i latem zmieniają kluby: ci w formie idą wyżej, a ci z ławki szukają miejsca, w którym zagrają.
+- Po sezonie lista się odświeża: weterani kończą grę w kadrze, młodzieżowcy wyrastają z U21, wyskakują nowe nazwiska, a kto wypadnie z pięćdziesiątki, wypada też z kadry.
+
 ## 0.15.0 (alfa) · 5 listopada 2026
 
 - **Prawdziwy kalendarz reprezentacji.** Euro i mundial są co cztery lata, z przesunięciem o dwa: Euro 2028, mundial 2030, Euro 2032. Młodzieżówka gra o Euro U21 co dwa lata. Eliminacje trwają dwa sezony: zaczynają się wiosną, kończą jesienią, a latem jest turniej. Nowy selekcjoner w trakcie eliminacji przejmuje grupę z punktami po poprzedniku.

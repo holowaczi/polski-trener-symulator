@@ -157,9 +157,13 @@ export function releasePlayer(s: GameState, playerId: number): string {
   if (s.squad.length <= MIN_SQUAD) return `Kadra nie może mieć mniej niż ${MIN_SQUAD} zawodników.`
   if (s.national) {
     // z kadry się skreśla, a nie zwalnia: zawodnik wraca do klubu
-    setMorale(p, -10)
-    adjustTrust(s, { squad: -1 })
-    const msg = `${playerName(p)} skreślony z kadry. Wraca do klubu i zapowiada, że jeszcze Ci pokaże.${departureEffects(s, p)}`
+    // wraca na listę kandydatów: można go powołać znowu
+    setMorale(p, -8)
+    s.squad = s.squad.filter((x) => x !== p)
+    s.lineup.xi = s.lineup.xi.filter((id) => id !== p.id)
+    s.lineup.bench = s.lineup.bench.filter((id) => id !== p.id)
+    ;(s.national.pool ??= []).push(p)
+    const msg = `${playerName(p)} wraca do klubu i zapowiada, że jeszcze Ci pokaże.`
     news(s, msg)
     return msg
   }

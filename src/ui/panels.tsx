@@ -9,6 +9,7 @@ import { avgRating, wageBill, withRng } from '../game/util'
 import { acceptDemand, canNegotiate, haggle, letGo, wageDemand, wantedYears } from '../game/contracts'
 import { isPolish, nationInfo, nationOf, playerName } from '../game/world'
 import { cupLabel, roundName } from '../game/cup'
+import { autoCallUps, callUpCandidate, candidateScore, CLUB_ROLE_LABEL, SQUAD_SIZE } from '../game/national'
 import { callUp, reserveTeamName, sendDown } from '../game/reserves'
 import { downloadText, exportFileName, exportSave } from './save'
 import { favoriteStory, SPEECHES, type Speech } from '../game/character'
@@ -512,7 +513,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
             🇵🇱 Polaków {s.squad.filter(isPolish).length}/{s.squad.length}
           </span>
         )}
-        {nat && <span className="chip">Powołanych {s.squad.length}</span>}
+        {nat && <span className="chip">Powołanych {s.squad.length}/{SQUAD_SIZE}</span>}
         <span className="chip">
           Atak {prev.att} · Obrona {prev.def}
         </span>
@@ -568,7 +569,7 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                 <td className="muted hide-sm" data-label="Pot.">{p.potential > p.skill + 2 ? `↑${p.potential}` : '–'}</td>
                 {nat ? (
                   <td className="left small wrap" data-label="Klub">
-                    {p.club ?? '–'}
+                    <ClubLine p={p} />
                   </td>
                 ) : (
                   <td data-label="Umowa">
@@ -595,8 +596,8 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
                   <ConfirmButton
                     className="tiny ghost"
                     disabled={s.squad.length <= MIN_SQUAD}
-                    label={nat ? 'Skreśl' : 'Zwolnij'}
-                    confirmLabel={nat ? 'Skreślić z kadry?' : `Odprawa ${formatMoney(p.wage * 3)}?`}
+                    label={nat ? 'Do klubu' : 'Zwolnij'}
+                    confirmLabel={nat ? 'Odesłać do klubu?' : `Odprawa ${formatMoney(p.wage * 3)}?`}
                     onConfirm={() => act((g) => releasePlayer(g, p.id))}
                   />
                 </td>
@@ -606,6 +607,100 @@ export function SquadView({ s, act }: { s: GameState; act: Act }) {
         </table>
       </div>
       {resName && <ReserveList s={s} act={act} name={resName} />}
+      {nat && <CandidateList s={s} act={act} />}
+    </div>
+  )
+}
+
+/** klub kandydata do kadry i to, jak mu tam idzie */
+function ClubLine({ p }: { p: Player }) {
+  const avg = p.clubRatings?.length ? p.clubRatings.reduce((a, b) => a + b, 0) / p.clubRatings.length : undefined
+  return (
+    <>
+      <div>{p.club ?? '–'}</div>
+      {p.clubRole && (
+        <div className={`muted ${p.clubRole === 'lawka' ? 'warn-text' : ''}`}>
+          {CLUB_ROLE_LABEL[p.clubRole]} · {p.clubMins ?? 0}′{avg !== undefined ? ` · śr. ${avg.toFixed(1)}` : ''}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** reszta 50 najlepszych Polaków: grają w klubach, a selekcjoner może ich powołać */
+function CandidateList({ s, act }: { s: GameState; act: Act }) {
+  const [pos, setPos] = useState<'all' | Player['pos']>('all')
+  const pool = [...(s.national?.pool ?? [])].filter((p) => pos === 'all' || p.pos === pos).sort((a, b) => candidateScore(b) - candidateScore(a))
+  const full = s.squad.length >= SQUAD_SIZE
+  return (
+    <div className="reserves">
+      <div className="lineup-head">
+        <h2>Kandydaci do kadry</h2>
+        <ConfirmButton
+          className="tiny"
+          label="🧠 Asystent powołuje"
+          confirmLabel="Nowe powołania?"
+          title="Asystent wybiera 26 najlepszych według umiejętności, formy i minut w klubie: 3 bramkarzy, 8 obrońców, 9 pomocników i 6 napastników."
+          onConfirm={() => act((g) => autoCallUps(g))}
+        />
+      </div>
+      <p className="small muted">
+        Pięćdziesięciu najlepszych Polaków gra co tydzień w swoich klubach: łapią formę, tracą miejsce w składzie, łapią kontuzje i zmieniają kluby. Na zgrupowanie jedzie
+        najwyżej {SQUAD_SIZE}. {full ? 'Kadra jest pełna, żeby kogoś powołać, najpierw odeślij kogoś do klubu.' : ''}
+      </p>
+      <div className="chips">
+        {(['all', 'BR', 'OBR', 'POM', 'NAP'] as const).map((x) => (
+          <button key={x} className={`chip ${pos === x ? 'good' : ''}`} onClick={() => setPos(x)}>
+            {x === 'all' ? 'Wszyscy' : x}
+          </button>
+        ))}
+      </div>
+      <div className="scroll-x">
+        <table className="table stack">
+          <thead>
+            <tr>
+              <th>Poz.</th>
+              <th className="left">Zawodnik</th>
+              <th>Wiek</th>
+              <th>Um.</th>
+              <th className="left">Klub</th>
+              <th>Forma</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {pool.map((p) => (
+              <tr key={p.id}>
+                <td className="cell-pos">
+                  <span className={`pos pos-${p.pos}`}>{p.pos}</span>
+                </td>
+                <td className="left cell-name">
+                  <div>
+                    {playerName(p)} <Status p={p} />
+                  </div>
+                  <Traits p={p} />
+                </td>
+                <td data-label="Wiek">{p.age}</td>
+                <td data-label="Um.">
+                  <b>{p.skill}</b>
+                  {p.potential > p.skill + 2 ? <span className="muted small"> ↑{p.potential}</span> : null}
+                </td>
+                <td className="left small wrap" data-label="Klub">
+                  <ClubLine p={p} />
+                </td>
+                <td data-label="Forma">
+                  <Form v={p.form} />
+                </td>
+                <td className="cell-action">
+                  <button className="tiny" disabled={full} onClick={() => act((g) => callUpCandidate(g, p.id))}>
+                    Powołaj
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -18,6 +18,7 @@ import {
   newNationalSeason,
   nextNationalMatch,
   playNationalForWeek,
+  simulateClubWeek,
   REACHED_LABEL,
   refreshPool,
   SIDE_NAME,
@@ -63,7 +64,7 @@ import {
   unemployedEnding,
 } from './endings'
 
-export const SAVE_VERSION = 6
+export const SAVE_VERSION = 7
 /** najdłuższa liga ma 34 kolejki; krótsze kończą wcześniej */
 export const SEASON_WEEKS = 36
 
@@ -517,10 +518,12 @@ function takeNationalJob(s: GameState, offer: JobOffer): void {
   s.offers = []
   s.hiringNote = undefined
   s.tactic = { formation: '4-3-3', mentality: 'balans', style: 'kontra' }
-  s.squad = withRng(s, (rng) => nationalPool(rng, s, side))
+  const candidates = withRng(s, (rng) => nationalPool(rng, s, side))
+  s.squad = candidates.squad
   s.lineup = { auto: true, xi: [], bench: [] }
   fillLineupFromAuto(s)
   s.national = withRng(s, (rng) => newNationalSeason(rng, s, side, teamId, s.season))
+  s.national.pool = candidates.pool
   s.president = withRng(s, (rng) => ({ ...newPresident(rng, s.teams[teamId]), type: 'pilkarz' as const }))
   s.presidents = (s.presidents ?? 0) + 1
   news(s, `${s.coach.firstName} ${s.coach.lastName} selekcjonerem: ${SIDE_NAME[side]}! ${nationalGoal(s.national)}.`)
@@ -752,6 +755,7 @@ export function playWeek(s: GameState): void {
       playCupsForWeek(rng, s, week)
       playPlayoffsForWeek(rng, s, week)
       playEuroForWeek(rng, s, week, (rep) => pushReport(s, rep))
+      simulateClubWeek(rng, s, week, hasClubMatch(s, week))
       playNationalForWeek(rng, s, week, (rep) => pushReport(s, rep))
     }
   })
@@ -1650,7 +1654,7 @@ export function endSeason(s: GameState): void {
         summary.push(`${s.teams[rivals[0]].name} ogłasza wielkie zakupy. „Nie oddamy wam tej ligi” – mówi ich prezes.`)
       }
     } else if (nt && !fired) {
-      for (const p of s.squad) p.age++
+      // refreshPool postarza wszystkich kandydatów, także powołanych
       summary.push(...refreshPool(rng, s, nt.side))
     }
   })

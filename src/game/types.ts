@@ -66,6 +66,12 @@ export interface Player {
   lastRating?: number
   /** klub zawodnika powołanego do reprezentacji */
   club?: string
+  /** kandydat do kadry: siła klubu, rola, minuty, mecze i ostatnie oceny w klubie */
+  clubStr?: number
+  clubRole?: 'pewniak' | 'rotacja' | 'lawka'
+  clubMins?: number
+  clubApps?: number
+  clubRatings?: number[]
 }
 
 export type Formation = '4-4-2' | '4-3-3' | '5-3-2' | '4-5-1' | '3-5-2'
@@ -498,6 +504,8 @@ export interface NationalJob {
   event: string
   /** czy turniej `event` jest latem tego sezonu (inaczej to sezon Ligi Narodów i początku eliminacji) */
   tournSeason?: boolean
+  /** kandydaci do kadry, którzy teraz nie są powołani (z powołanymi to 50 najlepszych Polaków) */
+  pool?: Player[]
   /** eliminacje: grupa pięciu drużyn rozłożona na dwa sezony */
   qual: NatGroup
   /** baraże o mundial dla drugiej drużyny grupy */

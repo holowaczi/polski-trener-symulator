@@ -157,7 +157,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
     title: 'Reprezentacja',
     body: [
       'Z licencją UEFA Pro i dużą reputacją po sezonie zadzwoni PZPN: najpierw młodzieżówka, a po dobrym turnieju z U21 albo przy reputacji 90+ pierwsza reprezentacja. To pełny etat, więc odchodzisz z klubu.',
-      'Selekcjoner nie kupuje piłkarzy, tylko powołuje 26 najlepszych Polaków. Euro i mundial są co cztery lata, na zmianę. Eliminacje trwają dwa sezony i gra się je w przerwach na kadrę, a w sezonie bez turnieju jesienią jest jeszcze Liga Narodów. Na Euro jadą dwie najlepsze drużyny z grupy, na mundial zwycięzca, a druga drużyna gra baraże.',
+      'Selekcjoner nie kupuje piłkarzy. Ma listę 50 najlepszych Polaków, którzy co tydzień grają w swoich klubach, i sam wybiera 26 na zgrupowanie (albo zostawia to asystentowi). Euro i mundial są co cztery lata, na zmianę. Eliminacje trwają dwa sezony i gra się je w przerwach na kadrę, a w sezonie bez turnieju jesienią jest jeszcze Liga Narodów. Na Euro jadą dwie najlepsze drużyny z grupy, na mundial zwycięzca, a druga drużyna gra baraże.',
       'Po turnieju możesz zostać na kolejny cykl albo wrócić do klubowej roboty. Brak awansu na turniej prezes PZPN pamięta długo.',
     ],
   },

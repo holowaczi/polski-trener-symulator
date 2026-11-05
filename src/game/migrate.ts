@@ -1,6 +1,8 @@
 import { SAVE_VERSION } from './engine'
 import type { GameState } from './types'
 import { nationOf } from './world'
+import { ensurePool } from './national'
+import { withRng } from './util'
 
 /** najstarszy zapis, który da się jeszcze wczytać (wersje 1–2 to pierwsze dni alfy) */
 export const MIN_SAVE_VERSION = 3
@@ -40,6 +42,10 @@ export const MIGRATIONS: Record<number, (s: OldSave) => void> = {
       job.tournSeason = true
       job.nlDiv ??= 'A'
     }
+  },
+  // 6 → 7: 50 kandydatów do kadry, którzy grają w klubach; selekcjoner w trakcie sezonu dostaje listę od razu
+  6: (s) => {
+    if (s.national) withRng(s, (rng) => ensurePool(rng, s))
   },
 }
 

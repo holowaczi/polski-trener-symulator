@@ -1,6 +1,6 @@
 import { EURO_CLUBS } from './euroClubs'
 import type { GameEvent } from './events'
-import { playClubMatch, simulateScore } from './match'
+import { developFromMatch, playClubMatch, simulateScore } from './match'
 import type { Rng } from './rng'
 import type { CupTie, Fixture, GameState, JobOffer, MatchReport, NatGroup, NationalJob, NationalSide, NatKo, NatStage, Player, Position, Team } from './types'
 import { addModifier, adjustCoach, adjustTrust, computeTable, isAvailable, news, setMorale, teamPower } from './util'
@@ -212,53 +212,225 @@ export function isNationalTeam(t: Team | undefined): boolean {
 
 // ---------- kadra ----------
 
+/** typowa kadra na zgrupowanie: 26 powołanych */
 const POOL: [Position, number][] = [
   ['BR', 3],
   ['OBR', 8],
   ['POM', 9],
   ['NAP', 6],
 ]
+/** kandydaci: 50 najlepszych Polaków, z czego 26 jest powołanych */
+const CANDIDATES: [Position, number][] = [
+  ['BR', 6],
+  ['OBR', 15],
+  ['POM', 17],
+  ['NAP', 12],
+]
+export const SQUAD_SIZE = 26
+export const CANDIDATE_COUNT = 50
 
-/** klub powołanego: reprezentanci grają głównie za granicą, młodzieżowcy w Ekstraklasie i I lidze */
-function clubFor(rng: Rng, s: GameState, p: Player, side: NationalSide): string {
-  if (side === 'U21' || rng.chance(0.25)) {
+export const CLUB_ROLE_LABEL = { pewniak: 'gra w pierwszym składzie', rotacja: 'gra w rotacji', lawka: 'grzeje ławkę' } as const
+
+/** klub kandydata: reprezentanci grają głównie za granicą, młodzieżowcy w Ekstraklasie i I lidze */
+function clubFor(rng: Rng, s: GameState, skill: number, side: NationalSide, ambition = 0): { name: string; strength: number } {
+  if (side === 'U21' || rng.chance(0.25 - ambition * 0.1)) {
     const home = Object.values(s.teams).filter((t) => !t.nt && !t.country && (t.level === 9 || (side === 'U21' && t.level === 8)) && !t.reserve)
-    if (home.length && (side === 'U21' ? rng.chance(0.7) : true)) return rng.pick(home).name
+    if (home.length && (side === 'U21' ? rng.chance(0.7 - ambition * 0.2) : true)) {
+      const t = rng.pick(home)
+      return { name: t.name, strength: t.strength }
+    }
   }
-  const fits = EURO_CLUBS.filter((c) => c.strength >= p.skill + 2 && c.strength <= p.skill + 12)
+  // ambicja > 0: zawodnik w formie idzie wyżej, < 0: szuka klubu, w którym zagra
+  const lo = skill - 4 + ambition * 4
+  const fits = EURO_CLUBS.filter((c) => c.strength >= lo && c.strength <= lo + 12)
   const c = fits.length ? rng.pick(fits) : rng.pick(EURO_CLUBS)
-  return `${c.name}`
+  return { name: c.name, strength: c.strength }
 }
 
-function callUp(rng: Rng, s: GameState, side: NationalSide, pos: Position, young = false): Player {
-  const age = side === 'U21' ? (young ? 18 : rng.int(18, 21)) : young ? rng.int(20, 23) : rng.int(22, 33)
+/** rola w klubie wynika z tego, jak zawodnik wypada na tle drużyny */
+function clubRole(p: Player): 'pewniak' | 'rotacja' | 'lawka' {
+  const gap = p.skill - (p.clubStr ?? p.skill)
+  return gap >= -3 ? 'pewniak' : gap >= -9 ? 'rotacja' : 'lawka'
+}
+
+function setClub(p: Player, c: { name: string; strength: number }): void {
+  p.club = c.name
+  p.clubStr = c.strength
+  p.clubRole = clubRole(p)
+}
+
+export function callUp(rng: Rng, s: GameState, side: NationalSide, pos: Position, young = false): Player {
+  const age = side === 'U21' ? (young ? rng.int(17, 18) : rng.int(18, 21)) : young ? rng.int(19, 22) : rng.int(22, 33)
   const p = generatePlayer(rng, s, 9, pos, { age, skillOffset: side === 'A' ? 13 : 2 })
-  p.club = clubFor(rng, s, p, side)
+  setClub(p, clubFor(rng, s, p.skill, side))
   // reprezentant ma umowę z klubem, a nie z federacją: w kadrze nie ma pensji ani negocjacji
   p.wage = 0
   p.contract = 3
   p.morale = 70
+  p.clubMins = 0
+  p.clubApps = 0
+  p.clubRatings = []
   return p
 }
 
-/** pierwsza kadra selekcjonera: 26 powołanych */
-export function nationalPool(rng: Rng, s: GameState, side: NationalSide): Player[] {
-  const pool: Player[] = []
-  for (const [pos, count] of POOL) for (let i = 0; i < count; i++) pool.push(callUp(rng, s, side, pos))
-  return pool
+/** ocena kandydata dla asystenta: umiejętności plus forma i minuty w klubie */
+export function candidateScore(p: Player): number {
+  const role = p.clubRole === 'pewniak' ? 1.5 : p.clubRole === 'lawka' ? -2 : 0
+  return p.skill + p.form * 1.2 + role - (p.injuredFor > 0 ? 6 : 0)
+}
+
+/** asystent wybiera 26 najlepszych z zachowaniem pozycji */
+export function bestSquad(players: Player[]): Player[] {
+  const out: Player[] = []
+  for (const [pos, count] of POOL)
+    out.push(
+      ...players
+        .filter((p) => p.pos === pos)
+        .sort((a, b) => candidateScore(b) - candidateScore(a))
+        .slice(0, count),
+    )
+  return out
+}
+
+/** pierwsza kadra selekcjonera: 50 kandydatów, a asystent od razu powołuje 26 */
+export function nationalPool(rng: Rng, s: GameState, side: NationalSide): { squad: Player[]; pool: Player[] } {
+  const all: Player[] = []
+  for (const [pos, count] of CANDIDATES) for (let i = 0; i < count; i++) all.push(callUp(rng, s, side, pos, rng.chance(0.2)))
+  const squad = bestSquad(all)
+  return { squad, pool: all.filter((p) => !squad.includes(p)) }
+}
+
+/** kandydaci w starych zapisach: dobieramy brakujących do pięćdziesiątki */
+export function ensurePool(rng: Rng, s: GameState): void {
+  const job = s.national
+  if (!job || job.pool) return
+  job.pool = []
+  for (const [pos, count] of CANDIDATES) {
+    const have = s.squad.filter((p) => p.pos === pos).length
+    for (let i = have; i < count; i++) job.pool.push(callUp(rng, s, job.side, pos, rng.chance(0.2)))
+  }
+  for (const p of s.squad) if (p.clubStr === undefined) setClub(p, clubFor(rng, s, p.skill, job.side))
+}
+
+/** wszyscy kandydaci: powołani i reszta listy */
+export function allCandidates(s: GameState): Player[] {
+  return [...s.squad, ...(s.national?.pool ?? [])]
+}
+
+/** powołanie z listy kandydatów */
+export function callUpCandidate(s: GameState, id: number): string {
+  const job = s.national
+  const p = job?.pool?.find((x) => x.id === id)
+  if (!job || !p) return ''
+  if (s.squad.length >= SQUAD_SIZE) return `Na zgrupowanie jedzie najwyżej ${SQUAD_SIZE} zawodników. Najpierw kogoś odeślij do klubu.`
+  job.pool = job.pool!.filter((x) => x !== p)
+  p.morale = Math.max(p.morale, 70)
+  s.squad.push(p)
+  if (s.lineup.auto) s.lineup = { ...s.lineup }
+  const msg = `${playerName(p)} (${p.club}) dostaje powołanie. W klubie już zamawiają tort.`
+  news(s, msg)
+  return msg
+}
+
+/** asystent ustawia powołania od nowa: 26 najlepszych według formy i minut w klubie */
+export function autoCallUps(s: GameState): void {
+  const job = s.national
+  if (!job) return
+  const all = allCandidates(s)
+  const squad = bestSquad(all)
+  s.squad = squad
+  job.pool = all.filter((p) => !squad.includes(p))
+  const ids = new Set(squad.map((p) => p.id))
+  s.lineup.xi = s.lineup.xi.filter((id) => ids.has(id))
+  s.lineup.bench = s.lineup.bench.filter((id) => ids.has(id))
 }
 
 /**
- * Po sezonie kadra się zmienia: starsi kończą karierę reprezentacyjną, młodzieżowcy wyrastają z U21,
- * a w miejsce słabszych przychodzą nowi. Zostaje tylu, żeby na każdej pozycji było z kogo wybierać.
+ * Tydzień w klubach: kandydaci grają (albo nie) w swoich klubach, łapią formę, minuty, kontuzje i rozwijają się.
+ * Zimą i latem co lepsi zmieniają kluby: ci w formie idą wyżej, ci z ławki szukają gry.
+ */
+export function simulateClubWeek(rng: Rng, s: GameState, week: number, nationalMatch: boolean): void {
+  const job = s.national
+  if (!job || week >= 36) return
+  ensurePool(rng, s)
+  for (const p of allCandidates(s)) {
+    if (p.injuredFor > 0) {
+      if (!nationalMatch) p.injuredFor--
+      continue
+    }
+    if (nationalMatch && s.squad.includes(p)) continue
+    const role = p.clubRole ?? 'rotacja'
+    const plays = rng.chance(role === 'pewniak' ? 0.88 : role === 'rotacja' ? 0.55 : 0.2)
+    if (plays) {
+      const mins = role === 'lawka' ? rng.int(10, 45) : rng.chance(0.75) ? 90 : rng.int(45, 85)
+      p.clubMins = (p.clubMins ?? 0) + mins
+      p.clubApps = (p.clubApps ?? 0) + 1
+      const rating = clamp(rng.normal(6.5 + (p.skill - (p.clubStr ?? p.skill)) * 0.04, 0.7), 3, 10)
+      p.clubRatings = [...(p.clubRatings ?? []), Math.round(rating * 10) / 10].slice(-5)
+      developFromMatch(p, rating)
+      if (rng.chance(0.006)) p.injuredFor = rng.int(1, 5)
+    } else p.clubRatings = [...(p.clubRatings ?? []), 5.8].slice(-5)
+    const r = p.clubRatings!
+    p.form = clamp(Math.round(((r.reduce((a, b) => a + b, 0) / r.length) - 6.3) * 1.8), -3, 3)
+    p.clubRole = clubRole(p)
+  }
+  // zimowe okno: kilka transferów
+  if (week === 18) for (const p of allCandidates(s)) if (rng.chance(0.06)) transferCandidate(rng, s, p)
+}
+
+function transferCandidate(rng: Rng, s: GameState, p: Player): void {
+  const job = s.national!
+  const ambition = p.clubRole === 'lawka' ? -1 : p.form >= 1 ? 1 : 0
+  const c = clubFor(rng, s, p.skill, job.side, ambition)
+  if (c.name === p.club) return
+  const from = p.club
+  setClub(p, c)
+  if (s.squad.includes(p) || p.skill >= 84)
+    news(s, `Transfer: ${playerName(p)} przechodzi z ${from} do ${c.name}. ${ambition > 0 ? 'Krok w górę.' : ambition < 0 ? 'Idzie tam, gdzie będzie grał.' : 'Nowe wyzwanie.'}`)
+}
+
+/**
+ * Po sezonie lista kandydatów się zmienia: wszyscy starzeją się o rok, młodzi rosną, starsi słabną,
+ * weterani kończą karierę reprezentacyjną, młodzieżowcy wyrastają z U21, a z lig wyskakują nowi.
+ * Zostaje 50 najlepszych. Powołani zostają w kadrze, dopóki są na liście.
  */
 export function refreshPool(rng: Rng, s: GameState, side: NationalSide): string[] {
   const notes: string[] = []
-  const leaving = s.squad.filter((p) => (side === 'U21' ? p.age > 21 : p.age >= 35 || (p.age >= 32 && rng.chance(0.3))))
-  for (const p of leaving.slice(0, 6))
+  const job = s.national!
+  ensurePool(rng, s)
+  let all = allCandidates(s)
+  for (const p of all) {
+    p.age++
+    // rozwój poza sezonem: młodzi z minutami rosną, starsi tracą
+    if (p.age <= 23 && p.skill < p.potential) p.skill = Math.min(p.potential, p.skill + rng.int(0, (p.clubMins ?? 0) > 1500 ? 3 : 1))
+    if (p.age >= 31) p.skill = Math.max(40, p.skill - rng.int(0, p.age >= 34 ? 3 : 1))
+  }
+  const leaving = all.filter((p) => (side === 'U21' ? p.age > 21 : p.age >= 36 || (p.age >= 33 && rng.chance(0.25))))
+  for (const p of leaving.filter((x) => s.squad.includes(x)).slice(0, 5))
     notes.push(side === 'U21' ? `${playerName(p)} wyrasta z młodzieżówki. Powodzenia w dorosłej kadrze.` : `${playerName(p)} kończy karierę reprezentacyjną. Na pożegnanie dostaje koszulkę z numerem ${p.age}.`)
-  s.squad = s.squad.filter((p) => !leaving.includes(p))
-  for (const p of s.squad) {
+  all = all.filter((p) => !leaving.includes(p))
+  // nowi: młodzi, którzy wyskoczyli w lidze, plus ci, którzy dojrzeli
+  const fresh: Player[] = []
+  for (const [pos, count] of CANDIDATES) {
+    const have = all.filter((p) => p.pos === pos).length
+    const n = Math.max(count - have, 0) + rng.int(1, 2)
+    for (let i = 0; i < n; i++) fresh.push(callUp(rng, s, side, pos, rng.chance(0.6)))
+  }
+  all.push(...fresh)
+  // zostaje 50 najlepszych z zachowaniem pozycji
+  const keep: Player[] = []
+  for (const [pos, count] of CANDIDATES)
+    keep.push(
+      ...all
+        .filter((p) => p.pos === pos)
+        .sort((a, b) => b.skill - a.skill)
+        .slice(0, count),
+    )
+  for (const p of fresh) if (keep.includes(p) && p.skill >= 78) notes.push(`Nowe nazwisko na liście: ${playerName(p)} (${p.age} l., ${p.pos}, ${p.club}).`)
+  for (const p of s.squad) if (!keep.includes(p) && !leaving.includes(p)) notes.push(`${playerName(p)} wypada z czołowej pięćdziesiątki. Dzwoni do Ciebie jego mama, ale liczby nie kłamią.`)
+  // letnie transfery i nowy sezon w klubach
+  for (const p of keep) {
+    if (rng.chance(0.2)) transferCandidate(rng, s, p)
     p.goals = 0
     p.assists = 0
     p.apps = 0
@@ -266,25 +438,24 @@ export function refreshPool(rng: Rng, s: GameState, side: NationalSide): string[
     p.yellows = 0
     p.suspendedFor = 0
     p.injuredFor = 0
+    p.clubMins = 0
+    p.clubApps = 0
+    p.clubRole = clubRole(p)
   }
-  // nowi: w miejsce odchodzących, a do tego jeden czy dwóch najlepszych z ligi wypycha najsłabszych
-  const fresh: Player[] = []
-  for (const [pos, count] of POOL) {
-    const have = s.squad.filter((p) => p.pos === pos).length
-    for (let i = have; i < count; i++) fresh.push(callUp(rng, s, side, pos, rng.chance(0.4)))
-  }
-  for (let i = 0; i < 2; i++) {
-    const pos = rng.pick(['OBR', 'POM', 'NAP'] as Position[])
-    const weakest = s.squad.filter((p) => p.pos === pos).sort((a, b) => a.skill - b.skill)[0]
-    const cand = callUp(rng, s, side, pos, true)
-    if (weakest && cand.skill > weakest.skill) {
-      s.squad = s.squad.filter((p) => p !== weakest)
-      fresh.push(cand)
-      notes.push(`${playerName(weakest)} wypada z kadry. Dzwoni do Ciebie jego mama, ale decyzja zapadła.`)
+  s.squad = s.squad.filter((p) => keep.includes(p))
+  job.pool = keep.filter((p) => !s.squad.includes(p))
+  // brakujące miejsca w kadrze uzupełnia asystent
+  if (s.squad.length < SQUAD_SIZE) {
+    const best = bestSquad(keep).filter((p) => !s.squad.includes(p))
+    for (const [pos, count] of POOL) {
+      const need = count - s.squad.filter((p) => p.pos === pos).length
+      for (const p of best.filter((x) => x.pos === pos).slice(0, Math.max(0, need))) {
+        s.squad.push(p)
+        job.pool = job.pool.filter((x) => x !== p)
+        notes.push(`Pierwsze powołanie: ${playerName(p)} (${p.age} l., ${p.pos}, ${p.club}).`)
+      }
     }
   }
-  for (const p of fresh) notes.push(`Pierwsze powołanie: ${playerName(p)} (${p.age} l., ${p.pos}, ${p.club}).`)
-  s.squad.push(...fresh)
   s.lineup.xi = s.lineup.xi.filter((id) => s.squad.some((p) => p.id === id))
   s.lineup.bench = s.lineup.bench.filter((id) => s.squad.some((p) => p.id === id))
   return notes
@@ -379,7 +550,7 @@ function addKo(rng: Rng, list: NatKo[], stage: NatStage, me: number, opp: number
 export function newNationalSeason(rng: Rng, s: GameState, side: NationalSide, teamId: number, since: number, prev?: NationalJob): NationalJob {
   const event = eventFor(side, s.season)
   const tournSeason = isTournamentSeason(side, s.season)
-  const job: NationalJob = { side, teamId, since, season: s.season, event, tournSeason, qual: undefined as unknown as NatGroup, reached: 0, nlDiv: prev?.nlDiv ?? 'A' }
+  const job: NationalJob = { side, teamId, since, season: s.season, event, tournSeason, qual: undefined as unknown as NatGroup, reached: 0, nlDiv: prev?.nlDiv ?? 'A', pool: prev?.side === side ? prev.pool : undefined }
   const carry = prev && prev.event === event && prev.qual?.seasons?.includes(s.season) ? prev.qual : undefined
   if (carry) job.qual = carry
   else {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { playCareer } from './bot'
 import { acceptOffer, newGame } from './engine'
-import { eventFor, isTournamentSeason, nationalOffer, nationsLeagueName, polandTeam, REACHED_LABEL } from './national'
+import { allCandidates, autoCallUps, callUpCandidate, CANDIDATE_COUNT, eventFor, isTournamentSeason, nationalOffer, nationsLeagueName, polandTeam, REACHED_LABEL, SQUAD_SIZE } from './national'
+import { releasePlayer } from './market'
 import { previewStrength } from './match'
 import type { GameState, NationalSide } from './types'
 import { withRng } from './util'
@@ -98,4 +99,37 @@ describe('reprezentacja', () => {
     expect(reached.filter((r) => r === 6).length / reached.length).toBeLessThan(0.25)
     expect(nl.length).toBeGreaterThan(3)
   }, 180000)
+})
+
+describe('powołania', () => {
+  it('50 kandydatów gra w klubach, rozwija się, a selekcjoner powołuje i odsyła', () => {
+    const s = nationalCareer(801, 'A')
+    expect(s.squad.length + s.national!.pool!.length).toBe(CANDIDATE_COUNT)
+    expect(s.squad).toHaveLength(SQUAD_SIZE)
+    const clubs0 = new Map(allCandidates(s).map((p) => [p.id, p.club]))
+    const skill0 = new Map(allCandidates(s).map((p) => [p.id, p.skill]))
+    playCareer(s, 2, (g) => g.round >= 20 && g.phase === 'season')
+    // minuty i forma z klubów
+    const all = allCandidates(s)
+    expect(all.filter((p) => (p.clubMins ?? 0) > 0).length).toBeGreaterThan(35)
+    expect(new Set(all.map((p) => p.form)).size).toBeGreaterThan(2)
+    // powołanie z listy i odesłanie do klubu
+    const out = s.squad[s.squad.length - 1]
+    releasePlayer(s, out.id)
+    expect(s.national!.pool!.some((p) => p.id === out.id)).toBe(true)
+    const inn = s.national!.pool![0]
+    callUpCandidate(s, inn.id)
+    expect(s.squad.some((p) => p.id === inn.id)).toBe(true)
+    expect(callUpCandidate(s, s.national!.pool![0].id)).toMatch(/najwyżej/)
+    autoCallUps(s)
+    expect(s.squad).toHaveLength(SQUAD_SIZE)
+    // po sezonie: transfery, rozwój młodych, nowe nazwiska, ciągle 50
+    playCareer(s, 3, (g) => g.season === 3 && g.phase === 'season')
+    if (!s.national) return
+    const later = allCandidates(s)
+    expect(later.length).toBe(CANDIDATE_COUNT)
+    expect(later.filter((p) => clubs0.has(p.id) && clubs0.get(p.id) !== p.club).length).toBeGreaterThan(0)
+    expect(later.filter((p) => !skill0.has(p.id)).length).toBeGreaterThan(0)
+    expect(later.some((p) => skill0.has(p.id) && p.skill > skill0.get(p.id)!)).toBe(true)
+  }, 60000)
 })
