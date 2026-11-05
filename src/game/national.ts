@@ -2,14 +2,13 @@ import { EURO_CLUBS } from './euroClubs'
 import type { GameEvent } from './events'
 import { playClubMatch, simulateScore } from './match'
 import type { Rng } from './rng'
-import type { CupTie, Fixture, GameState, JobOffer, MatchReport, NatGroup, NationalJob, NationalSide, Player, Position, Team } from './types'
+import type { CupTie, Fixture, GameState, JobOffer, MatchReport, NatGroup, NationalJob, NationalSide, NatKo, NatStage, Player, Position, Team } from './types'
 import { addModifier, adjustCoach, adjustTrust, computeTable, isAvailable, news, setMorale, teamPower } from './util'
 import { clamp, generatePlayer, makeFixtures, playerName } from './world'
 
 /**
- * Reprezentacja: pełny etat zamiast klubu. Sezon to eliminacje w przerwach na kadrę (grupa pięciu drużyn, mecz i rewanż),
- * a dwie najlepsze drużyny jadą latem na turniej: grupa czterech drużyn, potem ćwierćfinał, półfinał i finał.
- * Turnieje idą na zmianę: mistrzostwa Europy i świata, a młodzieżówka co roku gra o mistrzostwo Europy U21.
+ * Reprezentacja: pełny etat zamiast klubu. Eliminacje (grupa pięciu drużyn, mecz i rewanż) trwają dwa sezony,
+ * latem jest turniej: grupa, potem mecze o wszystko. W sezonie bez turnieju kadra A gra w Lidze Narodów.
  * Rywale to prawdziwe reprezentacje z ogólną siłą, a Polska gra zawodnikami z kadry, którą selekcjoner ma pod ręką.
  */
 
@@ -106,24 +105,74 @@ const U21_GAP = 11
 export const SIDE_NAME: Record<NationalSide, string> = { A: 'Reprezentacja Polski', U21: 'Reprezentacja Polski U21' }
 export const SIDE_SHORT: Record<NationalSide, string> = { A: 'kadra', U21: 'młodzieżówka' }
 
-/** kolejki eliminacji: przerwy na kadrę jesienią i wiosną (grupa pięciu drużyn to dziesięć kolejek, w dwóch Polska pauzuje) */
-export const QUAL_WEEKS = [2, 3, 7, 8, 12, 13, 22, 23, 27, 28]
-/** turniej po sezonie ligowym: trzy kolejki grupy, potem mecze o wszystko */
-export const TOURN_GROUP_WEEKS = [37, 38, 39]
-export const KO_WEEKS = { QF: 40, SF: 41, F: 42 } as const
-/** sezon selekcjonera trwa dłużej niż ligowy, bo turniej jest latem */
-export const NATIONAL_SEASON_WEEKS = 43
-
-export const STAGE_LABEL = { QF: 'Ćwierćfinał', SF: 'Półfinał', F: 'Finał' } as const
-/** jak daleko zaszła drużyna: do historii, karty trenera i punktów */
-export const REACHED_LABEL = ['bez awansu na turniej', 'faza grupowa', 'ćwierćfinał', 'półfinał', 'finał', 'złoto']
-
-/** rok turnieju: sezon 1 to 2026/27, więc turniej po nim jest latem 2027 */
-export function eventFor(side: NationalSide, season: number): string {
-  const year = 2026 + season
-  if (side === 'U21') return `Mistrzostwa Europy U21 ${year}`
-  return year % 2 === 0 ? `Mistrzostwa Europy ${year}` : `Mistrzostwa Świata ${year}`
+/**
+ * Kalendarz jak w prawdziwej piłce. Sezon 1 kończy się latem 2027, sezon n latem 2026+n.
+ * Kadra A: mundial w latach 2030, 2034…, Euro w 2028, 2032…, czyli co cztery lata z przesunięciem o dwa.
+ * W sezonie bez turnieju jesienią gra się Ligę Narodów, a wiosną zaczynają się eliminacje (4 z 10 kolejek),
+ * które kończą się jesienią sezonu turniejowego. Młodzieżówka gra o Euro U21 w latach nieparzystych.
+ */
+export function summerYear(season: number): number {
+  return 2026 + season
 }
+
+/** czy latem tego sezonu jest turniej danej drużyny */
+export function isTournamentSeason(side: NationalSide, season: number): boolean {
+  const y = summerYear(season)
+  return side === 'U21' ? y % 2 === 1 : y % 2 === 0
+}
+
+function tournamentName(side: NationalSide, year: number): string {
+  if (side === 'U21') return `Mistrzostwa Europy U21 ${year}`
+  return year % 4 === 0 ? `Mistrzostwa Europy ${year}` : `Mistrzostwa Świata ${year}`
+}
+
+/** turniej, o który toczą się eliminacje w tym sezonie: tegoroczny albo przyszłoroczny */
+export function eventFor(side: NationalSide, season: number): string {
+  const y = summerYear(season)
+  return tournamentName(side, isTournamentSeason(side, season) ? y : y + 1)
+}
+
+/** Liga Narodów jesienią sezonu bez turnieju, np. „Liga Narodów 2028/29” */
+export function nationsLeagueName(season: number): string {
+  const y = summerYear(season)
+  return `Liga Narodów ${y - 1}/${String(y).slice(2)}`
+}
+
+/** tygodnie eliminacji: [pierwszy sezon, sezon turniejowy] */
+const QUAL_WEEKS: Record<NationalSide, [number[], number[]]> = {
+  A: [
+    [22, 23, 27, 28],
+    [2, 3, 7, 8, 12, 13],
+  ],
+  U21: [
+    [2, 7, 12, 22, 27],
+    [2, 7, 12, 22, 27],
+  ],
+}
+/** Liga Narodów: jesienne przerwy na kadrę */
+const NL_WEEKS = [2, 3, 7, 8, 12, 13]
+/** turniej po sezonie ligowym: trzy kolejki grupy, potem mecze o wszystko */
+const TOURN_GROUP_WEEKS = [36, 37, 38]
+export const KO_WEEKS = { R32: 39, R16: 40, QF: 41, SF: 42, F: 43, NLSF: 40, NLF: 42, PO1: 22, PO2: 23 } as const
+/** sezon selekcjonera trwa dłużej niż ligowy, bo turniej jest latem */
+export const NATIONAL_SEASON_WEEKS = 44
+
+export const STAGE_LABEL: Record<NatStage, string> = {
+  PO1: 'Baraż · półfinał',
+  PO2: 'Baraż · finał',
+  R32: '1/16 finału',
+  R16: '1/8 finału',
+  QF: 'Ćwierćfinał',
+  SF: 'Półfinał',
+  F: 'Finał',
+  NLSF: 'Półfinał',
+  NLF: 'Finał',
+}
+/** jak daleko zaszła drużyna: do historii, karty trenera i punktów */
+export const REACHED_LABEL = ['bez awansu na turniej', 'faza grupowa', 'faza pucharowa', 'ćwierćfinał', 'półfinał', 'finał', 'złoto']
+/** do którego miejsca w REACHED_LABEL prowadzi gra w danym etapie */
+const STAGE_REACHED: Partial<Record<NatStage, number>> = { R32: 2, R16: 2, QF: 3, SF: 4, F: 5 }
+const NEXT_STAGE: Partial<Record<NatStage, NatStage>> = { PO1: 'PO2', R32: 'R16', R16: 'QF', QF: 'SF', SF: 'F', NLSF: 'NLF' }
 
 const isWorldCup = (event: string) => event.startsWith('Mistrzostwa Świata')
 
@@ -247,13 +296,33 @@ function nationsFor(world: boolean): Nation[] {
   return NATIONS.filter((x) => x.name !== 'Polska' && (world || x.europe))
 }
 
-/** eliminacje: Polska i po jednej drużynie z czterech koszyków */
-function drawQualifiers(rng: Rng, s: GameState, side: NationalSide, me: number, event: string): NatGroup {
-  const eu = [...nationsFor(false)].sort((a, b) => b.strength - a.strength)
+const europeByStrength = () => [...nationsFor(false)].sort((a, b) => b.strength - a.strength)
+
+/** eliminacje: Polska i po jednej drużynie z czterech koszyków; kolejki rozłożone na dwa sezony */
+function drawQualifiers(rng: Rng, s: GameState, side: NationalSide, me: number, event: string, firstSeason: number): NatGroup {
+  const eu = europeByStrength()
   const pots = [eu.slice(0, 10), eu.slice(10, 22), eu.slice(22, 36), eu.slice(36)]
   const ids = [me, ...pots.map((pot) => rivalTeam(rng, s, rng.pick(pot), side))]
   const letter = 'ABCDEFGHIJ'[rng.int(0, 9)]
-  return { name: `Eliminacje ${eventShort(event)} · grupa ${letter}`, teamIds: ids, rounds: makeFixtures(rng, ids), weeks: QUAL_WEEKS }
+  const [w1, w2] = QUAL_WEEKS[side]
+  return {
+    name: `Eliminacje ${eventShort(event)} · grupa ${letter}`,
+    teamIds: ids,
+    rounds: makeFixtures(rng, ids),
+    weeks: [...w1, ...w2],
+    seasons: [...w1.map(() => firstSeason), ...w2.map(() => firstSeason + 1)],
+  }
+}
+
+/** Liga Narodów: grupa czterech drużyn z tej samej dywizji, mecz i rewanż */
+function drawNationsLeague(rng: Rng, s: GameState, me: number, div: 'A' | 'B', season: number) {
+  const eu = europeByStrength()
+  const range = div === 'A' ? eu.slice(0, 16) : eu.slice(16, 32)
+  const picked = rng.shuffle([...range]).slice(0, 3)
+  const ids = [me, ...picked.map((x) => rivalTeam(rng, s, x, 'A'))]
+  const name = nationsLeagueName(season)
+  const group: NatGroup = { name: `${name} · dywizja ${div}, grupa ${rng.int(1, 4)}`, teamIds: ids, rounds: makeFixtures(rng, ids), weeks: NL_WEEKS }
+  return { name, div, group, finals: [], reached: 0 }
 }
 
 /** turniej: grupa z jednym faworytem, jednym średniakiem i jednym słabszym rywalem */
@@ -269,42 +338,135 @@ function drawTournament(rng: Rng, s: GameState, job: NationalJob): NatGroup {
   const ids = [job.teamId, pick(field.slice(0, 8)), pick(field.slice(8, 20)), pick(field.slice(20, 30))]
   // trzy kolejki: każdy z każdym raz
   const rounds = makeFixtures(rng, ids).slice(0, 3)
-  return { name: `${job.event} · grupa ${'ABCDEF'[rng.int(0, 5)]}`, teamIds: ids, rounds, weeks: TOURN_GROUP_WEEKS }
+  return { name: `${job.event} · grupa ${'ABCDEFGHIJKL'[rng.int(0, isWorldCup(job.event) ? 11 : 5)]}`, teamIds: ids, rounds, weeks: TOURN_GROUP_WEEKS }
 }
 
-/** rywal w fazie pucharowej: im dalej, tym mocniejszy */
-function koOpponent(rng: Rng, s: GameState, job: NationalJob, stage: 'QF' | 'SF' | 'F'): number {
-  const field = [...nationsFor(isWorldCup(job.event))].sort((a, b) => b.strength - a.strength)
-  const met = new Set([...(job.tourn?.group.teamIds ?? []), ...(job.tourn?.ko ?? []).flatMap((k) => [k.tie.home, k.tie.away])].map((id) => s.teams[id]?.country))
-  const range = stage === 'QF' ? field.slice(2, 16) : stage === 'SF' ? field.slice(0, 10) : field.slice(0, 6)
+/** rywal w meczu o wszystko: im dalej, tym mocniejszy */
+function koOpponent(rng: Rng, s: GameState, job: NationalJob, stage: NatStage): number {
+  const world = stage !== 'NLSF' && stage !== 'NLF' && stage !== 'PO1' && stage !== 'PO2' && isWorldCup(job.event)
+  const field = [...nationsFor(world)].sort((a, b) => b.strength - a.strength)
+  const met = new Set(
+    [...(job.tourn?.group.teamIds ?? []), ...(job.tourn?.ko ?? []).flatMap((k) => [k.tie.home, k.tie.away]), ...(job.nl?.finals ?? []).flatMap((k) => [k.tie.home, k.tie.away])].map(
+      (id) => s.teams[id]?.country,
+    ),
+  )
+  const ranges: Record<NatStage, [number, number]> = {
+    PO1: [14, 34],
+    PO2: [12, 30],
+    R32: [8, 32],
+    R16: [4, 20],
+    QF: [2, 16],
+    SF: [0, 10],
+    F: [0, 6],
+    NLSF: [0, 10],
+    NLF: [0, 6],
+  }
+  const range = field.slice(...ranges[stage])
   const free = range.filter((x) => !met.has(x.name))
   return rivalTeam(rng, s, rng.pick(free.length ? free : range), job.side)
 }
 
-/** nowy sezon selekcjonera: losowanie eliminacji */
-export function newNationalSeason(rng: Rng, s: GameState, side: NationalSide, teamId: number, since: number): NationalJob {
+function addKo(rng: Rng, list: NatKo[], stage: NatStage, me: number, opp: number, after = 0): void {
+  // nigdy w tym samym tygodniu co poprzedni mecz (stare zapisy miały turniej o tydzień później)
+  const week = Math.max(KO_WEEKS[stage], after + 1, ...list.map((k) => k.week + 1))
+  list.push({ stage, week, tie: rng.chance(0.5) ? { home: me, away: opp } : { home: opp, away: me } })
+}
+
+/**
+ * Nowy sezon selekcjonera. Eliminacje, które już trwają, idą dalej. Nowy selekcjoner w sezonie turniejowym
+ * przejmuje grupę po poprzedniku z rozegranymi wiosennymi meczami.
+ */
+export function newNationalSeason(rng: Rng, s: GameState, side: NationalSide, teamId: number, since: number, prev?: NationalJob): NationalJob {
   const event = eventFor(side, s.season)
-  const job: NationalJob = { side, teamId, since, season: s.season, event, qual: undefined as unknown as NatGroup, reached: 0 }
-  job.qual = drawQualifiers(rng, s, side, teamId, event)
-  const rivals = job.qual.teamIds.filter((id) => id !== teamId).map((id) => s.teams[id].name)
-  news(s, `Losowanie eliminacji ${eventShort(event)}: ${rivals.join(', ')}. Na turniej jadą dwie najlepsze drużyny z grupy.`)
+  const tournSeason = isTournamentSeason(side, s.season)
+  const job: NationalJob = { side, teamId, since, season: s.season, event, tournSeason, qual: undefined as unknown as NatGroup, reached: 0, nlDiv: prev?.nlDiv ?? 'A' }
+  const carry = prev && prev.event === event && prev.qual?.seasons?.includes(s.season) ? prev.qual : undefined
+  if (carry) job.qual = carry
+  else {
+    const first = tournSeason ? s.season - 1 : s.season
+    job.qual = drawQualifiers(rng, s, side, teamId, event, first)
+    // kolejki z poprzedniego sezonu rozegrał poprzednik
+    const played = job.qual.rounds.filter((_, i) => job.qual.seasons![i] < s.season)
+    for (const r of played) for (const f of r) aiMatch(rng, s, f)
+    if (played.length) {
+      const pos = computeTable(job.qual).findIndex((r) => r.teamId === teamId) + 1
+      const row = computeTable(job.qual).find((r) => r.teamId === teamId)!
+      news(s, `Poprzednik zostawił Ci ${pos}. miejsce w grupie eliminacji ${eventShort(event)}: ${row.pts} pkt po ${row.p} meczach. Spadek po nim: worek z piłkami i kalendarz z 2019 roku.`)
+    }
+  }
+  if (!carry) {
+    const rivals = job.qual.teamIds.filter((id) => id !== teamId).map((id) => s.teams[id].name)
+    news(s, `Losowanie eliminacji ${eventShort(event)}: ${rivals.join(', ')}. ${qualRule(side, event)}`)
+  }
+  if (side === 'A' && !tournSeason) {
+    job.nl = drawNationsLeague(rng, s, teamId, job.nlDiv!, s.season)
+    const rivals = job.nl.group.teamIds.filter((id) => id !== teamId).map((id) => s.teams[id].name)
+    news(s, `${job.nl.name}, dywizja ${job.nl.div}: ${rivals.join(', ')}. ${job.nl.div === 'A' ? 'Zwycięzca grupy jedzie na Final Four, ostatni spada do dywizji B.' : 'Zwycięzca grupy awansuje do dywizji A.'}`)
+  }
   return job
+}
+
+/** cel na sezon w jednym zdaniu, do wiadomości i nagłówka */
+export function nationalGoal(job: NationalJob): string {
+  if (job.tournSeason) return `Cel: awans na ${job.event}`
+  return job.nl ? `Cel: dobra Liga Narodów i mocny start eliminacji ${eventShort(job.event)}` : `Cel: mocny start eliminacji ${eventShort(job.event)}`
+}
+
+/** kto jedzie na turniej z grupy eliminacyjnej */
+export function qualRule(side: NationalSide, event: string): string {
+  return side === 'A' && isWorldCup(event)
+    ? 'Zwycięzca grupy jedzie na mundial, druga drużyna gra baraże.'
+    : 'Na turniej jadą dwie najlepsze drużyny z grupy.'
 }
 
 // ---------- mecze ----------
 
-export function nationalFixtureForWeek(s: GameState, week: number): { f: Fixture | CupTie; label: string; ko?: 'QF' | 'SF' | 'F' } | undefined {
+/** indeks kolejki grupy rozgrywanej w tym tygodniu tego sezonu */
+function roundAt(g: NatGroup, season: number, week: number, groupSeason: number): number {
+  return g.weeks.findIndex((w, i) => w === week && (g.seasons?.[i] ?? groupSeason) === season)
+}
+
+type NatSlot = { g: NatGroup; label: (idx: number) => string; done: () => void }
+
+function slots(rng: Rng | undefined, s: GameState, job: NationalJob): NatSlot[] {
+  const out: NatSlot[] = [
+    {
+      g: job.qual,
+      label: (idx) => `Eliminacje ${eventShort(job.event)} · ${idx + 1}. kolejka`,
+      done: () => rng && finishQualifiers(rng, s, job),
+    },
+  ]
+  if (job.nl) {
+    const nl = job.nl
+    out.push({ g: nl.group, label: (idx) => `Liga Narodów · ${idx + 1}. kolejka`, done: () => rng && finishNationsLeagueGroup(rng, s, job) })
+  }
+  if (job.tourn) out.push({ g: job.tourn.group, label: (idx) => `${eventShort(job.event)} · grupa, ${idx + 1}. mecz`, done: () => rng && finishTournamentGroup(rng, s, job) })
+  return out
+}
+
+function koLists(job: NationalJob): NatKo[][] {
+  return [job.playoff ?? [], job.nl?.finals ?? [], job.tourn?.ko ?? []]
+}
+
+function koLabel(job: NationalJob, ko: NatKo): string {
+  if (ko.stage === 'PO1' || ko.stage === 'PO2') return `Baraże ${eventShort(job.event)} · ${ko.stage === 'PO1' ? 'półfinał' : 'finał'}`
+  if (ko.stage === 'NLSF' || ko.stage === 'NLF') return `Liga Narodów · ${ko.stage === 'NLSF' ? 'półfinał' : 'finał'}`
+  return `${eventShort(job.event)} · ${STAGE_LABEL[ko.stage].toLowerCase()}`
+}
+
+export function nationalFixtureForWeek(s: GameState, week: number): { f: Fixture | CupTie; label: string; ko?: NatStage } | undefined {
   const job = s.national
   if (!job || job.season !== s.season) return undefined
   const me = job.teamId
-  for (const g of [job.qual, job.tourn?.group]) {
-    if (!g) continue
-    const idx = g.weeks.indexOf(week)
+  for (const { g, label } of slots(undefined, s, job)) {
+    const idx = roundAt(g, s.season, week, job.season)
     const f = idx >= 0 ? g.rounds[idx]?.find((x) => x.home === me || x.away === me) : undefined
-    if (f) return { f, label: g === job.qual ? `Eliminacje ${eventShort(job.event)} · ${idx + 1}. kolejka` : `${eventShort(job.event)} · grupa, ${idx + 1}. mecz` }
+    if (f) return { f, label: label(idx) }
   }
-  const ko = job.tourn?.ko.find((k) => k.week === week)
-  if (ko) return { f: ko.tie, label: `${eventShort(job.event)} · ${STAGE_LABEL[ko.stage].toLowerCase()}`, ko: ko.stage }
+  for (const list of koLists(job)) {
+    const ko = list.find((k) => k.week === week)
+    if (ko) return { f: ko.tie, label: koLabel(job, ko), ko: ko.stage }
+  }
   return undefined
 }
 
@@ -336,31 +498,28 @@ export function playNationalForWeek(rng: Rng, s: GameState, week: number, push: 
   const job = s.national
   if (!job || job.season !== s.season) return
   const me = job.teamId
-  for (const g of [job.qual, job.tourn?.group]) {
-    if (!g) continue
-    const idx = g.weeks.indexOf(week)
+  for (const { g, label, done } of slots(rng, s, job)) {
+    const idx = roundAt(g, s.season, week, job.season)
     if (idx < 0 || !g.rounds[idx]) continue
     for (const f of g.rounds[idx]) {
       if (f.hg !== undefined) continue
       if (f.home === me || f.away === me) {
         const rep = playClubMatch(rng, s, f, false)
         rep.national = true
-        rep.cupName = g === job.qual ? `Eliminacje ${eventShort(job.event)} · ${idx + 1}. kolejka` : `${eventShort(job.event)} · grupa, ${idx + 1}. mecz`
+        rep.cupName = label(idx)
         f.hg = rep.hg
         f.ag = rep.ag
         push(rep)
       } else aiMatch(rng, s, f)
     }
-    if (idx === g.rounds.length - 1) {
-      if (g === job.qual) finishQualifiers(rng, s, job)
-      else finishTournamentGroup(rng, s, job)
-    }
+    if (idx === g.rounds.length - 1) done()
   }
-  const ko = job.tourn?.ko.find((k) => k.week === week && k.tie.winner === undefined)
-  if (ko) {
+  for (const list of koLists(job)) {
+    const ko = list.find((k) => k.week === week && k.tie.winner === undefined)
+    if (!ko) continue
     const rep = playClubMatch(rng, s, ko.tie, true)
     rep.national = true
-    rep.cupName = `${eventShort(job.event)} · ${STAGE_LABEL[ko.stage].toLowerCase()}`
+    rep.cupName = koLabel(job, ko)
     ko.tie.hg = rep.hg
     ko.tie.ag = rep.ag
     if (rep.hg !== rep.ag) ko.tie.winner = rep.hg > rep.ag ? ko.tie.home : ko.tie.away
@@ -369,7 +528,8 @@ export function playNationalForWeek(rng: Rng, s: GameState, week: number, push: 
       rep.pens = ko.tie.pens
     }
     const won = ko.tie.winner === me
-    if (ko.stage === 'F' && won) rep.trophy = job.event
+    if (won && ko.stage === 'F') rep.trophy = job.event
+    if (won && ko.stage === 'NLF') rep.trophy = job.nl!.name
     push(rep)
     afterKo(rng, s, job, ko.stage, won)
   }
@@ -382,13 +542,14 @@ export function groupTable(g: NatGroup) {
 function finishQualifiers(rng: Rng, s: GameState, job: NationalJob): void {
   const table = computeTable(job.qual)
   const pos = table.findIndex((r) => r.teamId === job.teamId) + 1
-  if (pos <= 2) {
-    job.reached = 1
-    job.tourn = { group: drawTournament(rng, s, job), ko: [] }
-    const rivals = job.tourn.group.teamIds.filter((id) => id !== job.teamId).map((id) => s.teams[id].name)
-    adjustTrust(s, { board: 12, fans: 12, squad: 4 })
-    adjustCoach(s, { reputation: 4, stress: -15 })
-    news(s, `JEDZIEMY NA ${eventShort(job.event).toUpperCase()}! ${pos}. miejsce w grupie. Losowanie turnieju: ${rivals.join(', ')}.`)
+  const direct = job.side === 'A' && isWorldCup(job.event) ? 1 : 2
+  if (pos <= direct) qualify(rng, s, job, `${pos}. miejsce w grupie`)
+  else if (pos === 2) {
+    job.playoff = []
+    const opp = koOpponent(rng, s, job, 'PO1')
+    addKo(rng, job.playoff, 'PO1', job.teamId, opp)
+    adjustCoach(s, { stress: 8 })
+    news(s, `Drugie miejsce w grupie, czyli baraże o mundial. W marcu półfinał z ${s.teams[opp].name}. Cały kraj liczy punkty i obgryza paznokcie.`)
   } else {
     adjustTrust(s, { board: -25, fans: -20 })
     adjustCoach(s, { reputation: -5, stress: 15 })
@@ -396,17 +557,62 @@ function finishQualifiers(rng: Rng, s: GameState, job: NationalJob): void {
   }
 }
 
+function qualify(rng: Rng, s: GameState, job: NationalJob, how: string): void {
+  job.reached = 1
+  job.tourn = { group: drawTournament(rng, s, job), ko: [] }
+  const rivals = job.tourn.group.teamIds.filter((id) => id !== job.teamId).map((id) => s.teams[id].name)
+  adjustTrust(s, { board: 12, fans: 12, squad: 4 })
+  adjustCoach(s, { reputation: 4, stress: -15 })
+  news(s, `JEDZIEMY NA ${eventShort(job.event).toUpperCase()}! ${how}. Losowanie turnieju: ${rivals.join(', ')}.`)
+}
+
+function finishNationsLeagueGroup(rng: Rng, s: GameState, job: NationalJob): void {
+  const nl = job.nl!
+  const table = computeTable(nl.group)
+  const pos = table.findIndex((r) => r.teamId === job.teamId) + 1
+  if (nl.div === 'A' && pos === 1) {
+    nl.reached = 1
+    nl.result = 'Final Four'
+    addKo(rng, nl.finals, 'NLSF', job.teamId, koOpponent(rng, s, job, 'NLSF'))
+    adjustTrust(s, { board: 8, fans: 10 })
+    adjustCoach(s, { reputation: 3 })
+    news(s, `Polska wygrywa grupę Ligi Narodów i jedzie w czerwcu na Final Four! Kibice pytają, czy to już mundial.`)
+  } else if (nl.div === 'A' && pos === 4) {
+    job.nlDiv = 'B'
+    nl.result = 'spadek do dywizji B'
+    adjustTrust(s, { board: -10, fans: -8 })
+    news(s, 'Ostatnie miejsce w grupie Ligi Narodów i spadek do dywizji B. Eksperci w studiu mają materiał na cały wieczór.')
+  } else if (nl.div === 'B' && pos === 1) {
+    job.nlDiv = 'A'
+    nl.result = 'awans do dywizji A'
+    adjustTrust(s, { board: 6, fans: 6 })
+    adjustCoach(s, { reputation: 2 })
+    news(s, 'Awans do dywizji A Ligi Narodów! Teraz Polska znowu gra z najlepszymi, a sponsorzy z ulgą drukują nowe plakaty.')
+  } else {
+    nl.result = `${pos}. miejsce w grupie`
+    news(s, `Liga Narodów: ${pos}. miejsce w grupie. Ani wstydu, ani fajerwerków.`)
+  }
+}
+
 function finishTournamentGroup(rng: Rng, s: GameState, job: NationalJob): void {
   const t = job.tourn!
   const table = computeTable(t.group)
   const pos = table.findIndex((r) => r.teamId === job.teamId) + 1
-  if (pos <= 2) {
-    job.reached = 2
-    const opp = koOpponent(rng, s, job, 'QF')
-    t.ko.push({ stage: 'QF', week: KO_WEEKS.QF, tie: rng.chance(0.5) ? { home: job.teamId, away: opp } : { home: opp, away: job.teamId } })
+  const row = table[pos - 1]
+  // na Euro i mundialu wychodzą też najlepsze trzecie drużyny; młodzieżówka gra od razu ćwierćfinał
+  const u21 = job.side === 'U21'
+  const bestThird = !u21 && pos === 3 && (row.pts >= 4 || (row.pts === 3 && row.gf - row.ga >= 0 && rng.chance(0.6)))
+  if (pos <= 2 || bestThird) {
+    const stage: NatStage = u21 ? 'QF' : isWorldCup(job.event) ? 'R32' : 'R16'
+    job.reached = STAGE_REACHED[stage]!
+    const opp = koOpponent(rng, s, job, stage)
+    addKo(rng, t.ko, stage, job.teamId, opp, t.group.weeks[t.group.weeks.length - 1])
     adjustTrust(s, { board: 6, fans: 8 })
     adjustCoach(s, { reputation: 3 })
-    news(s, `Wyjście z grupy! W ćwierćfinale ${s.teams[opp].name}. W kraju ruszają zakupy flag i grilli.`)
+    news(
+      s,
+      `${bestThird ? 'Z trzeciego miejsca, ale wychodzimy z grupy!' : 'Wyjście z grupy!'} W ${STAGE_LABEL[stage].toLowerCase()} ${s.teams[opp].name}. W kraju ruszają zakupy flag i grilli.`,
+    )
   } else {
     t.out = true
     adjustTrust(s, { board: -8, fans: -10 })
@@ -415,28 +621,72 @@ function finishTournamentGroup(rng: Rng, s: GameState, job: NationalJob): void {
   }
 }
 
-function afterKo(rng: Rng, s: GameState, job: NationalJob, stage: 'QF' | 'SF' | 'F', won: boolean): void {
+function afterKo(rng: Rng, s: GameState, job: NationalJob, stage: NatStage, won: boolean): void {
+  // baraże o mundial
+  if (stage === 'PO1' || stage === 'PO2') {
+    if (!won) {
+      adjustTrust(s, { board: -20, fans: -15 })
+      adjustCoach(s, { reputation: -4, stress: 15 })
+      news(s, `Przegrany baraż. Mundial ${eventShort(job.event).slice(3)} obejrzymy w telewizji, a Ty w kółko powtórkę tego meczu.`)
+    } else if (stage === 'PO1') {
+      const opp = koOpponent(rng, s, job, 'PO2')
+      addKo(rng, job.playoff!, 'PO2', job.teamId, opp)
+      news(s, `Półfinał baraży wygrany! Za kilka dni finał z ${s.teams[opp].name} o bilet na mundial.`)
+    } else qualify(rng, s, job, 'Wygrany finał baraży')
+    return
+  }
+  // Liga Narodów
+  if (stage === 'NLSF' || stage === 'NLF') {
+    const nl = job.nl!
+    if (!won) {
+      nl.result = stage === 'NLF' ? 'finał Ligi Narodów' : 'półfinał Ligi Narodów'
+      news(s, stage === 'NLF' ? 'Przegrany finał Ligi Narodów. Srebro, którego nikt nie liczy, ale wszyscy pamiętają.' : 'Odpadamy w półfinale Ligi Narodów. Wakacje zaczynają się o tydzień wcześniej.')
+      return
+    }
+    if (stage === 'NLSF') {
+      nl.reached = 2
+      const opp = koOpponent(rng, s, job, 'NLF')
+      addKo(rng, nl.finals, 'NLF', job.teamId, opp)
+      adjustTrust(s, { fans: 6, board: 4 })
+      news(s, `Finał Ligi Narodów! Rywal: ${s.teams[opp].name}. Niby mniej ważne niż mundial, ale puchar to puchar.`)
+    } else {
+      nl.reached = 3
+      nl.result = 'zwycięstwo w Lidze Narodów'
+      s.trophies.push(`${nl.name} (sezon ${s.season})`)
+      adjustTrust(s, { fans: 15, board: 15, squad: 8 })
+      adjustCoach(s, { reputation: 8, stress: -15 })
+      news(s, `Polska wygrywa Ligę Narodów! Puchar jedzie do Warszawy, a kibice już śpiewają o mundialu.`)
+    }
+    return
+  }
+  // turniej
   const t = job.tourn!
   if (!won) {
     t.out = true
-    adjustTrust(s, { fans: stage === 'QF' ? 4 : 8, board: stage === 'QF' ? 2 : 6 })
-    news(s, stage === 'F' ? `Srebro! Przegrany finał ${eventShort(job.event)}, ale na lotnisku czeka tłum.` : `Odpadamy w ${stage === 'QF' ? 'ćwierćfinale' : 'półfinale'}. Kraj płacze, ale z dumą.`)
+    adjustTrust(s, { fans: (STAGE_REACHED[stage] ?? 2) * 2, board: STAGE_REACHED[stage]! - 1 })
+    news(
+      s,
+      stage === 'F'
+        ? `Srebro! Przegrany finał ${eventShort(job.event)}, ale na lotnisku czeka tłum.`
+        : `Odpadamy w ${STAGE_LABEL[stage].toLowerCase().replace('ćwierćfinał', 'ćwierćfinale').replace('półfinał', 'półfinale')}. Kraj płacze, ale z dumą.`,
+    )
     return
   }
-  job.reached = stage === 'QF' ? 3 : stage === 'SF' ? 4 : 5
   if (stage === 'F') {
+    job.reached = 6
     s.trophies.push(`Złoto: ${job.event} (sezon ${s.season})`)
     adjustTrust(s, { fans: 30, board: 30, squad: 15 })
     adjustCoach(s, { reputation: job.side === 'A' ? 20 : 10, stress: -30 })
     news(s, `ZŁOTO! ${job.event} dla Polski! Prezydent dzwoni z gratulacjami, a premier już szuka miejsca na wspólne zdjęcie.`)
     return
   }
-  const next = stage === 'QF' ? 'SF' : 'F'
+  const next = NEXT_STAGE[stage]!
+  job.reached = STAGE_REACHED[next]!
   const opp = koOpponent(rng, s, job, next)
-  t.ko.push({ stage: next, week: KO_WEEKS[next], tie: rng.chance(0.5) ? { home: job.teamId, away: opp } : { home: opp, away: job.teamId } })
+  addKo(rng, t.ko, next, job.teamId, opp)
   adjustTrust(s, { fans: 8, board: 6 })
   adjustCoach(s, { reputation: 3 })
-  news(s, `${stage === 'QF' ? 'Półfinał' : 'FINAŁ'}! Rywal: ${s.teams[opp].name}. Na ulicach trąbią samochody.`)
+  news(s, `${next === 'F' ? 'FINAŁ' : STAGE_LABEL[next]}! Rywal: ${s.teams[opp].name}. Na ulicach trąbią samochody.`)
 }
 
 // ---------- oferty ----------
@@ -457,7 +707,7 @@ export function nationalOffer(rng: Rng, s: GameState): JobOffer | undefined {
   if (job?.side === 'A') return undefined
   let side: NationalSide | undefined
   if (job?.side === 'U21') {
-    if ((job.reached >= 3 && rng.chance(0.6)) || (rep >= 88 && rng.chance(0.35))) side = 'A'
+    if ((job.reached >= 4 && rng.chance(0.6)) || (rep >= 88 && rng.chance(0.35))) side = 'A'
   } else if (rep >= 90 && rng.chance(0.35)) side = 'A'
   else if (rep >= 72 && rng.chance(rep >= 85 ? 0.45 : 0.25)) side = 'U21'
   if (!side) return undefined
@@ -479,20 +729,34 @@ export function nationalOffer(rng: Rng, s: GameState): JobOffer | undefined {
 
 // ---------- koniec sezonu ----------
 
+/** jak idą eliminacje, które jeszcze trwają, np. „2. miejsce po 4 meczach” */
+function qualStatus(job: NationalJob): string {
+  const table = computeTable(job.qual)
+  const row = table.find((r) => r.teamId === job.teamId)
+  const pos = table.findIndex((r) => r.teamId === job.teamId) + 1
+  return row && row.p > 0 ? `eliminacje ${eventShort(job.event)}: ${pos}. miejsce po ${row.p} meczach` : `eliminacje ${eventShort(job.event)} jeszcze przed nami`
+}
+
 /** wpis do historii kariery za sezon selekcjonera */
 export function nationalRecord(s: GameState, outcome?: string, fired = false) {
   const job = s.national!
-  const pos = computeTable(job.qual).findIndex((r) => r.teamId === job.teamId) + 1
+  const between = !job.tournSeason
+  const pos = computeTable(job.nl ? job.nl.group : job.qual).findIndex((r) => r.teamId === job.teamId) + 1
+  const auto = between
+    ? [job.nl ? `Liga Narodów: ${job.nl.result ?? `${pos}. miejsce w grupie`}` : '', qualStatus(job)].filter(Boolean).join(', ')
+    : job.reached === 0
+      ? `${pos}. miejsce w eliminacjach, bez awansu`
+      : `awans na turniej, ${REACHED_LABEL[job.reached]}`
   return {
     season: s.season,
     clubName: SIDE_NAME[job.side],
     level: 9,
-    leagueName: job.event,
+    leagueName: job.nl ? `${job.nl.name} (dywizja ${job.nl.div})` : between ? `Eliminacje ${eventShort(job.event)}` : job.event,
     position: pos || undefined,
-    outcome: outcome ?? (job.reached === 0 ? `${pos}. miejsce w eliminacjach, bez awansu` : `awans na turniej, ${REACHED_LABEL[job.reached]}`),
+    outcome: outcome ?? auto,
     cup: '',
     fired,
-    national: { side: job.side, reached: job.reached },
+    national: { side: job.side, reached: between ? 0 : job.reached, ...(between ? { between: true, nl: job.nl?.reached ?? 0 } : {}) },
   }
 }
 
@@ -500,17 +764,30 @@ export function nationalRecord(s: GameState, outcome?: string, fired = false) {
 export function nationalSeasonEnd(s: GameState, summary: string[]): boolean {
   const job = s.national!
   const rec = nationalRecord(s)
-  summary.push(`${SIDE_NAME[job.side]}: ${job.event}, ${rec.outcome}.`)
-  // oczekiwania: awans na turniej to minimum, każda runda dalej to premia
-  const repGain = [-6, 2, 6, 10, 14, 20][job.reached] * (job.side === 'A' ? 1 : 0.6)
-  adjustCoach(s, { reputation: Math.round(repGain), stress: job.reached >= 2 ? -15 : job.reached === 0 ? 10 : 0 })
-  adjustTrust(s, { board: job.reached === 0 ? -10 : job.reached >= 3 ? 10 : 0 })
-  const fired = (job.reached === 0 && s.trust.board < 55) || s.trust.board < 25
+  const weight = job.side === 'A' ? 1 : 0.6
+  let fired: boolean
+  if (job.tournSeason) {
+    summary.push(`${SIDE_NAME[job.side]}: ${job.event}, ${rec.outcome}.`)
+    // oczekiwania: awans na turniej to minimum, każda runda dalej to premia
+    const repGain = [-6, 2, 4, 6, 10, 14, 20][job.reached] * weight
+    adjustCoach(s, { reputation: Math.round(repGain), stress: job.reached >= 3 ? -15 : job.reached === 0 ? 10 : 0 })
+    adjustTrust(s, { board: job.reached === 0 ? -10 : job.reached >= 4 ? 10 : 0 })
+    fired = (job.reached === 0 && s.trust.board < 55) || s.trust.board < 25
+  } else {
+    summary.push(`${SIDE_NAME[job.side]}: ${rec.outcome}.`)
+    // sezon przejściowy: liczy się Liga Narodów i to, czy eliminacje idą w dobrą stronę
+    const pos = computeTable(job.qual).findIndex((r) => r.teamId === job.teamId) + 1
+    const nlGain = job.nl ? [0, 3, 5, 8][job.nl.reached] + (job.nl.result?.startsWith('awans') ? 2 : 0) - (job.nl.result?.startsWith('spadek') ? 4 : 0) : 0
+    adjustCoach(s, { reputation: Math.round((nlGain + (pos <= 2 ? 1 : -2)) * weight) })
+    adjustTrust(s, { board: pos <= 2 ? 3 : -6 })
+    fired = s.trust.board < 25
+  }
   s.history.push({ ...rec, fired })
   const top = [...s.squad].sort((a, b) => b.goals - a.goals)[0]
   if (top && top.goals > 0) summary.push(`Najlepszy strzelec kadry: ${playerName(top)} (${top.goals} goli).`)
   for (const p of s.squad) if (!s.bestPlayer || p.skill > s.bestPlayer.skill) s.bestPlayer = { name: playerName(p), skill: p.skill }
   if (fired) summary.push('PZPN dziękuje za współpracę. Na pożegnanie dostajesz dres z orzełkiem i list od prezesa, podpisany przez sekretarkę.')
+  else if (!job.tournSeason) summary.push(`Za rok ${job.event}. ${qualRule(job.side, job.event)}`)
   return fired
 }
 

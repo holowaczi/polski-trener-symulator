@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { playCareer } from './bot'
 import { acceptOffer, newGame } from './engine'
-import { nationalOffer, polandTeam, REACHED_LABEL } from './national'
+import { eventFor, isTournamentSeason, nationalOffer, nationsLeagueName, polandTeam, REACHED_LABEL } from './national'
 import { previewStrength } from './match'
 import type { GameState, NationalSide } from './types'
 import { withRng } from './util'
@@ -42,17 +42,60 @@ describe('reprezentacja', () => {
       expect(s.history.some((h) => h.clubName.startsWith('Reprezentacja'))).toBe(true)
     }, 60000)
 
+  it('kalendarz: Euro i mundial co cztery lata z przesunięciem, młodzieżówka w latach nieparzystych', () => {
+    // sezon 1 kończy się latem 2027
+    expect([1, 2, 3, 4, 5, 6].map((x) => eventFor('A', x))).toEqual([
+      'Mistrzostwa Europy 2028',
+      'Mistrzostwa Europy 2028',
+      'Mistrzostwa Świata 2030',
+      'Mistrzostwa Świata 2030',
+      'Mistrzostwa Europy 2032',
+      'Mistrzostwa Europy 2032',
+    ])
+    expect([1, 2, 3, 4].map((x) => isTournamentSeason('A', x))).toEqual([false, true, false, true])
+    expect([1, 2, 3, 4].map((x) => isTournamentSeason('U21', x))).toEqual([true, false, true, false])
+    expect(eventFor('U21', 2)).toBe('Mistrzostwa Europy U21 2029')
+    expect(nationsLeagueName(3)).toBe('Liga Narodów 2028/29')
+  })
+
+  it('eliminacje trwają dwa sezony, a w sezonie bez turnieju jest Liga Narodów', () => {
+    const s = nationalCareer(701, 'A')
+    // sezon 2 (lato 2028) to sezon Euro: poprzednik rozegrał już wiosenne mecze eliminacji
+    expect(s.national!.tournSeason).toBe(true)
+    expect(s.national!.nl).toBeUndefined()
+    const before = s.national!.qual.rounds.slice(0, 4).flat()
+    expect(before.every((f) => f.hg !== undefined)).toBe(true)
+    playCareer(s, 3, (g) => g.season === 3 && g.phase === 'season')
+    if (!s.national) return
+    // sezon 3: Liga Narodów jesienią i początek eliminacji mundialu wiosną
+    expect(s.national.tournSeason).toBe(false)
+    expect(s.national.nl?.group.teamIds).toHaveLength(4)
+    expect(s.national.event).toBe('Mistrzostwa Świata 2030')
+    const qual = s.national.qual
+    playCareer(s, 4, (g) => g.season === 4 && g.phase === 'season')
+    if (!s.national) return
+    // ta sama grupa eliminacyjna gra dalej
+    expect(s.national.qual).toEqual(expect.objectContaining({ name: qual.name }))
+    expect(s.national.qual.rounds.slice(0, 4).flat().every((f) => f.hg !== undefined)).toBe(true)
+    expect(s.national.nl).toBeUndefined()
+  }, 60000)
+
   it('rozkład wyników: zwykle awans, czasem daleko, rzadko złoto', () => {
     const reached: number[] = []
-    for (let i = 0; i < 12; i++) {
+    const nl: number[] = []
+    for (let i = 0; i < 10; i++) {
       const s = nationalCareer(600 + i, 'A')
-      playCareer(s, 2, (g) => g.season > 1 && g.phase === 'seasonEnd')
-      const h = s.history.find((x) => x.national)
-      if (h) reached.push(h.national!.reached)
+      playCareer(s, 6, (g) => !g.national && g.phase !== 'event')
+      for (const h of s.history) {
+        if (!h.national || h.fired) continue
+        if (h.national.between) nl.push(h.national.nl ?? 0)
+        else reached.push(h.national.reached)
+      }
     }
-    console.log('reached', reached.join(','))
-    expect(reached.length).toBe(12)
-    expect(reached.filter((r) => r >= 1).length).toBeGreaterThanOrEqual(5)
-    expect(reached.filter((r) => r === 5).length).toBeLessThanOrEqual(4)
-  }, 120000)
+    console.log('turnieje', reached.join(','), '· Liga Narodów', nl.join(','))
+    expect(reached.length).toBeGreaterThanOrEqual(10)
+    expect(reached.filter((r) => r >= 1).length / reached.length).toBeGreaterThan(0.4)
+    expect(reached.filter((r) => r === 6).length / reached.length).toBeLessThan(0.25)
+    expect(nl.length).toBeGreaterThan(3)
+  }, 180000)
 })

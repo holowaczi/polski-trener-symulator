@@ -222,7 +222,9 @@ function Meter({ label, value, invert }: { label: string; value: number; invert?
 function natPosition(s: GameState): number | undefined {
   const nat = s.national
   if (!nat) return undefined
-  const g = nat.tourn ? nat.tourn.group : nat.qual
+  // przed turniejem liczy się grupa, w której Polska gra teraz: jesienią Liga Narodów, wiosną eliminacje
+  const nlNow = nat.nl && nat.nl.group.rounds.some((r) => r.some((f) => f.hg === undefined))
+  const g = nat.tourn ? nat.tourn.group : nlNow ? nat.nl!.group : nat.qual
   const i = groupTable(g).findIndex((r) => r.teamId === s.clubId)
   return i >= 0 ? i + 1 : undefined
 }
@@ -251,7 +253,7 @@ function Header({ s, onHelp }: { s: GameState; onHelp: () => void }) {
           </div>
           {nat && (
             <div className="small muted">
-              {nat.event} · cel: {nat.tourn ? 'wyjść z grupy' : `awans na ${eventShort(nat.event)}`}
+              {nat.nl ? `${nat.nl.name} · eliminacje ${eventShort(nat.event)}` : nat.event} · cel: {nat.tourn ? 'wyjść z grupy' : nat.tournSeason ? `awans na ${eventShort(nat.event)}` : 'dobry start eliminacji'}
             </div>
           )}
           {lg && <div className="small muted">{lg.name}{team ? ` · cel: ${goalLabel(s.goal, team.level).toLowerCase()}` : ''}</div>}

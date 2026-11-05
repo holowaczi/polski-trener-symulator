@@ -1,5 +1,12 @@
 # Zmiany
 
+## 0.15.0 (alfa) · 5 listopada 2026
+
+- **Prawdziwy kalendarz reprezentacji.** Euro i mundial są co cztery lata, z przesunięciem o dwa: Euro 2028, mundial 2030, Euro 2032. Młodzieżówka gra o Euro U21 co dwa lata. Eliminacje trwają dwa sezony: zaczynają się wiosną, kończą jesienią, a latem jest turniej. Nowy selekcjoner w trakcie eliminacji przejmuje grupę z punktami po poprzedniku.
+- **Liga Narodów.** W sezonie bez turnieju kadra A gra jesienią w Lidze Narodów: grupa czterech drużyn, zwycięzca dywizji A jedzie w czerwcu na Final Four, ostatni spada do dywizji B, a z B można wrócić. Wygrana Liga Narodów to trofeum i punkty kariery.
+- **Baraże i faza pucharowa jak w prawdziwych mistrzostwach.** Do mundialu z grupy jedzie tylko zwycięzca, druga drużyna gra w marcu baraże. Na Euro z grupy wychodzą też najlepsze trzecie drużyny i gra się 1/8 finału, a na mundialu dochodzi jeszcze 1/16 finału.
+- Zakładka Grupa pokazuje Ligę Narodów, eliminacje z meczami z obu sezonów, baraże i turniej. Zapisy z 0.14 wczytują się bez strat: trwający sezon kończy się po staremu.
+
 ## 0.14.0 (alfa) · 5 listopada 2026
 
 - **Reprezentacja Polski.** Z licencją UEFA Pro i dużą reputacją po sezonie może zadzwonić PZPN. Najpierw zwykle młodzieżówka U21, a po dobrym turnieju z U21 albo przy reputacji 90+ pierwsza reprezentacja. To pełny etat: odchodzisz z klubu, a po turnieju możesz zostać na kolejny cykl albo wrócić do klubowej roboty.

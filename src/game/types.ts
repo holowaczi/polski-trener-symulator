@@ -315,7 +315,7 @@ export interface SeasonRecord {
   /** europejskie puchary w tym sezonie: rozgrywki i najdalszy etap (EuroRun.reached) */
   euro?: { comp: EuroComp; reached: number }
   /** sezon w roli selekcjonera: która reprezentacja i jak daleko zaszła na turnieju (0 = bez awansu, 1 = grupa … 5 = złoto) */
-  national?: { side: NationalSide; reached: number }
+  national?: { side: NationalSide; reached: number; between?: boolean; nl?: number }
 }
 
 export interface JobOffer {
@@ -466,15 +466,27 @@ export interface NatGroup {
   teamIds: number[]
   rounds: Fixture[][]
   weeks: number[]
+  /** sezon każdej kolejki, gdy grupa trwa dłużej niż jeden sezon (eliminacje); brak = sezon losowania */
+  seasons?: number[]
 }
-
-/** mecz pucharowy turnieju: ćwierćfinał, półfinał, finał */
+/** etapy meczów o wszystko: baraże o mundial, turniej i finały Ligi Narodów */
+export type NatStage = 'PO1' | 'PO2' | 'R32' | 'R16' | 'QF' | 'SF' | 'F' | 'NLSF' | 'NLF'
 export interface NatKo {
-  stage: 'QF' | 'SF' | 'F'
+  stage: NatStage
   week: number
   tie: CupTie
 }
-
+export interface NationsLeague {
+  /** np. „Liga Narodów 2028/29” */
+  name: string
+  div: 'A' | 'B'
+  group: NatGroup
+  finals: NatKo[]
+  /** podsumowanie po fazie grupowej i finałach, np. „awans do dywizji A” */
+  result?: string
+  /** 0 = nic, 1 = Final Four, 2 = finał, 3 = zwycięstwo */
+  reached: number
+}
 export interface NationalJob {
   side: NationalSide
   /** Polska (albo Polska U21) jako drużyna w grze */
@@ -482,11 +494,19 @@ export interface NationalJob {
   /** pierwszy sezon w roli selekcjonera */
   since: number
   season: number
-  /** turniej tego sezonu, np. „Mistrzostwa Europy 2028” */
+  /** turniej, do którego prowadzą obecne eliminacje, np. „Mistrzostwa Europy 2028” */
   event: string
+  /** czy turniej `event` jest latem tego sezonu (inaczej to sezon Ligi Narodów i początku eliminacji) */
+  tournSeason?: boolean
+  /** eliminacje: grupa pięciu drużyn rozłożona na dwa sezony */
   qual: NatGroup
+  /** baraże o mundial dla drugiej drużyny grupy */
+  playoff?: NatKo[]
+  nl?: NationsLeague
+  /** dywizja Ligi Narodów, w której gra Polska (zostaje między sezonami) */
+  nlDiv?: 'A' | 'B'
   tourn?: { group: NatGroup; ko: NatKo[]; out?: boolean }
-  /** 0 = bez awansu, 1 = faza grupowa, 2 = ćwierćfinał, 3 = półfinał, 4 = finał, 5 = złoto */
+  /** 0 = bez awansu, 1 = faza grupowa, 2 = faza pucharowa, 3 = ćwierćfinał, 4 = półfinał, 5 = finał, 6 = złoto */
   reached: number
 }
 

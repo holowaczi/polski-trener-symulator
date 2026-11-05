@@ -58,7 +58,7 @@ export function seasonBadges(s: GameState, lg: League | undefined, table: { team
   const h = s.history[s.history.length - 1]
   if (h?.national && h.season === s.season) {
     if (h.national.reached >= 1) award(s, 'wielki_turniej')
-    if (h.national.reached >= 4) award(s, 'medal')
+    if (h.national.reached >= 5) award(s, 'medal')
   } else if (h && !h.fired && h.season === s.season) {
     if (h.outcome.includes('awans')) {
       award(s, 'awans_b')

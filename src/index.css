@@ -2395,6 +2395,6 @@ blockquote cite::before {
 }
 .nat-week {
   display: inline-block;
-  min-width: 6.5em;
+  min-width: 7.5em;
   color: var(--muted);
 }

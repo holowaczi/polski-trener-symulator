@@ -29,6 +29,18 @@ export const MIGRATIONS: Record<number, (s: OldSave) => void> = {
   },
   // 4 → 5: reprezentacja (selekcjoner). Nowe pola są opcjonalne, a stara kariera po prostu jeszcze nie dostała telefonu z PZPN
   4: () => {},
+  // 5 → 6: prawdziwy kalendarz kadry (turniej co dwa lata, Liga Narodów) i 1/8 finału w skali „jak daleko”.
+  // Trwający sezon selekcjonera kończy się po staremu: eliminacje i turniej w jednym sezonie
+  5: (s) => {
+    const shift = (r: number) => (r >= 2 ? r + 1 : r)
+    for (const h of s.history ?? []) if (h.national) h.national.reached = shift(h.national.reached)
+    const job = s.national
+    if (job) {
+      job.reached = shift(job.reached)
+      job.tournSeason = true
+      job.nlDiv ??= 'A'
+    }
+  },
 }
 
 export type MigrateResult = { ok: true; state: GameState; from: number } | { ok: false; problem: string }

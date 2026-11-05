@@ -10,6 +10,7 @@ import { departureEffects, generateBids, MIN_SQUAD, refreshTransferList, wageLim
 import {
   NATIONAL_EVENTS,
   nationalFixtureForWeek,
+  nationalGoal,
   nationalOffer,
   nationalPool,
   nationalRecord,
@@ -62,7 +63,7 @@ import {
   unemployedEnding,
 } from './endings'
 
-export const SAVE_VERSION = 5
+export const SAVE_VERSION = 6
 /** najdłuższa liga ma 34 kolejki; krótsze kończą wcześniej */
 export const SEASON_WEEKS = 36
 
@@ -522,7 +523,7 @@ function takeNationalJob(s: GameState, offer: JobOffer): void {
   s.national = withRng(s, (rng) => newNationalSeason(rng, s, side, teamId, s.season))
   s.president = withRng(s, (rng) => ({ ...newPresident(rng, s.teams[teamId]), type: 'pilkarz' as const }))
   s.presidents = (s.presidents ?? 0) + 1
-  news(s, `${s.coach.firstName} ${s.coach.lastName} selekcjonerem: ${SIDE_NAME[side]}! Cel: awans na ${s.national.event}.`)
+  news(s, `${s.coach.firstName} ${s.coach.lastName} selekcjonerem: ${SIDE_NAME[side]}! ${nationalGoal(s.national)}.`)
   news(s, `Prezes PZPN ${s.president.name} wręcza Ci dres z orzełkiem. „Byłem piłkarzem, więc wiem, co Pan przeżywa”.`)
   s.phase = 'season'
 }
@@ -1748,12 +1749,12 @@ function startNewSeasonWorld(s: GameState): void {
 /** selekcjoner zostaje na kolejny cykl: nowe eliminacje, ta sama kadra po zmianach */
 function stayNational(s: GameState): void {
   const job = s.national!
-  s.national = withRng(s, (rng) => newNationalSeason(rng, s, job.side, job.teamId, job.since))
+  s.national = withRng(s, (rng) => newNationalSeason(rng, s, job.side, job.teamId, job.since, job))
   s.trust.board = clamp(s.trust.board, 45, 80)
   s.offers = []
   if (s.lineup.auto) fillLineupFromAuto(s)
   s.phase = 'season'
-  news(s, `Sezon ${s.season}: zostajesz selekcjonerem. Cel: awans na ${s.national.event}.`)
+  news(s, `Sezon ${s.season}: zostajesz selekcjonerem. ${nationalGoal(s.national)}.`)
 }
 
 export function stayAtClub(s: GameState): void {
@@ -1847,7 +1848,7 @@ export function retire(s: GameState, reason: string): void {
 
 export function careerCard(s: GameState) {
   // reprezentacja stoi wyżej niż każdy klub, a pierwsza kadra wyżej niż młodzieżówka
-  const rank = (h: (typeof s.history)[number]) => (h.national ? (h.national.side === 'A' ? 11 : 10) : h.level)
+  const rank = (h: (typeof s.history)[number]) => (h.national ? (h.national.side === 'A' ? 11 : 10) - (h.national.between ? 0.5 : 0) : h.level)
   const best = [...s.history].sort(
     (a, b) => rank(b) - rank(a) || (b.national?.reached ?? 0) - (a.national?.reached ?? 0) || (a.position ?? 99) - (b.position ?? 99),
   )[0]
@@ -1862,7 +1863,7 @@ export function careerCard(s: GameState) {
     reputation: s.coach.reputation,
     seasons: s.history.length,
     clubs: [...new Set(s.history.map((h) => h.clubName))],
-    peak: best?.national ? `${best.clubName} (${best.leagueName}: ${REACHED_LABEL[best.national.reached]})` : best ? `${best.leagueName} (${best.clubName})` : 'brak',
+    peak: best?.national ? `${best.clubName} (${best.leagueName}: ${best.national.between ? best.outcome : REACHED_LABEL[best.national.reached]})` : best ? `${best.leagueName} (${best.clubName})` : 'brak',
     trophies: s.trophies,
     // przy aferze w gazecie to ona jest aferą kariery
     scandal: s.ending?.headline ?? s.scandals[s.scandals.length - 1],

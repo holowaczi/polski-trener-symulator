@@ -56,7 +56,9 @@ export function scoreBreakdown(s: GameState): ScoreLine[] {
     if (h.national) {
       // sezon z kadrą liczy się jak sezon w Ekstraklasie, a turniej daje premię za każdą rundę
       const weight = h.national.side === 'A' ? 1 : 0.5
-      national += Math.round((40 + [0, 40, 90, 160, 260, 400][h.national.reached]) * weight)
+      // sezon bez turnieju: Liga Narodów (Final Four, finał, zwycięstwo)
+      const bonus = h.national.between ? [0, 50, 80, 150][h.national.nl ?? 0] : [0, 40, 65, 90, 160, 260, 400][h.national.reached]
+      national += Math.round((40 + bonus) * weight)
       continue
     }
     const w = h.level + 1
