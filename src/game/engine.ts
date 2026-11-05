@@ -56,6 +56,7 @@ import {
   choiceEnding,
   DIRT_END,
   pressQuote,
+  nationalSummary,
   resolveDoctor,
   resolveJournalist,
   retirementEnding,
@@ -1866,7 +1867,8 @@ export function careerCard(s: GameState) {
     license: s.coach.license,
     reputation: s.coach.reputation,
     seasons: s.history.length,
-    clubs: [...new Set(s.history.map((h) => h.clubName))],
+    clubs: [...new Set(s.history.filter((h) => !h.national).map((h) => h.clubName))],
+    national: nationalSummary(s),
     peak: best?.national ? `${best.clubName} (${best.leagueName}: ${best.national.between ? best.outcome : REACHED_LABEL[best.national.reached]})` : best ? `${best.leagueName} (${best.clubName})` : 'brak',
     trophies: s.trophies,
     // przy aferze w gazecie to ona jest aferą kariery

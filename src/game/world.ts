@@ -35,6 +35,9 @@ const TIER_SHORT: Record<string, string> = {
 
 /** krótka nazwa poziomu na oś wykresu, według lig w województwie; brak = takiego poziomu tam nie ma */
 export function levelShort(level: number, region: string): string | undefined {
+  // wiersze kadry na wykresie kariery, nad Ekstraklasą
+  if (level === 10) return 'Kadra U21'
+  if (level === 11) return 'Kadra'
   if (level >= 6) return ['III', 'II', 'I', 'Ekstraklasa'][level - 6]
   const tier = lowerTier(level, region)?.tier
   return tier ? (TIER_SHORT[tier] ?? tier) : undefined

@@ -3,7 +3,7 @@ import { LEVELS } from '../game/data'
 import type { careerCard } from '../game/engine'
 import type { SeasonRecord } from '../game/types'
 import { levelShort, lowestLevel } from '../game/world'
-import { trophyLines } from '../game/endings'
+import { pathLevel, seasonMark, trophyLines } from '../game/endings'
 import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
 
 
@@ -17,8 +17,9 @@ function MiniPath({ history, region, w, h }: { history: SeasonRecord[]; region: 
     )
   const left = 150
   const pad = 18
-  const lo = Math.max(lowestLevel(region), Math.min(...history.map((x) => x.level)) - 1)
-  const hi = Math.min(LEVELS.length - 1, Math.max(...history.map((x) => x.level)) + 1)
+  const levels = history.map(pathLevel)
+  const lo = Math.max(lowestLevel(region), Math.min(...levels) - 1)
+  const hi = Math.min(Math.max(LEVELS.length - 1, ...levels), Math.max(...levels) + 1)
   const n = history.length
   const xOf = (i: number) => (n === 1 ? (left + w - pad) / 2 : left + (i * (w - left - pad)) / (n - 1))
   const yOf = (lv: number) => pad + ((hi - lv) * (h - 2 * pad)) / Math.max(1, hi - lo)
@@ -37,15 +38,15 @@ function MiniPath({ history, region, w, h }: { history: SeasonRecord[]; region: 
         <line
           key={i}
           x1={xOf(i)}
-          y1={yOf(history[i].level)}
+          y1={yOf(pathLevel(history[i]))}
           x2={xOf(i + 1)}
-          y2={yOf(x.level)}
+          y2={yOf(pathLevel(x))}
           className={x.clubName !== history[i].clubName ? 'sc-line jump' : 'sc-line'}
         />
       ))}
       {history.map((x, i) => {
-        const cls = x.fired ? 'fired' : x.outcome.includes('mistrzostwo') ? 'title' : x.outcome.includes('awans') ? 'up' : x.outcome.includes('spadek') ? 'down' : 'none'
-        return <circle key={i} cx={xOf(i)} cy={yOf(x.level)} r={cls === 'none' ? r * 0.6 : r} className={`sc-pt ${cls}`} />
+        const cls = seasonMark(x)
+        return <circle key={i} cx={xOf(i)} cy={yOf(pathLevel(x))} r={cls === 'none' ? r * 0.6 : r} className={`sc-pt ${cls}`} />
       })}
     </svg>
   )

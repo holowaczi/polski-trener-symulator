@@ -5,22 +5,17 @@ import { careerCard } from '../game/engine'
 import { careerScore, multiplierOf, scoreBreakdown } from '../game/score'
 import { saveRecord } from './save'
 import { scenarioDef } from '../game/goals'
+import { pathLevel, seasonMark, type SeasonMark } from '../game/endings'
+import { REACHED_LABEL } from '../game/national'
 import { levelShort, lowestLevel } from '../game/world'
 import type { GameState, SeasonRecord } from '../game/types'
 import { ShareCard } from './ShareCard'
 import { ENDING_ICON, SHARE_SIZE, type ShareFormat } from './shareFormat'
 
-type Mark = 'up' | 'down' | 'title' | 'fired' | 'none'
+type Mark = SeasonMark
+const markOf = seasonMark
 
-function markOf(h: SeasonRecord): Mark {
-  if (h.fired) return 'fired'
-  if (h.outcome.includes('mistrzostwo')) return 'title'
-  if (h.outcome.includes('awans')) return 'up'
-  if (h.outcome.includes('spadek')) return 'down'
-  return 'none'
-}
-
-const MARK_LABEL: Record<Mark, string> = { up: '▲ awans', down: '▼ spadek', title: '🏆 mistrzostwo', fired: '✕ zwolnienie', none: '' }
+const MARK_LABEL: Record<Mark, string> = { up: '▲ awans', down: '▼ spadek', title: '🏆 mistrzostwo', fired: '✕ zwolnienie', tourn: '✈️ turniej', none: '' }
 
 /** okresy w jednym klubie */
 function stintsOf(history: SeasonRecord[]) {
@@ -44,8 +39,9 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
   const right = 12
   const topPad = 22
   const bottom = 22
-  const lo = Math.max(lowestLevel(region), Math.min(...history.map((x) => x.level)) - 1)
-  const hi = LEVELS.length - 1
+  const levels = history.map(pathLevel)
+  const lo = Math.max(lowestLevel(region), Math.min(...levels) - 1)
+  const hi = Math.max(LEVELS.length - 1, ...levels)
   const n = history.length
   const xOf = (i: number) => (n === 1 ? (left + w - right) / 2 : left + (i * (w - left - right)) / (n - 1))
   const yOf = (lv: number) => topPad + ((hi - lv) * (h - topPad - bottom)) / Math.max(1, hi - lo)
@@ -85,12 +81,12 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
           const a = history[i]
           // zmiana klubu to przeprowadzka, a nie awans ani spadek: cienka przerywana linia
           const cls = x.clubName !== a.clubName ? 'seg jump' : x.level > a.level ? 'seg up' : x.level < a.level ? 'seg down' : 'seg'
-          return <line key={i} x1={xOf(i)} y1={yOf(a.level)} x2={xOf(i + 1)} y2={yOf(x.level)} className={cls} />
+          return <line key={i} x1={xOf(i)} y1={yOf(pathLevel(a))} x2={xOf(i + 1)} y2={yOf(pathLevel(x))} className={cls} />
         })}
         {history.map((x, i) => {
           const m = markOf(x)
           const cx = xOf(i)
-          const cy = yOf(x.level)
+          const cy = yOf(pathLevel(x))
           const on = active === i
           return (
             <g key={i} className={`pt ${m}${on ? ' on' : ''}`}>
@@ -98,6 +94,7 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
               {m === 'down' && <polygon points={`${cx},${cy + 6} ${cx - 5},${cy - 3} ${cx + 5},${cy - 3}`} />}
               {m === 'title' && <circle cx={cx} cy={cy} r={5.5} />}
               {m === 'fired' && <path d={`M${cx - 4} ${cy - 4} L${cx + 4} ${cy + 4} M${cx + 4} ${cy - 4} L${cx - 4} ${cy + 4}`} />}
+              {m === 'tourn' && <rect className="dia" x={cx - 4.5} y={cy - 4.5} width={9} height={9} transform={`rotate(45 ${cx} ${cy})`} />}
               {m === 'none' && <circle cx={cx} cy={cy} r={3.5} />}
               {on && <circle cx={cx} cy={cy} r={9} className="halo" />}
               <rect
@@ -126,11 +123,11 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
           </div>
           <div>{cur.leagueName}</div>
           <div>
-            {cur.position ? `${cur.position}. miejsce` : ''}
+            {cur.national ? cur.outcome : cur.position ? `${cur.position}. miejsce` : ''}
             {markOf(cur) !== 'none' && <span className={`tip-mark ${markOf(cur)}`}> {MARK_LABEL[markOf(cur)]}</span>}
           </div>
-          {cur.outcome.includes('baraże') && <div className="muted">{cur.outcome.includes('wygrane') ? 'Baraże wygrane' : 'Baraże przegrane'}</div>}
-          <div className="muted">Puchar: {cur.cup}</div>
+          {!cur.national && cur.outcome.includes('baraże') && <div className="muted">{cur.outcome.includes('wygrane') ? 'Baraże wygrane' : 'Baraże przegrane'}</div>}
+          {cur.cup && <div className="muted">Puchar: {cur.cup}</div>}
           {prev && prev.clubName !== cur.clubName && <div className="muted">Nowy klub, wcześniej {prev.clubName}</div>}
         </div>
       ) : (
@@ -140,6 +137,7 @@ function PathChart({ history, region }: { history: SeasonRecord[]; region: strin
         <span className="pt up">▲ awans</span>
         <span className="pt down">▼ spadek</span>
         <span className="pt title">● mistrzostwo</span>
+        {history.some((x) => x.national) && <span className="pt tourn">◆ turniej z kadrą</span>}
         <span className="pt fired">✕ zwolnienie</span>
         <span className="muted">pasy: kolejne kluby</span>
       </div>
@@ -156,9 +154,13 @@ function Stints({ history }: { history: SeasonRecord[] }) {
       {stints.map((st, k) => {
         const first = st.seasons[0]
         const last = st.seasons[st.seasons.length - 1]
-        const ups = st.seasons.filter((x) => x.outcome.includes('awans')).length
-        const downs = st.seasons.filter((x) => x.outcome.includes('spadek')).length
-        const titles = st.seasons.filter((x) => x.outcome.includes('mistrzostwo')).length
+        const ups = st.seasons.filter((x) => seasonMark(x) === 'up').length
+        const downs = st.seasons.filter((x) => seasonMark(x) === 'down').length
+        const titles = st.seasons.filter((x) => !x.national && seasonMark(x) === 'title').length
+        const tourns = st.seasons.filter((x) => x.national && !x.national.between && x.national.reached >= 1)
+        const golds = tourns.filter((x) => x.national!.reached === 6).length
+        const nlWins = st.seasons.filter((x) => x.national?.nl === 3).length
+        const bestTourn = [...tourns].sort((a, b) => b.national!.reached - a.national!.reached)[0]
         const shortLeague = (x: SeasonRecord) => x.leagueName.split(' · ')[0].replace(/ \(.*\)$/, '')
         return (
           <li key={k}>
@@ -174,6 +176,10 @@ function Stints({ history }: { history: SeasonRecord[] }) {
               {ups > 0 && <span className="stint-chip up">▲ {ups > 1 ? `${ups}× ` : ''}awans</span>}
               {downs > 0 && <span className="stint-chip down">▼ {downs > 1 ? `${downs}× ` : ''}spadek</span>}
               {titles > 0 && <span className="stint-chip title">🏆 {titles > 1 ? `${titles}× ` : ''}mistrzostwo</span>}
+              {tourns.length > 0 && <span className="stint-chip tourn">✈️ {tourns.length > 1 ? `${tourns.length}× ` : ''}turniej</span>}
+              {bestTourn && bestTourn.national!.reached < 6 && <span className="stint-chip tourn">najlepiej: {REACHED_LABEL[bestTourn.national!.reached]}</span>}
+              {golds > 0 && <span className="stint-chip title">🥇 {golds > 1 ? `${golds}× ` : ''}złoto</span>}
+              {nlWins > 0 && <span className="stint-chip title">🏆 Liga Narodów</span>}
               {last.fired && <span className="stint-chip fired">✕ zwolniony</span>}
             </div>
           </li>
@@ -364,6 +370,12 @@ export function CareerCard({ s, onNew }: { s: GameState; onNew: () => void }) {
           <dd>{card.record}</dd>
           <dt>Szczyt kariery</dt>
           <dd>{card.peak}</dd>
+          {card.national && (
+            <>
+              <dt>Reprezentacja</dt>
+              <dd>{card.national}</dd>
+            </>
+          )}
           {card.bestPlayer && (
             <>
               <dt>Najlepszy podopieczny</dt>

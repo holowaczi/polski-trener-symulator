@@ -1,5 +1,5 @@
 import { COACH_QUOTES } from './data'
-import type { CareerEnding, GameState, PendingEvent } from './types'
+import type { CareerEnding, GameState, PendingEvent, SeasonRecord } from './types'
 import { adjustCoach, adjustTrust } from './util'
 
 // ---------- wypalenie ----------
@@ -149,6 +149,47 @@ export function paperFor(peak: number): string {
 
 const peakOf = (s: GameState) => (s.history.length ? Math.max(...s.history.map((h) => h.level)) : 0)
 
+// ---------- sezony na karcie ----------
+
+/** wiersz sezonu na wykresie kariery: kadra stoi nad Ekstraklasą (10 = młodzieżówka, 11 = pierwsza reprezentacja) */
+export function pathLevel(h: SeasonRecord): number {
+  return h.national ? (h.national.side === 'A' ? 11 : 10) : h.level
+}
+
+export type SeasonMark = 'up' | 'down' | 'title' | 'fired' | 'tourn' | 'none'
+
+/** znak sezonu na karcie: w kadrze awans na turniej to nie awans ligowy, a złoto to złoto */
+export function seasonMark(h: SeasonRecord): SeasonMark {
+  if (h.fired) return 'fired'
+  if (h.national) {
+    if (h.national.reached === 6 || h.national.nl === 3) return 'title'
+    return !h.national.between && h.national.reached >= 1 ? 'tourn' : 'none'
+  }
+  if (h.outcome.includes('mistrzostwo')) return 'title'
+  if (h.outcome.includes('awans')) return 'up'
+  if (h.outcome.includes('spadek')) return 'down'
+  return 'none'
+}
+
+/** praca z kadrą w jednym zdaniu, np. „3 sezony, 2 turnieje, najlepiej półfinał (Mistrzostwa Świata 2030)” */
+export function nationalSummary(s: GameState): string | undefined {
+  const nat = s.history.filter((h) => h.national)
+  if (!nat.length) return undefined
+  const tourns = nat.filter((h) => !h.national!.between && h.national!.reached >= 1)
+  const best = [...tourns].sort((a, b) => b.national!.reached - a.national!.reached || (b.national!.side === 'A' ? 1 : 0) - (a.national!.side === 'A' ? 1 : 0))[0]
+  const labels = ['bez awansu', 'faza grupowa', 'faza pucharowa', 'ćwierćfinał', 'półfinał', 'finał', 'złoto']
+  const sides = [...new Set(nat.map((h) => (h.national!.side === 'A' ? 'kadra A' : 'U21')))].join(' i ')
+  const n = nat.length
+  const t = tourns.length
+  return [
+    `${sides}: ${n} ${n === 1 ? 'sezon' : n < 5 ? 'sezony' : 'sezonów'}`,
+    t ? `${t} ${t === 1 ? 'turniej' : t < 5 ? 'turnieje' : 'turniejów'}` : 'bez wielkiego turnieju',
+    best ? `najlepiej ${labels[best.national!.reached]} (${best.leagueName.replace(/ \(.*\)$/, '')})` : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
 export function burnoutEnding(s: GameState, clubName?: string): CareerEnding {
   return {
     kind: 'wypalenie',
@@ -202,13 +243,20 @@ export function choiceEnding(s: GameState, reason: string): CareerEnding {
 export function pressQuote(s: GameState): { text: string; source: string } {
   const source = paperFor(peakOf(s))
   const seasons = s.history.length
-  const promotions = s.history.filter((h) => h.outcome.includes('awans')).length
+  const promotions = s.history.filter((h) => seasonMark(h) === 'up').length
+  const tournaments = s.history.filter((h) => seasonMark(h) === 'tourn' || (h.national && h.national.reached === 6)).length
   const text = (() => {
     if (seasons === 0) return 'Kto to w ogóle był? Pytamy dla znajomego.'
     if (s.ending?.kind === 'skandal') return 'Wiedzieliśmy, że to się tak skończy. Pisaliśmy o tym trzy razy.'
+    if (s.trophies.some((t) => t.startsWith('Złoto: Mistrzostwa Świata'))) return 'Mistrz świata. Polska wstała z kanapy i już nie usiadła.'
+    if (s.trophies.some((t) => /^Złoto: Mistrzostwa Europy \d/.test(t))) return 'Mistrz Europy! Pomnik już się leje, na razie z czekolady.'
     if (s.trophies.some((t) => /^Liga (Mistrzów|Europy|Konferencji) \(/.test(t))) return 'Europa nauczyła się wymawiać nazwę jego klubu. Prawie poprawnie.'
     if (s.trophies.some((t) => t.startsWith('Mistrzostwo Polski'))) return 'Najlepszy trener w kraju. Bez dyskusji, choć dyskusje były.'
     if (s.trophies.some((t) => t.startsWith('Puchar Polski ('))) return 'Puchar Polski pojechał do szatni, w której nie było ciepłej wody.'
+    if (s.trophies.some((t) => t.startsWith('Liga Narodów'))) return 'Wygrał Ligę Narodów. Nikt do końca nie wie, co to jest, ale puchar ładnie błyszczy.'
+    if (s.trophies.some((t) => t.startsWith('Złoto: Mistrzostwa Europy U21'))) return 'Złota młodzieżówka. Za dziesięć lat wszyscy będą mówić, że to on ich odkrył.'
+    if (tournaments >= 2) return 'Woził kadrę na turnieje jak autobus na wycieczkę. Zawsze wracał z pamiątkami.'
+    if (tournaments === 1) return 'Wyprowadził kadrę na wielki turniej. W kraju nikt już nie pyta „a kto to?”.'
     if (promotions >= 3) return 'Gdzie przyjdzie, tam awans. Prezesi ustawiają się w kolejce.'
     if (s.totalStats.firedCount >= 3) return 'Zwalniany częściej, niż zmienia się rozkład PKS-u.'
     if (s.ending?.kind === 'wypalenie') return 'Dał z siebie wszystko. Dosłownie wszystko.'
@@ -254,7 +302,11 @@ export function trophyLines(trophies: string[]): TrophyLine[] {
     else lines.set(label, { count: 1, rank })
   }
   for (const t of trophies) {
-    if (t.startsWith('Liga Mistrzów (')) add('Liga Mistrzów', 130)
+    if (t.startsWith('Złoto: Mistrzostwa Świata')) add('Mistrzostwo świata', 200)
+    else if (t.startsWith('Złoto: Mistrzostwa Europy U21')) add('Mistrzostwo Europy U21', 135)
+    else if (t.startsWith('Złoto: Mistrzostwa Europy')) add('Mistrzostwo Europy', 190)
+    else if (t.startsWith('Liga Narodów')) add('Liga Narodów', 140)
+    else if (t.startsWith('Liga Mistrzów (')) add('Liga Mistrzów', 130)
     else if (t.startsWith('Liga Europy (')) add('Liga Europy', 120)
     else if (t.startsWith('Liga Konferencji (')) add('Liga Konferencji', 110)
     else if (t.startsWith('Mistrzostwo Polski')) add('Mistrzostwo Polski', 100)

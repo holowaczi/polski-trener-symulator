@@ -1,5 +1,11 @@
 # Zmiany
 
+## 0.16.2 (alfa) · 5 listopada 2026
+
+- **Karta kariery pamięta o reprezentacji.** Na wykresie kariery kadra ma własne wiersze nad Ekstraklasą („Kadra” i „Kadra U21”), a turniej z kadrą ma swój znak ◆. Awans na turniej nie liczy się już jako awans ligowy, a w podpowiedzi zamiast „Puchar:” widać, jak poszło na turnieju.
+- W przebiegu kariery przy reprezentacji widać liczbę turniejów, najlepszy wynik, złoto i Ligę Narodów. Na karcie jest nowy wiersz „Reprezentacja”, np. „kadra A: 6 sezonów, 3 turnieje, najlepiej ćwierćfinał”. Liczba klubów nie wlicza już kadry.
+- Złoto mistrzostw świata, Europy i Euro U21 oraz Liga Narodów stoją w gablocie na samej górze, a prasa ma o nich osobne cytaty.
+
 ## 0.16.1 (alfa) · 5 listopada 2026
 
 - **Ławka z głową.** Asystent ustawia na ławce jednego bramkarza i po dwóch zmienników do obrony, pomocy i ataku. Koniec z trzema bramkarzami na ławce i ani jednym napastnikiem. Działa w klubie i w reprezentacji. Ręcznie ułożona ławka zostaje taka, jak ją ustawisz.

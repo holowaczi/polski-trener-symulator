@@ -2398,3 +2398,17 @@ blockquote cite::before {
   min-width: 7.5em;
   color: var(--muted);
 }
+
+/* kadra na karcie kariery */
+.path-chart .pt.tourn rect.dia {
+  fill: var(--comp-nat);
+}
+.tip-mark.tourn,
+.stint-chip.tourn,
+.path-legend .tourn {
+  color: var(--comp-nat);
+  font-weight: 700;
+}
+.sc-pt.tourn {
+  fill: #e8475f;
+}
